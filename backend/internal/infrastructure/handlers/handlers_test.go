@@ -1,0 +1,299 @@
+package handlers
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/flow/internal/domain/entities"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// MockUserService for testing
+type MockUserService struct {
+	mock.Mock
+}
+
+func (m *MockUserService) Register(ctx context.Context, req *entities.UserCreateRequest) (*entities.User, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).(*entities.User), args.Error(1)
+}
+
+func (m *MockUserService) Login(ctx context.Context, req *entities.UserLoginRequest) (string, error) {
+	args := m.Called(ctx, req)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockUserService) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.User, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*entities.User), args.Error(1)
+}
+
+// MockProjectService for testing
+type MockProjectService struct {
+	mock.Mock
+}
+
+func (m *MockProjectService) CreateProject(ctx context.Context, req *entities.ProjectCreateRequest, userID uuid.UUID) (*entities.Project, error) {
+	args := m.Called(ctx, req, userID)
+	return args.Get(0).(*entities.Project), args.Error(1)
+}
+
+func (m *MockProjectService) GetProjectByID(ctx context.Context, id uuid.UUID) (*entities.Project, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*entities.Project), args.Error(1)
+}
+
+func (m *MockProjectService) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]*entities.Project, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).([]*entities.Project), args.Error(1)
+}
+
+func (m *MockProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *entities.ProjectUpdateRequest) (*entities.Project, error) {
+	args := m.Called(ctx, id, req)
+	return args.Get(0).(*entities.Project), args.Error(1)
+}
+
+func (m *MockProjectService) DeleteProject(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+// MockTableService for testing
+type MockTableService struct {
+	mock.Mock
+}
+
+func (m *MockTableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.Table, error) {
+	args := m.Called(ctx, req, projectID)
+	return args.Get(0).(*entities.Table), args.Error(1)
+}
+
+func (m *MockTableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entities.Table, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*entities.Table), args.Error(1)
+}
+
+func (m *MockTableService) GetTablesByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Table, error) {
+	args := m.Called(ctx, projectID)
+	return args.Get(0).([]*entities.Table), args.Error(1)
+}
+
+func (m *MockTableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest) (*entities.Table, error) {
+	args := m.Called(ctx, id, req)
+	return args.Get(0).(*entities.Table), args.Error(1)
+}
+
+func (m *MockTableService) DeleteTable(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func TestUserHandler_Register(t *testing.T) {
+	mockUserService := new(MockUserService)
+	handler := NewUserHandler(mockUserService)
+
+	// Test data
+	userReq := &entities.UserCreateRequest{
+		Email:    "test@example.com",
+		Password: "password123",
+		Name:     "Test User",
+	}
+
+	expectedUser := &entities.User{
+		ID:    uuid.New(),
+		Email: userReq.Email,
+		Name:  userReq.Name,
+	}
+
+	// Setup mock expectations
+	mockUserService.On("Register", mock.Anything, userReq).Return(expectedUser, nil)
+
+	// Create request
+	jsonData, _ := json.Marshal(userReq)
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler.Register(rr, req)
+
+	// Assertions
+	assert.Equal(t, http.StatusCreated, rr.Code)
+
+	var response entities.User
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUser.Email, response.Email)
+	assert.Equal(t, expectedUser.Name, response.Name)
+
+	mockUserService.AssertExpectations(t)
+}
+
+func TestUserHandler_Login(t *testing.T) {
+	mockUserService := new(MockUserService)
+	handler := NewUserHandler(mockUserService)
+
+	// Test data
+	loginReq := &entities.UserLoginRequest{
+		Email:    "test@example.com",
+		Password: "password123",
+	}
+
+	expectedToken := "jwt-token-here"
+
+	// Setup mock expectations
+	mockUserService.On("Login", mock.Anything, loginReq).Return(expectedToken, nil)
+
+	// Create request
+	jsonData, _ := json.Marshal(loginReq)
+	req, _ := http.NewRequest("POST", "/api/v1/auth/login", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler.Login(rr, req)
+
+	// Assertions
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var response map[string]string
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedToken, response["token"])
+
+	mockUserService.AssertExpectations(t)
+}
+
+func TestProjectHandler_CreateProject(t *testing.T) {
+	mockProjectService := new(MockProjectService)
+	handler := NewProjectHandler(mockProjectService)
+
+	// Test data
+	projectReq := &entities.ProjectCreateRequest{
+		Name:        "Test Project",
+		Description: "A test project",
+	}
+
+	expectedProject := &entities.Project{
+		ID:          uuid.New(),
+		Name:        projectReq.Name,
+		Description: projectReq.Description,
+		OwnerID:     uuid.New(),
+	}
+
+	// Setup mock expectations
+	mockProjectService.On("CreateProject", mock.Anything, projectReq, mock.AnythingOfType("uuid.UUID")).Return(expectedProject, nil)
+
+	// Create request with user context
+	jsonData, _ := json.Marshal(projectReq)
+	req, _ := http.NewRequest("POST", "/api/v1/projects", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Add user ID to context (simulating auth middleware)
+	ctx := context.WithValue(req.Context(), "user_id", uuid.New())
+	req = req.WithContext(ctx)
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler.CreateProject(rr, req)
+
+	// Assertions
+	assert.Equal(t, http.StatusCreated, rr.Code)
+
+	var response entities.Project
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedProject.Name, response.Name)
+	assert.Equal(t, expectedProject.Description, response.Description)
+
+	mockProjectService.AssertExpectations(t)
+}
+
+func TestTableHandler_CreateTable(t *testing.T) {
+	mockTableService := new(MockTableService)
+	handler := NewTableHandler(mockTableService)
+
+	// Test data
+	tableReq := &entities.TableCreateRequest{
+		Name:   "test_table",
+		Schema: `{"columns": [{"name": "id", "type": "uuid"}]}`,
+	}
+
+	projectID := uuid.New()
+	expectedTable := &entities.Table{
+		ID:        uuid.New(),
+		Name:      tableReq.Name,
+		Schema:    tableReq.Schema,
+		ProjectID: projectID,
+	}
+
+	// Setup mock expectations
+	mockTableService.On("CreateTable", mock.Anything, tableReq, projectID).Return(expectedTable, nil)
+
+	// Create request
+	jsonData, _ := json.Marshal(tableReq)
+	req, _ := http.NewRequest("POST", "/api/v1/projects/"+projectID.String()+"/tables", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Call handler
+	handler.CreateTable(rr, req)
+
+	// Assertions
+	assert.Equal(t, http.StatusCreated, rr.Code)
+
+	var response entities.Table
+	err := json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedTable.Name, response.Name)
+	assert.Equal(t, expectedTable.Schema, response.Schema)
+
+	mockTableService.AssertExpectations(t)
+}
+
+// Test error cases
+func TestUserHandler_Register_InvalidJSON(t *testing.T) {
+	mockUserService := new(MockUserService)
+	handler := NewUserHandler(mockUserService)
+
+	// Create request with invalid JSON
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler.Register(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestProjectHandler_CreateProject_Unauthorized(t *testing.T) {
+	mockProjectService := new(MockProjectService)
+	handler := NewProjectHandler(mockProjectService)
+
+	// Create request without user context
+	projectReq := &entities.ProjectCreateRequest{
+		Name: "Test Project",
+	}
+	jsonData, _ := json.Marshal(projectReq)
+	req, _ := http.NewRequest("POST", "/api/v1/projects", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	handler.CreateProject(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+}
