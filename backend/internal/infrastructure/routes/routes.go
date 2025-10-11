@@ -16,6 +16,8 @@ func SetupRoutes(
 	userHandler *handlers.UserHandler,
 	projectHandler *handlers.ProjectHandler,
 	tableHandler *handlers.TableHandler,
+	dbMutationHandler *handlers.DatabaseMutationHandler,
+	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -66,6 +68,15 @@ func SetupRoutes(
 				r.Put("/{id}", projectHandler.UpdateProject)
 				r.Delete("/{id}", projectHandler.DeleteProject)
 
+				// Database mutation routes under projects
+				r.Route("/{projectId}/databases", func(r chi.Router) {
+					r.Post("/", dbMutationHandler.CreateProjectDatabase)
+					r.Get("/", dbMutationHandler.GetProjectDatabases)
+					r.Put("/{id}", dbMutationHandler.UpdateProjectDatabase)
+					r.Delete("/{id}", dbMutationHandler.DeleteProjectDatabase)
+					r.Post("/{id}/test", dbMutationHandler.TestDatabaseConnection)
+				})
+
 				// Table routes under projects
 				r.Route("/{projectId}/tables", func(r chi.Router) {
 					r.Post("/", tableHandler.CreateTable)
@@ -73,6 +84,17 @@ func SetupRoutes(
 					r.Get("/{id}", tableHandler.GetTable)
 					r.Put("/{id}", tableHandler.UpdateTable)
 					r.Delete("/{id}", tableHandler.DeleteTable)
+
+					// Table schema mutation routes
+					r.Route("/{tableName}/schema", func(r chi.Router) {
+						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)
+						r.Delete("/drop", tableSchemaMutationHandler.DropTableFromDatabase)
+						r.Post("/columns/add", tableSchemaMutationHandler.AddColumnToTable)
+						r.Delete("/columns/remove", tableSchemaMutationHandler.RemoveColumnFromTable)
+						r.Put("/columns/modify", tableSchemaMutationHandler.ModifyColumnInTable)
+						r.Post("/foreign-keys/add", tableSchemaMutationHandler.AddForeignKeyToTable)
+						r.Delete("/foreign-keys/remove", tableSchemaMutationHandler.RemoveForeignKeyFromTable)
+					})
 				})
 			})
 		})

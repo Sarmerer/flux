@@ -58,13 +58,19 @@ func main() {
 	projectService := services.NewProjectService(projectRepo, databaseRepo)
 	tableService := services.NewTableService(tableRepo)
 
+	// Initialize mutation services
+	dbMutationService := services.NewDatabaseMutationService(databaseRepo, projectRepo, db)
+	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
+
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	tableHandler := handlers.NewTableHandler(tableService)
+	dbMutationHandler := handlers.NewDatabaseMutationHandler(dbMutationService)
+	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler)
+	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationHandler, tableSchemaMutationHandler)
 
 	// Create HTTP server
 	server := &http.Server{

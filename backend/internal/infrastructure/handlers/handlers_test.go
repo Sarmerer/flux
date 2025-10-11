@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,9 +20,9 @@ type MockUserService struct {
 	mock.Mock
 }
 
-func (m *MockUserService) Register(ctx context.Context, req *entities.UserCreateRequest) (*entities.User, error) {
+func (m *MockUserService) Register(ctx context.Context, req *entities.UserCreateRequest) (*entities.UserResponse, error) {
 	args := m.Called(ctx, req)
-	return args.Get(0).(*entities.User), args.Error(1)
+	return args.Get(0).(*entities.UserResponse), args.Error(1)
 }
 
 func (m *MockUserService) Login(ctx context.Context, req *entities.UserLoginRequest) (string, error) {
@@ -29,9 +30,9 @@ func (m *MockUserService) Login(ctx context.Context, req *entities.UserLoginRequ
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockUserService) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.User, error) {
+func (m *MockUserService) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.UserResponse, error) {
 	args := m.Called(ctx, id)
-	return args.Get(0).(*entities.User), args.Error(1)
+	return args.Get(0).(*entities.UserResponse), args.Error(1)
 }
 
 // MockProjectService for testing
@@ -39,24 +40,24 @@ type MockProjectService struct {
 	mock.Mock
 }
 
-func (m *MockProjectService) CreateProject(ctx context.Context, req *entities.ProjectCreateRequest, userID uuid.UUID) (*entities.Project, error) {
+func (m *MockProjectService) CreateProject(ctx context.Context, req *entities.ProjectCreateRequest, userID uuid.UUID) (*entities.ProjectResponse, error) {
 	args := m.Called(ctx, req, userID)
-	return args.Get(0).(*entities.Project), args.Error(1)
+	return args.Get(0).(*entities.ProjectResponse), args.Error(1)
 }
 
-func (m *MockProjectService) GetProjectByID(ctx context.Context, id uuid.UUID) (*entities.Project, error) {
+func (m *MockProjectService) GetProjectByID(ctx context.Context, id uuid.UUID) (*entities.ProjectResponse, error) {
 	args := m.Called(ctx, id)
-	return args.Get(0).(*entities.Project), args.Error(1)
+	return args.Get(0).(*entities.ProjectResponse), args.Error(1)
 }
 
-func (m *MockProjectService) GetProjectsByUserID(ctx context.Context, userID uuid.UUID) ([]*entities.Project, error) {
+func (m *MockProjectService) GetProjectsByOwnerID(ctx context.Context, userID uuid.UUID) ([]*entities.ProjectResponse, error) {
 	args := m.Called(ctx, userID)
-	return args.Get(0).([]*entities.Project), args.Error(1)
+	return args.Get(0).([]*entities.ProjectResponse), args.Error(1)
 }
 
-func (m *MockProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *entities.ProjectUpdateRequest) (*entities.Project, error) {
+func (m *MockProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *entities.ProjectCreateRequest) (*entities.ProjectResponse, error) {
 	args := m.Called(ctx, id, req)
-	return args.Get(0).(*entities.Project), args.Error(1)
+	return args.Get(0).(*entities.ProjectResponse), args.Error(1)
 }
 
 func (m *MockProjectService) DeleteProject(ctx context.Context, id uuid.UUID) error {
@@ -69,24 +70,24 @@ type MockTableService struct {
 	mock.Mock
 }
 
-func (m *MockTableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.Table, error) {
+func (m *MockTableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
 	args := m.Called(ctx, req, projectID)
-	return args.Get(0).(*entities.Table), args.Error(1)
+	return args.Get(0).(*entities.TableResponse), args.Error(1)
 }
 
-func (m *MockTableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entities.Table, error) {
+func (m *MockTableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entities.TableResponse, error) {
 	args := m.Called(ctx, id)
-	return args.Get(0).(*entities.Table), args.Error(1)
+	return args.Get(0).(*entities.TableResponse), args.Error(1)
 }
 
-func (m *MockTableService) GetTablesByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Table, error) {
+func (m *MockTableService) GetTablesByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.TableResponse, error) {
 	args := m.Called(ctx, projectID)
-	return args.Get(0).([]*entities.Table), args.Error(1)
+	return args.Get(0).([]*entities.TableResponse), args.Error(1)
 }
 
-func (m *MockTableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest) (*entities.Table, error) {
+func (m *MockTableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest) (*entities.TableResponse, error) {
 	args := m.Called(ctx, id, req)
-	return args.Get(0).(*entities.Table), args.Error(1)
+	return args.Get(0).(*entities.TableResponse), args.Error(1)
 }
 
 func (m *MockTableService) DeleteTable(ctx context.Context, id uuid.UUID) error {
@@ -105,7 +106,7 @@ func TestUserHandler_Register(t *testing.T) {
 		Name:     "Test User",
 	}
 
-	expectedUser := &entities.User{
+	expectedUser := &entities.UserResponse{
 		ID:    uuid.New(),
 		Email: userReq.Email,
 		Name:  userReq.Name,
@@ -184,7 +185,7 @@ func TestProjectHandler_CreateProject(t *testing.T) {
 		Description: "A test project",
 	}
 
-	expectedProject := &entities.Project{
+	expectedProject := &entities.ProjectResponse{
 		ID:          uuid.New(),
 		Name:        projectReq.Name,
 		Description: projectReq.Description,
@@ -227,36 +228,45 @@ func TestTableHandler_CreateTable(t *testing.T) {
 
 	// Test data
 	tableReq := &entities.TableCreateRequest{
-		Name:   "test_table",
-		Schema: `{"columns": [{"name": "id", "type": "uuid"}]}`,
+		Name: "test_table",
+		Schema: map[string]interface{}{
+			"columns": []map[string]interface{}{
+				{"name": "id", "type": "uuid"},
+			},
+		},
 	}
 
 	projectID := uuid.New()
-	expectedTable := &entities.Table{
+	expectedTable := &entities.TableResponse{
 		ID:        uuid.New(),
 		Name:      tableReq.Name,
-		Schema:    tableReq.Schema,
+		Schema:    `{"columns": [{"name": "id", "type": "uuid"}]}`,
 		ProjectID: projectID,
 	}
 
 	// Setup mock expectations
-	mockTableService.On("CreateTable", mock.Anything, tableReq, projectID).Return(expectedTable, nil)
+	mockTableService.On("CreateTable", mock.Anything, mock.AnythingOfType("*entities.TableCreateRequest"), projectID).Return(expectedTable, nil)
 
 	// Create request
 	jsonData, _ := json.Marshal(tableReq)
+
+	// Create a chi router to properly handle URL parameters
+	r := chi.NewRouter()
+	r.Post("/api/v1/projects/{projectId}/tables", handler.CreateTable)
+
 	req, _ := http.NewRequest("POST", "/api/v1/projects/"+projectID.String()+"/tables", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 
 	// Create response recorder
 	rr := httptest.NewRecorder()
 
-	// Call handler
-	handler.CreateTable(rr, req)
+	// Call handler through router
+	r.ServeHTTP(rr, req)
 
 	// Assertions
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
-	var response entities.Table
+	var response entities.TableResponse
 	err := json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedTable.Name, response.Name)

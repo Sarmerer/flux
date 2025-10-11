@@ -13,11 +13,11 @@ import (
 
 // TableHandler handles table-related HTTP requests
 type TableHandler struct {
-	tableService *services.TableService
+	tableService services.TableServiceInterface
 }
 
 // NewTableHandler creates a new TableHandler
-func NewTableHandler(tableService *services.TableService) *TableHandler {
+func NewTableHandler(tableService services.TableServiceInterface) *TableHandler {
 	return &TableHandler{
 		tableService: tableService,
 	}

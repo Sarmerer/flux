@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	postgresRepo "github.com/flow/internal/infrastructure/repositories/postgres"
 	"github.com/flow/internal/infrastructure/routes"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +23,7 @@ import (
 // IntegrationTestSuite provides a test suite for integration testing
 type IntegrationTestSuite struct {
 	router http.Handler
-	db     *postgres.Pool
+	db     *pgxpool.Pool
 	userID uuid.UUID
 	token  string
 }
@@ -59,13 +59,19 @@ func SetupTestSuite(t *testing.T) *IntegrationTestSuite {
 	projectService := services.NewProjectService(projectRepo, databaseRepo)
 	tableService := services.NewTableService(tableRepo)
 
+	// Initialize mutation services
+	dbMutationService := services.NewDatabaseMutationService(databaseRepo, projectRepo, db)
+	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
+
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	tableHandler := handlers.NewTableHandler(tableService)
+	dbMutationHandler := handlers.NewDatabaseMutationHandler(dbMutationService)
+	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler)
+	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationHandler, tableSchemaMutationHandler)
 
 	return &IntegrationTestSuite{
 		router: router,
@@ -213,8 +219,13 @@ func TestTableManagement(t *testing.T) {
 
 	// Test table creation
 	tableData := entities.TableCreateRequest{
-		Name:   "test_table",
-		Schema: `{"columns": [{"name": "id", "type": "uuid"}, {"name": "name", "type": "varchar"}]}`,
+		Name: "test_table",
+		Schema: map[string]interface{}{
+			"columns": []map[string]interface{}{
+				{"name": "id", "type": "uuid"},
+				{"name": "name", "type": "varchar"},
+			},
+		},
 	}
 
 	jsonData, err := json.Marshal(tableData)
@@ -348,13 +359,4 @@ func BenchmarkHealthEndpoint(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		suite.router.ServeHTTP(rr, req)
 	}
-}
-
-// Example of how to run tests
-func ExampleRunIntegrationTests() {
-	fmt.Println("To run integration tests:")
-	fmt.Println("go test -v ./cmd/api")
-	fmt.Println("go test -v -run TestHealthEndpoint")
-	fmt.Println("go test -v -run TestUserRegistrationAndLogin")
-	fmt.Println("go test -bench=.")
 }

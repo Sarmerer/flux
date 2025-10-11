@@ -13,11 +13,11 @@ import (
 
 // ProjectHandler handles project-related HTTP requests
 type ProjectHandler struct {
-	projectService *services.ProjectService
+	projectService services.ProjectServiceInterface
 }
 
 // NewProjectHandler creates a new ProjectHandler
-func NewProjectHandler(projectService *services.ProjectService) *ProjectHandler {
+func NewProjectHandler(projectService services.ProjectServiceInterface) *ProjectHandler {
 	return &ProjectHandler{
 		projectService: projectService,
 	}
