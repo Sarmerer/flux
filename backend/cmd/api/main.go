@@ -15,6 +15,8 @@ import (
 	"github.com/flow/internal/infrastructure/handlers"
 	postgresRepo "github.com/flow/internal/infrastructure/repositories/postgres"
 	"github.com/flow/internal/infrastructure/routes"
+	"github.com/flow/internal/pkg/progress"
+	"github.com/flow/internal/pkg/websocket"
 	"github.com/flow/pkg/config"
 )
 
@@ -58,8 +60,19 @@ func main() {
 	projectService := services.NewProjectService(projectRepo, databaseRepo)
 	tableService := services.NewTableService(tableRepo)
 
+	// Initialize WebSocket hub and progress tracker
+	wsHub := websocket.NewHub()
+	progressTracker := progress.NewTracker(wsHub)
+
+	// Start WebSocket hub
+	go wsHub.Run(ctx)
+
+	// Start progress tracker cleanup routine
+	progressTracker.StartCleanupRoutine(ctx, 5*time.Minute, 1*time.Hour)
+
 	// Initialize mutation services
 	dbMutationService := services.NewDatabaseMutationService(databaseRepo, projectRepo, db)
+	enhancedDbMutationService := services.NewEnhancedDatabaseMutationService(databaseRepo, projectRepo, db, progressTracker, wsHub)
 	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
 
 	// Initialize handlers
@@ -67,10 +80,11 @@ func main() {
 	projectHandler := handlers.NewProjectHandler(projectService)
 	tableHandler := handlers.NewTableHandler(tableService)
 	dbMutationHandler := handlers.NewDatabaseMutationHandler(dbMutationService)
+	enhancedDbMutationHandler := handlers.NewEnhancedDatabaseMutationHandler(enhancedDbMutationService, progressTracker, wsHub)
 	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationHandler, tableSchemaMutationHandler)
+	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationHandler, enhancedDbMutationHandler, tableSchemaMutationHandler)
 
 	// Create HTTP server
 	server := &http.Server{

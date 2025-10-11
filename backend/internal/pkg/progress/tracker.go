@@ -1,0 +1,350 @@
+package progress
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/flow/internal/pkg/websocket"
+	"github.com/google/uuid"
+)
+
+// OperationStatus represents the status of an operation
+type OperationStatus string
+
+const (
+	StatusPending   OperationStatus = "pending"
+	StatusRunning   OperationStatus = "running"
+	StatusCompleted OperationStatus = "completed"
+	StatusFailed    OperationStatus = "failed"
+	StatusCancelled OperationStatus = "cancelled"
+)
+
+// Operation represents a tracked operation
+type Operation struct {
+	ID          string                 `json:"id"`
+	UserID      uuid.UUID              `json:"user_id"`
+	Type        string                 `json:"type"`
+	Status      OperationStatus        `json:"status"`
+	Progress    float64                `json:"progress"` // 0.0 to 1.0
+	CurrentStep string                 `json:"current_step"`
+	Message     string                 `json:"message"`
+	StartTime   time.Time              `json:"start_time"`
+	EndTime     *time.Time             `json:"end_time,omitempty"`
+	Error       string                 `json:"error,omitempty"`
+	Result      interface{}            `json:"result,omitempty"`
+	Steps       []Step                 `json:"steps"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// Step represents a step in an operation
+type Step struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Status      OperationStatus `json:"status"`
+	StartTime   time.Time       `json:"start_time"`
+	EndTime     *time.Time      `json:"end_time,omitempty"`
+	Progress    float64         `json:"progress"`
+	Error       string          `json:"error,omitempty"`
+}
+
+// Tracker manages operation progress tracking
+type Tracker struct {
+	operations map[string]*Operation
+	mutex      sync.RWMutex
+	hub        *websocket.Hub
+}
+
+// NewTracker creates a new progress tracker
+func NewTracker(hub *websocket.Hub) *Tracker {
+	return &Tracker{
+		operations: make(map[string]*Operation),
+		hub:        hub,
+	}
+}
+
+// StartOperation starts tracking a new operation
+func (t *Tracker) StartOperation(userID uuid.UUID, operationType, message string, steps []string) *Operation {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	operationID := uuid.New().String()
+
+	// Create step objects
+	operationSteps := make([]Step, len(steps))
+	for i, stepName := range steps {
+		operationSteps[i] = Step{
+			Name:        stepName,
+			Description: stepName,
+			Status:      StatusPending,
+			Progress:    0.0,
+		}
+	}
+
+	operation := &Operation{
+		ID:          operationID,
+		UserID:      userID,
+		Type:        operationType,
+		Status:      StatusPending,
+		Progress:    0.0,
+		CurrentStep: "",
+		Message:     message,
+		StartTime:   time.Now(),
+		Steps:       operationSteps,
+		Metadata:    make(map[string]interface{}),
+	}
+
+	t.operations[operationID] = operation
+
+	// Send initial notification
+	websocket.SendNotificationToUser(t.hub, userID, "Operation started", map[string]interface{}{
+		"operation_id": operationID,
+		"type":         operationType,
+		"message":      message,
+	})
+
+	return operation
+}
+
+// UpdateProgress updates the progress of an operation
+func (t *Tracker) UpdateProgress(operationID, stepName, message string, progress float64) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	operation, exists := t.operations[operationID]
+	if !exists {
+		return ErrOperationNotFound
+	}
+
+	// Update operation progress
+	operation.Progress = progress
+	operation.CurrentStep = stepName
+	operation.Message = message
+	operation.Status = StatusRunning
+
+	// Update step progress
+	for i, step := range operation.Steps {
+		if step.Name == stepName {
+			operation.Steps[i].Status = StatusRunning
+			operation.Steps[i].Progress = progress
+			if operation.Steps[i].StartTime.IsZero() {
+				operation.Steps[i].StartTime = time.Now()
+			}
+			break
+		}
+	}
+
+	// Send progress update via WebSocket
+	websocket.SendProgressToUser(t.hub, operation.UserID, operationID, stepName, progress, message)
+
+	return nil
+}
+
+// CompleteStep marks a step as completed
+func (t *Tracker) CompleteStep(operationID, stepName string) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	operation, exists := t.operations[operationID]
+	if !exists {
+		return ErrOperationNotFound
+	}
+
+	// Mark step as completed
+	for i, step := range operation.Steps {
+		if step.Name == stepName {
+			operation.Steps[i].Status = StatusCompleted
+			operation.Steps[i].Progress = 1.0
+			now := time.Now()
+			operation.Steps[i].EndTime = &now
+			break
+		}
+	}
+
+	return nil
+}
+
+// CompleteOperation marks an operation as completed
+func (t *Tracker) CompleteOperation(operationID string, result interface{}) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	operation, exists := t.operations[operationID]
+	if !exists {
+		return ErrOperationNotFound
+	}
+
+	operation.Status = StatusCompleted
+	operation.Progress = 1.0
+	operation.Result = result
+	now := time.Now()
+	operation.EndTime = &now
+
+	// Send success notification
+	websocket.SendSuccessToUser(t.hub, operation.UserID, operationID, "Operation completed successfully", result)
+
+	return nil
+}
+
+// FailOperation marks an operation as failed
+func (t *Tracker) FailOperation(operationID string, err error) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	operation, exists := t.operations[operationID]
+	if !exists {
+		return ErrOperationNotFound
+	}
+
+	operation.Status = StatusFailed
+	operation.Error = err.Error()
+	now := time.Now()
+	operation.EndTime = &now
+
+	// Send error notification
+	websocket.SendErrorToUser(t.hub, operation.UserID, operationID, "Operation failed", err)
+
+	return nil
+}
+
+// CancelOperation cancels an operation
+func (t *Tracker) CancelOperation(operationID string) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	operation, exists := t.operations[operationID]
+	if !exists {
+		return ErrOperationNotFound
+	}
+
+	operation.Status = StatusCancelled
+	now := time.Now()
+	operation.EndTime = &now
+
+	// Send cancellation notification
+	websocket.SendNotificationToUser(t.hub, operation.UserID, "Operation cancelled", map[string]interface{}{
+		"operation_id": operationID,
+		"status":       StatusCancelled,
+	})
+
+	return nil
+}
+
+// GetOperation retrieves an operation by ID
+func (t *Tracker) GetOperation(operationID string) (*Operation, error) {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+
+	operation, exists := t.operations[operationID]
+	if !exists {
+		return nil, ErrOperationNotFound
+	}
+
+	return operation, nil
+}
+
+// GetUserOperations retrieves all operations for a user
+func (t *Tracker) GetUserOperations(userID uuid.UUID) []*Operation {
+	t.mutex.RLock()
+	defer t.mutex.RUnlock()
+
+	var userOperations []*Operation
+	for _, operation := range t.operations {
+		if operation.UserID == userID {
+			userOperations = append(userOperations, operation)
+		}
+	}
+
+	return userOperations
+}
+
+// CleanupCompletedOperations removes completed operations older than the specified duration
+func (t *Tracker) CleanupCompletedOperations(olderThan time.Duration) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	cutoff := time.Now().Add(-olderThan)
+	for id, operation := range t.operations {
+		if (operation.Status == StatusCompleted || operation.Status == StatusFailed || operation.Status == StatusCancelled) &&
+			operation.EndTime != nil && operation.EndTime.Before(cutoff) {
+			delete(t.operations, id)
+		}
+	}
+}
+
+// StartCleanupRoutine starts a background routine to clean up old operations
+func (t *Tracker) StartCleanupRoutine(ctx context.Context, interval, olderThan time.Duration) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				t.CleanupCompletedOperations(olderThan)
+			}
+		}
+	}()
+}
+
+// Operation context for tracking operations
+type OperationContext struct {
+	OperationID string
+	UserID      uuid.UUID
+	Tracker     *Tracker
+	ctx         context.Context
+	cancel      context.CancelFunc
+}
+
+// NewOperationContext creates a new operation context
+func (t *Tracker) NewOperationContext(userID uuid.UUID, operationType, message string, steps []string) *OperationContext {
+	operation := t.StartOperation(userID, operationType, message, steps)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &OperationContext{
+		OperationID: operation.ID,
+		UserID:      userID,
+		Tracker:     t,
+		ctx:         ctx,
+		cancel:      cancel,
+	}
+}
+
+// UpdateProgress updates progress for this operation context
+func (oc *OperationContext) UpdateProgress(stepName, message string, progress float64) error {
+	return oc.Tracker.UpdateProgress(oc.OperationID, stepName, message, progress)
+}
+
+// CompleteStep completes a step for this operation context
+func (oc *OperationContext) CompleteStep(stepName string) error {
+	return oc.Tracker.CompleteStep(oc.OperationID, stepName)
+}
+
+// Complete completes the operation with a result
+func (oc *OperationContext) Complete(result interface{}) error {
+	oc.cancel()
+	return oc.Tracker.CompleteOperation(oc.OperationID, result)
+}
+
+// Fail fails the operation with an error
+func (oc *OperationContext) Fail(err error) error {
+	oc.cancel()
+	return oc.Tracker.FailOperation(oc.OperationID, err)
+}
+
+// Cancel cancels the operation
+func (oc *OperationContext) Cancel() error {
+	oc.cancel()
+	return oc.Tracker.CancelOperation(oc.OperationID)
+}
+
+// Context returns the operation's context
+func (oc *OperationContext) Context() context.Context {
+	return oc.ctx
+}
+
+// Done returns a channel that's closed when the operation is done
+func (oc *OperationContext) Done() <-chan struct{} {
+	return oc.ctx.Done()
+}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/pkg/errors"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -28,19 +29,22 @@ func (h *DatabaseMutationHandler) CreateProjectDatabase(w http.ResponseWriter, r
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid project ID format").WithField("projectId")
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	var req entities.DatabaseCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	database, err := h.dbMutationService.CreateProjectDatabase(r.Context(), projectID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apiErr := errors.NewDatabaseError(err)
+		errors.WriteError(w, apiErr)
 		return
 	}
 
@@ -54,19 +58,22 @@ func (h *DatabaseMutationHandler) UpdateProjectDatabase(w http.ResponseWriter, r
 	databaseIDStr := chi.URLParam(r, "id")
 	databaseID, err := uuid.Parse(databaseIDStr)
 	if err != nil {
-		http.Error(w, "Invalid database ID", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid database ID format").WithField("id")
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	var req entities.DatabaseCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	database, err := h.dbMutationService.UpdateProjectDatabase(r.Context(), databaseID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apiErr := errors.NewDatabaseError(err)
+		errors.WriteError(w, apiErr)
 		return
 	}
 
@@ -79,12 +86,14 @@ func (h *DatabaseMutationHandler) DeleteProjectDatabase(w http.ResponseWriter, r
 	databaseIDStr := chi.URLParam(r, "id")
 	databaseID, err := uuid.Parse(databaseIDStr)
 	if err != nil {
-		http.Error(w, "Invalid database ID", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid database ID format").WithField("id")
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	if err := h.dbMutationService.DeleteProjectDatabase(r.Context(), databaseID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apiErr := errors.NewDatabaseError(err)
+		errors.WriteError(w, apiErr)
 		return
 	}
 
@@ -96,12 +105,14 @@ func (h *DatabaseMutationHandler) TestDatabaseConnection(w http.ResponseWriter, 
 	databaseIDStr := chi.URLParam(r, "id")
 	databaseID, err := uuid.Parse(databaseIDStr)
 	if err != nil {
-		http.Error(w, "Invalid database ID", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid database ID format").WithField("id")
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	if err := h.dbMutationService.TestDatabaseConnection(r.Context(), databaseID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apiErr := errors.NewDatabaseError(err)
+		errors.WriteError(w, apiErr)
 		return
 	}
 
@@ -114,13 +125,15 @@ func (h *DatabaseMutationHandler) GetProjectDatabases(w http.ResponseWriter, r *
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		apiErr := errors.NewValidationError("Invalid project ID format").WithField("projectId")
+		errors.WriteError(w, apiErr)
 		return
 	}
 
 	databases, err := h.dbMutationService.GetProjectDatabases(r.Context(), projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		apiErr := errors.NewDatabaseError(err)
+		errors.WriteError(w, apiErr)
 		return
 	}
 

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/flow/internal/infrastructure/handlers"
+	"github.com/flow/internal/pkg/errors"
 	authMiddleware "github.com/flow/pkg/middleware"
 
 	"github.com/go-chi/chi/v5"
@@ -17,12 +18,14 @@ func SetupRoutes(
 	projectHandler *handlers.ProjectHandler,
 	tableHandler *handlers.TableHandler,
 	dbMutationHandler *handlers.DatabaseMutationHandler,
+	enhancedDbMutationHandler *handlers.EnhancedDatabaseMutationHandler,
 	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
 ) http.Handler {
 	r := chi.NewRouter()
 
 	// Middleware
 	r.Use(middleware.Logger)
+	r.Use(errors.ErrorHandler) // Custom error handler
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -60,6 +63,16 @@ func SetupRoutes(
 				r.Get("/{id}", userHandler.GetProfile)
 			})
 
+			// WebSocket connection
+			r.Get("/ws", enhancedDbMutationHandler.WebSocketHandler)
+
+			// Operation management routes
+			r.Route("/operations", func(r chi.Router) {
+				r.Get("/", enhancedDbMutationHandler.GetUserOperations)
+				r.Get("/{operationId}", enhancedDbMutationHandler.GetOperationStatus)
+				r.Delete("/{operationId}", enhancedDbMutationHandler.CancelOperation)
+			})
+
 			// Project routes
 			r.Route("/projects", func(r chi.Router) {
 				r.Post("/", projectHandler.CreateProject)
@@ -75,6 +88,9 @@ func SetupRoutes(
 					r.Put("/{id}", dbMutationHandler.UpdateProjectDatabase)
 					r.Delete("/{id}", dbMutationHandler.DeleteProjectDatabase)
 					r.Post("/{id}/test", dbMutationHandler.TestDatabaseConnection)
+
+					// Enhanced routes with progress tracking
+					r.Post("/with-progress", enhancedDbMutationHandler.CreateProjectDatabaseWithProgress)
 				})
 
 				// Table routes under projects
@@ -84,6 +100,9 @@ func SetupRoutes(
 					r.Get("/{id}", tableHandler.GetTable)
 					r.Put("/{id}", tableHandler.UpdateTable)
 					r.Delete("/{id}", tableHandler.DeleteTable)
+
+					// Enhanced table routes with progress tracking
+					r.Post("/with-progress", enhancedDbMutationHandler.CreateTableWithProgress)
 
 					// Table schema mutation routes
 					r.Route("/{tableName}/schema", func(r chi.Router) {
