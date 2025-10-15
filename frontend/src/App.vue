@@ -9,8 +9,6 @@ const route = useRoute()
 
 // Which pages should be cached
 const cachedPages = ['Home', 'About']
-
-const isCached = computed(() => cachedPages.includes(route.name as string))
 </script>
 
 <template>
