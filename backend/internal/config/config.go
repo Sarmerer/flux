@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -13,12 +14,14 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	CORS     CORSConfig
 }
 
 // ServerConfig holds server-related configuration
 type ServerConfig struct {
 	Host string
 	Port int
+	Env  string // development, staging, production
 }
 
 // DatabaseConfig holds database-related configuration
@@ -36,6 +39,11 @@ type JWTConfig struct {
 	Secret string
 }
 
+// CORSConfig holds CORS-related configuration
+type CORSConfig struct {
+	AllowedOrigins []string
+}
+
 // Load loads configuration from environment variables
 func Load() (*Config, error) {
 	// Load .env file if it exists
@@ -44,10 +52,18 @@ func Load() (*Config, error) {
 		fmt.Println("No .env file found, using environment variables")
 	}
 
+	// Parse CORS origins
+	corsOrigins := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+	allowedOrigins := strings.Split(corsOrigins, ",")
+	for i, origin := range allowedOrigins {
+		allowedOrigins[i] = strings.TrimSpace(origin)
+	}
+
 	config := &Config{
 		Server: ServerConfig{
 			Host: getEnv("SERVER_HOST", "localhost"),
 			Port: getEnvAsInt("SERVER_PORT", 8080),
+			Env:  getEnv("SERVER_ENV", "development"),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -59,6 +75,9 @@ func Load() (*Config, error) {
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),
+		},
+		CORS: CORSConfig{
+			AllowedOrigins: allowedOrigins,
 		},
 	}
 

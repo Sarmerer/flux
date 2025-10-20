@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/flow/internal/infrastructure/handlers"
-	"github.com/flow/internal/pkg/errors"
-	authMiddleware "github.com/flow/pkg/middleware"
+	authMiddleware "github.com/flow/internal/infrastructure/middleware"
+	"github.com/flow/internal/errors"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -17,9 +17,12 @@ func SetupRoutes(
 	userHandler *handlers.UserHandler,
 	projectHandler *handlers.ProjectHandler,
 	tableHandler *handlers.TableHandler,
-	dbMutationHandler *handlers.DatabaseMutationHandler,
-	enhancedDbMutationHandler *handlers.EnhancedDatabaseMutationHandler,
+	dbMutationProgressHandler *handlers.DatabaseMutationProgressHandler,
 	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
+	workflowHandler *handlers.WorkflowHandler,
+	logHandler *handlers.LogHandler,
+	jwtSecret string,
+	corsAllowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -30,12 +33,12 @@ func SetupRoutes(
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	// CORS configuration
+	// CORS configuration - use configured origins instead of wildcard
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
+		AllowedOrigins:   corsAllowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Request-ID"},
+		ExposedHeaders:   []string{"Link", "X-Request-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -56,21 +59,24 @@ func SetupRoutes(
 
 		// Protected routes (authentication required)
 		r.Route("/", func(r chi.Router) {
-			r.Use(authMiddleware.AuthMiddleware) // Add authentication middleware
+			r.Use(authMiddleware.AuthMiddleware(jwtSecret)) // Add authentication middleware
 
 			// User routes
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/{id}", userHandler.GetProfile)
 			})
 
-			// WebSocket connection
-			r.Get("/ws", enhancedDbMutationHandler.WebSocketHandler)
-
 			// Operation management routes
 			r.Route("/operations", func(r chi.Router) {
-				r.Get("/", enhancedDbMutationHandler.GetUserOperations)
-				r.Get("/{operationId}", enhancedDbMutationHandler.GetOperationStatus)
-				r.Delete("/{operationId}", enhancedDbMutationHandler.CancelOperation)
+				r.Get("/", dbMutationProgressHandler.GetUserOperations)
+				r.Get("/{operationId}", dbMutationProgressHandler.GetOperationStatus)
+				r.Delete("/{operationId}", dbMutationProgressHandler.CancelOperation)
+			})
+
+			// Log routes
+			r.Route("/logs", func(r chi.Router) {
+				r.Get("/", logHandler.GetLogs)
+				r.Delete("/cleanup", logHandler.DeleteOldLogs)
 			})
 
 			// Project routes
@@ -81,17 +87,8 @@ func SetupRoutes(
 				r.Put("/{id}", projectHandler.UpdateProject)
 				r.Delete("/{id}", projectHandler.DeleteProject)
 
-				// Database mutation routes under projects
-				r.Route("/{projectId}/databases", func(r chi.Router) {
-					r.Post("/", dbMutationHandler.CreateProjectDatabase)
-					r.Get("/", dbMutationHandler.GetProjectDatabases)
-					r.Put("/{id}", dbMutationHandler.UpdateProjectDatabase)
-					r.Delete("/{id}", dbMutationHandler.DeleteProjectDatabase)
-					r.Post("/{id}/test", dbMutationHandler.TestDatabaseConnection)
-
-					// Enhanced routes with progress tracking
-					r.Post("/with-progress", enhancedDbMutationHandler.CreateProjectDatabaseWithProgress)
-				})
+				// Project-specific log routes
+				r.Get("/{projectId}/logs", logHandler.GetProjectLogs)
 
 				// Table routes under projects
 				r.Route("/{projectId}/tables", func(r chi.Router) {
@@ -101,8 +98,8 @@ func SetupRoutes(
 					r.Put("/{id}", tableHandler.UpdateTable)
 					r.Delete("/{id}", tableHandler.DeleteTable)
 
-					// Enhanced table routes with progress tracking
-					r.Post("/with-progress", enhancedDbMutationHandler.CreateTableWithProgress)
+					// Table routes with progress tracking
+					r.Post("/with-progress", dbMutationProgressHandler.CreateTableWithProgress)
 
 					// Table schema mutation routes
 					r.Route("/{tableName}/schema", func(r chi.Router) {
@@ -115,6 +112,20 @@ func SetupRoutes(
 						r.Delete("/foreign-keys/remove", tableSchemaMutationHandler.RemoveForeignKeyFromTable)
 					})
 				})
+
+				// Workflow routes under projects
+				r.Route("/{projectId}/workflows", func(r chi.Router) {
+					r.Post("/", workflowHandler.CreateWorkflow)
+					r.Get("/", workflowHandler.GetWorkflows)
+					r.Get("/{id}", workflowHandler.GetWorkflow)
+					r.Put("/{id}", workflowHandler.UpdateWorkflow)
+					r.Delete("/{id}", workflowHandler.DeleteWorkflow)
+					r.Post("/{id}/toggle", workflowHandler.ToggleWorkflowActive)
+					r.Post("/{id}/execute", workflowHandler.ExecuteWorkflow)
+				})
+
+				// Public WebSocket endpoint (auth via WS handshake)
+				r.Get("/ws", dbMutationProgressHandler.WebSocketHandler)
 			})
 		})
 	})

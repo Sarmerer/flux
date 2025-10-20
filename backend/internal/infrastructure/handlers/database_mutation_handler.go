@@ -6,7 +6,7 @@ import (
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
-	"github.com/flow/internal/pkg/errors"
+	"github.com/flow/internal/errors"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -14,13 +14,13 @@ import (
 
 // DatabaseMutationHandler handles database mutation HTTP requests
 type DatabaseMutationHandler struct {
-	dbMutationService *services.DatabaseMutationService
+	dbService *services.DatabaseService
 }
 
 // NewDatabaseMutationHandler creates a new DatabaseMutationHandler
-func NewDatabaseMutationHandler(dbMutationService *services.DatabaseMutationService) *DatabaseMutationHandler {
+func NewDatabaseMutationHandler(dbService *services.DatabaseService) *DatabaseMutationHandler {
 	return &DatabaseMutationHandler{
-		dbMutationService: dbMutationService,
+		dbService: dbService,
 	}
 }
 
@@ -41,7 +41,7 @@ func (h *DatabaseMutationHandler) CreateProjectDatabase(w http.ResponseWriter, r
 		return
 	}
 
-	database, err := h.dbMutationService.CreateProjectDatabase(r.Context(), projectID, &req)
+	database, err := h.dbService.CreateProjectDatabase(r.Context(), projectID, &req)
 	if err != nil {
 		apiErr := errors.NewDatabaseError(err)
 		errors.WriteError(w, apiErr)
@@ -70,7 +70,7 @@ func (h *DatabaseMutationHandler) UpdateProjectDatabase(w http.ResponseWriter, r
 		return
 	}
 
-	database, err := h.dbMutationService.UpdateProjectDatabase(r.Context(), databaseID, &req)
+	database, err := h.dbService.UpdateProjectDatabase(r.Context(), databaseID, &req)
 	if err != nil {
 		apiErr := errors.NewDatabaseError(err)
 		errors.WriteError(w, apiErr)
@@ -91,7 +91,7 @@ func (h *DatabaseMutationHandler) DeleteProjectDatabase(w http.ResponseWriter, r
 		return
 	}
 
-	if err := h.dbMutationService.DeleteProjectDatabase(r.Context(), databaseID); err != nil {
+	if err := h.dbService.DeleteProjectDatabase(r.Context(), databaseID); err != nil {
 		apiErr := errors.NewDatabaseError(err)
 		errors.WriteError(w, apiErr)
 		return
@@ -110,7 +110,7 @@ func (h *DatabaseMutationHandler) TestDatabaseConnection(w http.ResponseWriter, 
 		return
 	}
 
-	if err := h.dbMutationService.TestDatabaseConnection(r.Context(), databaseID); err != nil {
+	if err := h.dbService.TestDatabaseConnection(r.Context(), databaseID); err != nil {
 		apiErr := errors.NewDatabaseError(err)
 		errors.WriteError(w, apiErr)
 		return
@@ -130,7 +130,7 @@ func (h *DatabaseMutationHandler) GetProjectDatabases(w http.ResponseWriter, r *
 		return
 	}
 
-	databases, err := h.dbMutationService.GetProjectDatabases(r.Context(), projectID)
+	databases, err := h.dbService.GetProjectDatabases(r.Context(), projectID)
 	if err != nil {
 		apiErr := errors.NewDatabaseError(err)
 		errors.WriteError(w, apiErr)

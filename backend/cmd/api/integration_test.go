@@ -56,22 +56,22 @@ func SetupTestSuite(t *testing.T) *IntegrationTestSuite {
 
 	// Initialize services
 	userService := services.NewUserService(userRepo, "test-jwt-secret")
-	projectService := services.NewProjectService(projectRepo, databaseRepo)
+	projectService := services.NewProjectService(projectRepo, databaseRepo, nil, db)
 	tableService := services.NewTableService(tableRepo)
 
 	// Initialize mutation services
-	dbMutationService := services.NewDatabaseMutationService(databaseRepo, projectRepo, db)
+	dbService := services.NewDatabaseService(databaseRepo, projectRepo, db, nil, nil)
 	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
 
-	// Initialize handlers
+	// Initialize handlers (no progress tracking or websocket for tests)
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	tableHandler := handlers.NewTableHandler(tableService)
-	dbMutationHandler := handlers.NewDatabaseMutationHandler(dbMutationService)
+	dbMutationProgressHandler := handlers.NewDatabaseMutationProgressHandler(dbService, nil, nil)
 	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationHandler, tableSchemaMutationHandler)
+	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, nil, "test-jwt-secret", []string{"*"})
 
 	return &IntegrationTestSuite{
 		router: router,

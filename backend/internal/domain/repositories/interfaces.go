@@ -47,3 +47,14 @@ type TableRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, limit, offset int) ([]*entities.Table, error)
 }
+
+// WorkflowRepository defines the interface for workflow data operations
+type WorkflowRepository interface {
+	Create(ctx context.Context, workflow *entities.Workflow) error
+	GetByID(ctx context.Context, id uuid.UUID) (*entities.Workflow, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Workflow, error)
+	Update(ctx context.Context, workflow *entities.Workflow) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, limit, offset int) ([]*entities.Workflow, error)
+	ToggleActive(ctx context.Context, id uuid.UUID, isActive bool) error
+}

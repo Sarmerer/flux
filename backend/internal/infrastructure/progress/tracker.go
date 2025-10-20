@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/flow/internal/pkg/websocket"
+	"github.com/flow/internal/infrastructure/realtime"
 	"github.com/google/uuid"
 )
 
@@ -52,11 +52,11 @@ type Step struct {
 type Tracker struct {
 	operations map[string]*Operation
 	mutex      sync.RWMutex
-	hub        *websocket.Hub
+	hub        *realtime.Hub
 }
 
 // NewTracker creates a new progress tracker
-func NewTracker(hub *websocket.Hub) *Tracker {
+func NewTracker(hub *realtime.Hub) *Tracker {
 	return &Tracker{
 		operations: make(map[string]*Operation),
 		hub:        hub,
@@ -97,7 +97,7 @@ func (t *Tracker) StartOperation(userID uuid.UUID, operationType, message string
 	t.operations[operationID] = operation
 
 	// Send initial notification
-	websocket.SendNotificationToUser(t.hub, userID, "Operation started", map[string]interface{}{
+	realtime.SendNotificationToUser(t.hub, userID, "Operation started", map[string]interface{}{
 		"operation_id": operationID,
 		"type":         operationType,
 		"message":      message,
@@ -135,7 +135,7 @@ func (t *Tracker) UpdateProgress(operationID, stepName, message string, progress
 	}
 
 	// Send progress update via WebSocket
-	websocket.SendProgressToUser(t.hub, operation.UserID, operationID, stepName, progress, message)
+	realtime.SendProgressToUser(t.hub, operation.UserID, operationID, stepName, progress, message)
 
 	return nil
 }
@@ -181,7 +181,7 @@ func (t *Tracker) CompleteOperation(operationID string, result interface{}) erro
 	operation.EndTime = &now
 
 	// Send success notification
-	websocket.SendSuccessToUser(t.hub, operation.UserID, operationID, "Operation completed successfully", result)
+	realtime.SendSuccessToUser(t.hub, operation.UserID, operationID, "Operation completed successfully", result)
 
 	return nil
 }
@@ -202,7 +202,7 @@ func (t *Tracker) FailOperation(operationID string, err error) error {
 	operation.EndTime = &now
 
 	// Send error notification
-	websocket.SendErrorToUser(t.hub, operation.UserID, operationID, "Operation failed", err)
+	realtime.SendErrorToUser(t.hub, operation.UserID, operationID, "Operation failed", err)
 
 	return nil
 }
@@ -222,7 +222,7 @@ func (t *Tracker) CancelOperation(operationID string) error {
 	operation.EndTime = &now
 
 	// Send cancellation notification
-	websocket.SendNotificationToUser(t.hub, operation.UserID, "Operation cancelled", map[string]interface{}{
+	realtime.SendNotificationToUser(t.hub, operation.UserID, "Operation cancelled", map[string]interface{}{
 		"operation_id": operationID,
 		"status":       StatusCancelled,
 	})

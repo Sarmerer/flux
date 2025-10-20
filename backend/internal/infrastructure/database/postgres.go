@@ -1,4 +1,4 @@
-package postgres
+package database
 
 import (
 	"context"
@@ -49,6 +49,8 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		createProjectsTable,
 		createDatabasesTable,
 		createTablesTable,
+		createWorkflowsTable,
+		createLogsTable,
 	}
 
 	for i, migration := range migrations {
@@ -121,4 +123,49 @@ CREATE TABLE IF NOT EXISTS tables (
 
 CREATE INDEX IF NOT EXISTS idx_tables_project_id ON tables(project_id);
 CREATE INDEX IF NOT EXISTS idx_tables_name ON tables(name);
+`
+
+const createWorkflowsTable = `
+CREATE TABLE IF NOT EXISTS workflows (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    trigger JSONB NOT NULL,
+    actions JSONB NOT NULL,
+    is_active BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_is_active ON workflows(is_active);
+`
+
+const createLogsTable = `
+CREATE TABLE IF NOT EXISTS logs (
+	id UUID PRIMARY KEY,
+	level VARCHAR(10) NOT NULL,
+	message TEXT NOT NULL,
+	timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+	project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+	database_id UUID,
+	table_id UUID,
+	workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
+	user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+	request_id VARCHAR(255),
+	operation VARCHAR(255),
+	fields JSONB,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_project_id ON logs(project_id);
+CREATE INDEX IF NOT EXISTS idx_logs_database_id ON logs(database_id);
+CREATE INDEX IF NOT EXISTS idx_logs_table_id ON logs(table_id);
+CREATE INDEX IF NOT EXISTS idx_logs_workflow_id ON logs(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_logs_user_id ON logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
+CREATE INDEX IF NOT EXISTS idx_logs_operation ON logs(operation);
+CREATE INDEX IF NOT EXISTS idx_logs_project_timestamp ON logs(project_id, timestamp DESC);
 `

@@ -6,38 +6,45 @@ import (
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
-	"github.com/flow/internal/pkg/errors"
-	"github.com/flow/internal/pkg/progress"
-	"github.com/flow/internal/pkg/websocket"
+	authMiddleware "github.com/flow/internal/infrastructure/middleware"
+	"github.com/flow/internal/errors"
+	"github.com/flow/internal/infrastructure/progress"
+	"github.com/flow/internal/infrastructure/realtime"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
-// EnhancedDatabaseMutationHandler handles database mutation requests with progress tracking and WebSocket support
-type EnhancedDatabaseMutationHandler struct {
-	enhancedService *services.EnhancedDatabaseMutationService
+// DatabaseMutationProgressHandler handles database mutation requests with progress tracking and WebSocket support
+type DatabaseMutationProgressHandler struct {
+	dbService       *services.DatabaseService
 	progressTracker *progress.Tracker
-	hub             *websocket.Hub
+	hub             *realtime.Hub
+	jwtSecret       string
 }
 
-// NewEnhancedDatabaseMutationHandler creates a new enhanced database mutation handler
-func NewEnhancedDatabaseMutationHandler(
-	enhancedService *services.EnhancedDatabaseMutationService,
+// NewDatabaseMutationProgressHandler creates a new database mutation progress handler
+func NewDatabaseMutationProgressHandler(
+	dbService *services.DatabaseService,
 	progressTracker *progress.Tracker,
-	hub *websocket.Hub,
-) *EnhancedDatabaseMutationHandler {
-	return &EnhancedDatabaseMutationHandler{
-		enhancedService: enhancedService,
+	hub *realtime.Hub,
+) *DatabaseMutationProgressHandler {
+	return &DatabaseMutationProgressHandler{
+		dbService:       dbService,
 		progressTracker: progressTracker,
 		hub:             hub,
 	}
 }
 
+// SetJWTSecret sets the JWT secret for WebSocket authentication
+func (h *DatabaseMutationProgressHandler) SetJWTSecret(secret string) {
+	h.jwtSecret = secret
+}
+
 // CreateProjectDatabaseWithProgress handles project database creation with progress tracking
-func (h *EnhancedDatabaseMutationHandler) CreateProjectDatabaseWithProgress(w http.ResponseWriter, r *http.Request) {
+func (h *DatabaseMutationProgressHandler) CreateProjectDatabaseWithProgress(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	userID, ok := authMiddleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		apiErr := errors.NewUnauthorizedError()
 		errors.WriteError(w, apiErr)
@@ -61,7 +68,7 @@ func (h *EnhancedDatabaseMutationHandler) CreateProjectDatabaseWithProgress(w ht
 
 	// Start the operation asynchronously
 	go func() {
-		_, err := h.enhancedService.CreateProjectDatabaseWithProgress(r.Context(), projectID, &req, userID)
+		_, err := h.dbService.CreateProjectDatabaseWithProgress(r.Context(), projectID, &req, userID)
 		if err != nil {
 			// Error handling is done in the service via progress tracking
 			return
@@ -79,9 +86,9 @@ func (h *EnhancedDatabaseMutationHandler) CreateProjectDatabaseWithProgress(w ht
 }
 
 // CreateTableWithProgress handles table creation with progress tracking
-func (h *EnhancedDatabaseMutationHandler) CreateTableWithProgress(w http.ResponseWriter, r *http.Request) {
+func (h *DatabaseMutationProgressHandler) CreateTableWithProgress(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	userID, ok := authMiddleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		apiErr := errors.NewUnauthorizedError()
 		errors.WriteError(w, apiErr)
@@ -105,7 +112,7 @@ func (h *EnhancedDatabaseMutationHandler) CreateTableWithProgress(w http.Respons
 
 	// Start the operation asynchronously
 	go func() {
-		_, err := h.enhancedService.CreateTableWithProgress(r.Context(), projectID, &req, userID)
+		_, err := h.dbService.CreateTableWithProgress(r.Context(), projectID, &req, userID)
 		if err != nil {
 			// Error handling is done in the service via progress tracking
 			return
@@ -123,9 +130,9 @@ func (h *EnhancedDatabaseMutationHandler) CreateTableWithProgress(w http.Respons
 }
 
 // GetOperationStatus returns the status of a specific operation
-func (h *EnhancedDatabaseMutationHandler) GetOperationStatus(w http.ResponseWriter, r *http.Request) {
+func (h *DatabaseMutationProgressHandler) GetOperationStatus(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	userID, ok := authMiddleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		apiErr := errors.NewUnauthorizedError()
 		errors.WriteError(w, apiErr)
@@ -152,9 +159,9 @@ func (h *EnhancedDatabaseMutationHandler) GetOperationStatus(w http.ResponseWrit
 }
 
 // GetUserOperations returns all operations for the current user
-func (h *EnhancedDatabaseMutationHandler) GetUserOperations(w http.ResponseWriter, r *http.Request) {
+func (h *DatabaseMutationProgressHandler) GetUserOperations(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	userID, ok := authMiddleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		apiErr := errors.NewUnauthorizedError()
 		errors.WriteError(w, apiErr)
@@ -168,9 +175,9 @@ func (h *EnhancedDatabaseMutationHandler) GetUserOperations(w http.ResponseWrite
 }
 
 // CancelOperation cancels a running operation
-func (h *EnhancedDatabaseMutationHandler) CancelOperation(w http.ResponseWriter, r *http.Request) {
+func (h *DatabaseMutationProgressHandler) CancelOperation(w http.ResponseWriter, r *http.Request) {
 	// Extract user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("user_id").(uuid.UUID)
+	userID, ok := authMiddleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		apiErr := errors.NewUnauthorizedError()
 		errors.WriteError(w, apiErr)
@@ -207,6 +214,6 @@ func (h *EnhancedDatabaseMutationHandler) CancelOperation(w http.ResponseWriter,
 }
 
 // WebSocketHandler handles WebSocket connections
-func (h *EnhancedDatabaseMutationHandler) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
-	websocket.HandleWebSocket(h.hub)(w, r)
+func (h *DatabaseMutationProgressHandler) WebSocketHandler(w http.ResponseWriter, r *http.Request) {
+	realtime.HandleWebSocket(h.hub, h.jwtSecret)(w, r)
 }

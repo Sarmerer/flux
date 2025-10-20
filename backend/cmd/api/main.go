@@ -11,13 +11,14 @@ import (
 	"time"
 
 	"github.com/flow/internal/app/services"
-	postgres "github.com/flow/internal/infrastructure/database"
+	"github.com/flow/internal/config"
+	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/infrastructure/handlers"
+	"github.com/flow/internal/infrastructure/logging"
 	postgresRepo "github.com/flow/internal/infrastructure/repositories/postgres"
 	"github.com/flow/internal/infrastructure/routes"
-	"github.com/flow/internal/pkg/progress"
-	"github.com/flow/internal/pkg/websocket"
-	"github.com/flow/pkg/config"
+	"github.com/flow/internal/infrastructure/progress"
+	"github.com/flow/internal/infrastructure/realtime"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	// Create database connection
-	dbConfig := postgres.Config{
+	dbConfig := database.Config{
 		Host:     cfg.Database.Host,
 		Port:     cfg.Database.Port,
 		User:     cfg.Database.User,
@@ -38,14 +39,14 @@ func main() {
 	}
 
 	ctx := context.Background()
-	db, err := postgres.NewConnection(ctx, dbConfig)
+	db, err := database.NewConnection(ctx, dbConfig)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
 	// Run migrations
-	if err := postgres.Migrate(ctx, db); err != nil {
+	if err := database.Migrate(ctx, db); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
@@ -54,37 +55,80 @@ func main() {
 	projectRepo := postgresRepo.NewProjectRepository(db)
 	databaseRepo := postgresRepo.NewDatabaseRepository(db)
 	tableRepo := postgresRepo.NewTableRepository(db)
+	workflowRepo := postgresRepo.NewWorkflowRepository(db)
 
-	// Initialize services
-	userService := services.NewUserService(userRepo, cfg.JWT.Secret)
-	projectService := services.NewProjectService(projectRepo, databaseRepo)
-	tableService := services.NewTableService(tableRepo)
+	// Initialize Realtime Service
+	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.DBName,
+		cfg.Database.SSLMode,
+	)
 
-	// Initialize WebSocket hub and progress tracker
-	wsHub := websocket.NewHub()
+	realtimeService, err := realtime.NewService(dbURL, realtime.Config{
+		DatabaseURL: dbURL,
+		JWTSecret:   cfg.JWT.Secret,
+	})
+	if err != nil {
+		log.Fatalf("Failed to create realtime service: %v", err)
+	}
+
+	// Start realtime service
+	if err := realtimeService.Start(ctx); err != nil {
+		log.Fatalf("Failed to start realtime service: %v", err)
+	}
+	defer realtimeService.Stop()
+
+	// Get hub and create progress tracker
+	wsHub := realtimeService.GetHub()
 	progressTracker := progress.NewTracker(wsHub)
-
-	// Start WebSocket hub
-	go wsHub.Run(ctx)
 
 	// Start progress tracker cleanup routine
 	progressTracker.StartCleanupRoutine(ctx, 5*time.Minute, 1*time.Hour)
 
+	// Initialize logging infrastructure
+	logStorage := logging.NewPostgresLogStorage(db)
+	logStreamer := logging.NewWebSocketLogStreamer(wsHub)
+	appLogger := logging.NewDevelopmentLogger(logStorage, logStreamer)
+
+	log.Println("Structured logging system initialized")
+
+	// Log application startup
+	appLogger.Info("Application starting", map[string]interface{}{
+		"server_host": cfg.Server.Host,
+		"server_port": cfg.Server.Port,
+	})
+
+	// Initialize infrastructure services (connection management, PostgreSQL operations)
+	connService := database.NewConnectionService(db)
+	pgManagementService := database.NewPostgreSQLManagementService(connService)
+
 	// Initialize mutation services
-	dbMutationService := services.NewDatabaseMutationService(databaseRepo, projectRepo, db)
-	enhancedDbMutationService := services.NewEnhancedDatabaseMutationService(databaseRepo, projectRepo, db, progressTracker, wsHub)
+	dbService := services.NewDatabaseService(databaseRepo, projectRepo, pgManagementService, connService, progressTracker, wsHub)
 	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
 
-	// Initialize handlers
+	// Initialize services (after database service is available)
+	userService := services.NewUserService(userRepo, cfg.JWT.Secret)
+	projectService := services.NewProjectService(projectRepo, databaseRepo, pgManagementService, db, appLogger)
+	tableService := services.NewTableService(tableRepo)
+	workflowService := services.NewWorkflowService(workflowRepo, projectRepo, databaseRepo, pgManagementService, appLogger)
+
+	// Services wired with database handlers
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	tableHandler := handlers.NewTableHandler(tableService)
-	dbMutationHandler := handlers.NewDatabaseMutationHandler(dbMutationService)
-	enhancedDbMutationHandler := handlers.NewEnhancedDatabaseMutationHandler(enhancedDbMutationService, progressTracker, wsHub)
+	dbMutationProgressHandler := handlers.NewDatabaseMutationProgressHandler(dbService, progressTracker, wsHub)
+	dbMutationProgressHandler.SetJWTSecret(cfg.JWT.Secret)
 	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
+	workflowHandler := handlers.NewWorkflowHandler(workflowService)
+
+	// Initialize log handler
+	logHandler := handlers.NewLogHandler(logStorage, logStreamer)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationHandler, enhancedDbMutationHandler, tableSchemaMutationHandler)
+	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
 
 	// Create HTTP server
 	server := &http.Server{
