@@ -3,16 +3,17 @@ import {
   Calendar,
   Edit,
   FolderOpen,
-  MoreHorizontal,
+  // MoreHorizontal,
   Plus,
   Search,
   Settings,
   Trash2,
 } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useProjectsStore } from '@/stores/projects'
+import { useProjects } from '@/composables/api'
+import ApiErrorBoundary from '@/components/ApiErrorBoundary.vue'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,46 +32,47 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 const router = useRouter()
-const projectsStore = useProjectsStore()
+
+// Use composable for projects management
+const { projects, loading, error, refresh, createProject, deleteProject } = useProjects()
 
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
 const newProject = ref({
   name: '',
   description: '',
 })
 
 const filteredProjects = computed(() => {
-  if (!searchQuery.value) return projectsStore.projects
-  return projectsStore.projects.filter(
+  if (!projects.value || !Array.isArray(projects.value)) return []
+  if (!searchQuery.value) return projects.value
+  return projects.value.filter(
     (project) =>
-      project.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (project.description &&
+      project?.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      (project?.description &&
         project.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
   )
-})
-
-onMounted(async () => {
-  try {
-    await projectsStore.fetchProjects()
-  } catch (error) {
-    console.error('Failed to fetch projects:', error)
-  }
 })
 
 const handleCreateProject = async () => {
   if (!newProject.value.name.trim()) return
 
+  isCreating.value = true
   try {
-    const project = await projectsStore.createProject({
+    const project = await createProject({
       name: newProject.value.name,
       description: newProject.value.description || undefined,
     })
     isCreateDialogOpen.value = false
     newProject.value = { name: '', description: '' }
+
     router.push(`/projects/${project.id}`)
   } catch (error) {
     console.error('Failed to create project:', error)
+    alert('Failed to create project. Please try again.')
+  } finally {
+    isCreating.value = false
   }
 }
 
@@ -87,9 +89,10 @@ const handleDeleteProject = async (projectId: string, event: Event) => {
   event.stopPropagation()
   if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
     try {
-      await projectsStore.deleteProject(projectId)
+      await deleteProject(projectId)
     } catch (error) {
       console.error('Failed to delete project:', error)
+      alert('Failed to delete project. Please try again.')
     }
   }
 }
@@ -108,8 +111,8 @@ const formatDate = (dateString: string) => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Projects</h1>
-        <p class="text-gray-600">Manage your database projects</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Projects</h1>
+        <p class="text-gray-600 dark:text-gray-400">Manage your database projects</p>
       </div>
       <Dialog v-model:open="isCreateDialogOpen">
         <DialogTrigger asChild>
@@ -146,9 +149,14 @@ const formatDate = (dateString: string) => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isCreateDialogOpen = false"> Cancel </Button>
-            <Button @click="handleCreateProject" :disabled="!newProject.name.trim()">
-              Create Project
+            <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
+              Cancel
+            </Button>
+            <Button
+              @click="handleCreateProject"
+              :disabled="!newProject.name.trim() || isCreating"
+            >
+              {{ isCreating ? 'Creating...' : 'Create Project' }}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -162,16 +170,18 @@ const formatDate = (dateString: string) => {
     </div>
 
     <!-- Projects Grid -->
-    <div v-if="projectsStore.isLoading" class="flex items-center justify-center py-12">
+    <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
     </div>
 
+    <ApiErrorBoundary v-else-if="error" :error="error" :retry="refresh" />
+
     <div v-else-if="filteredProjects.length === 0" class="text-center py-12">
-      <FolderOpen class="mx-auto h-12 w-12 text-gray-400" />
-      <h3 class="mt-2 text-sm font-medium text-gray-900">
+      <FolderOpen class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
+      <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
         {{ searchQuery ? 'No projects found' : 'No projects yet' }}
       </h3>
-      <p class="mt-1 text-sm text-gray-500">
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
         {{
           searchQuery
             ? 'Try adjusting your search terms.'
@@ -187,14 +197,14 @@ const formatDate = (dateString: string) => {
       <Card
         v-for="project in filteredProjects"
         :key="project.id"
-        class="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+        class="cursor-pointer hover:shadow-lg dark:hover:shadow-gray-800 transition-shadow duration-200"
         @click="handleProjectClick(project.id)"
       >
         <CardHeader class="pb-3">
           <div class="flex items-start justify-between">
             <div class="flex items-center space-x-3">
-              <div class="p-2 bg-blue-100 rounded-lg">
-                <FolderOpen class="h-5 w-5 text-blue-600" />
+              <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <FolderOpen class="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <CardTitle class="text-lg">{{ project.name }}</CardTitle>
@@ -214,7 +224,7 @@ const formatDate = (dateString: string) => {
           </div>
         </CardHeader>
         <CardContent class="pt-0">
-          <div class="flex items-center justify-between text-sm text-gray-500">
+          <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
             <div class="flex items-center space-x-1">
               <Calendar class="h-4 w-4" />
               <span>Created {{ formatDate(project.created_at) }}</span>
@@ -222,7 +232,7 @@ const formatDate = (dateString: string) => {
             <Badge variant="secondary">Active</Badge>
           </div>
           <div class="mt-4 flex items-center justify-between">
-            <div class="flex space-x-4 text-sm text-gray-500">
+            <div class="flex space-x-4 text-sm text-gray-500 dark:text-gray-400">
               <span>0 Tables</span>
               <span>0 Workflows</span>
             </div>

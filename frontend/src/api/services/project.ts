@@ -15,7 +15,7 @@ export const projectService = {
     return http.post<Project>('/projects', data)
   },
 
-  update(id: string, data: { name: string; description?: string }) {
+  update(id: string, data: { name?: string; description?: string }) {
     return http.put<Project>(`/projects/${id}`, data)
   },
 

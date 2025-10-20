@@ -7,4 +7,8 @@ export interface SidebarItem {
   icon?: Component | string
   children?: SidebarItem[]
   action?: string
+  badge?: string | number
+  badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info'
+  hidden?: boolean
+  disabled?: boolean
 }

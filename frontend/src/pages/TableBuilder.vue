@@ -1,37 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Key,
+  Link,
+  Plus,
+  Save,
+  // Table,
+  Trash2,
+} from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Table, 
-  Plus, 
-  Save, 
-  ArrowLeft,
-  Trash2,
-  GripVertical,
-  Key,
-  Link,
-  Eye,
-  EyeOff
-} from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
-const tableId = computed(() => route.params.tableId as string)
+// const tableId = computed(() => route.params.tableId as string)
 
 const tableName = ref('users')
 const tableDescription = ref('User accounts and profiles')
@@ -45,7 +46,7 @@ const columns = ref([
     unique: false,
     default_value: '',
     foreign_key: null,
-    order: 1
+    order: 1,
   },
   {
     id: '2',
@@ -56,7 +57,7 @@ const columns = ref([
     unique: true,
     default_value: '',
     foreign_key: null,
-    order: 2
+    order: 2,
   },
   {
     id: '3',
@@ -67,7 +68,7 @@ const columns = ref([
     unique: false,
     default_value: '',
     foreign_key: null,
-    order: 3
+    order: 3,
   },
   {
     id: '4',
@@ -78,8 +79,8 @@ const columns = ref([
     unique: false,
     default_value: 'CURRENT_TIMESTAMP',
     foreign_key: null,
-    order: 4
-  }
+    order: 4,
+  },
 ])
 
 const columnTypes = [
@@ -92,7 +93,7 @@ const columnTypes = [
   'TIMESTAMP',
   'TEXT',
   'JSON',
-  'UUID'
+  'UUID',
 ]
 
 const isSaving = ref(false)
@@ -108,25 +109,26 @@ const addColumn = () => {
     unique: false,
     default_value: '',
     foreign_key: null,
-    order: columns.value.length + 1
+    order: columns.value.length + 1,
   }
   columns.value.push(newColumn)
 }
 
 const removeColumn = (columnId: string) => {
-  columns.value = columns.value.filter(col => col.id !== columnId)
+  columns.value = columns.value.filter((col) => col.id !== columnId)
   // Reorder remaining columns
-  columns.value.forEach((col, index) => {
-    col.order = index + 1
+  columns.value.forEach((col, _index) => {
+    col.order = _index + 1
   })
 }
 
+// @ts-expect-error - unused but may be needed later
 const moveColumn = (fromIndex: number, toIndex: number) => {
   const column = columns.value.splice(fromIndex, 1)[0]
   columns.value.splice(toIndex, 0, column)
   // Update order
-  columns.value.forEach((col, index) => {
-    col.order = index + 1
+  columns.value.forEach((col, _index) => {
+    col.order = _index + 1
   })
 }
 
@@ -137,12 +139,12 @@ const saveTable = async () => {
     console.log('Saving table:', {
       name: tableName.value,
       description: tableDescription.value,
-      columns: columns.value
+      columns: columns.value,
     })
-    
+
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
     // Navigate back to tables list
     router.push(`/projects/${projectId.value}/tables`)
   } catch (error) {
@@ -153,34 +155,37 @@ const saveTable = async () => {
 }
 
 const generateSQL = () => {
-  const primaryKeys = columns.value.filter(col => col.primary_key).map(col => col.name)
-  const foreignKeys = columns.value.filter(col => col.foreign_key).map(col => 
-    `FOREIGN KEY (${col.name}) REFERENCES ${col.foreign_key.table}(${col.foreign_key.column})`
-  )
-  
+  // const primaryKeys = columns.value.filter((col) => col.primary_key).map((col) => col.name)
+  const foreignKeys = columns.value
+    .filter((col) => col.foreign_key)
+    .map(
+      (col) =>
+        `FOREIGN KEY (${col.name}) REFERENCES ${col.foreign_key.table}(${col.foreign_key.column})`
+    )
+
   let sql = `CREATE TABLE ${tableName.value} (\n`
-  
-  columns.value.forEach((col, index) => {
+
+  columns.value.forEach((col, _index) => {
     let columnDef = `  ${col.name} ${col.type}`
-    
+
     if (!col.nullable) columnDef += ' NOT NULL'
     if (col.unique) columnDef += ' UNIQUE'
     if (col.default_value) columnDef += ` DEFAULT ${col.default_value}`
     if (col.primary_key) columnDef += ' PRIMARY KEY'
-    
+
     sql += columnDef
     if (index < columns.value.length - 1 || foreignKeys.length > 0) {
       sql += ','
     }
     sql += '\n'
   })
-  
+
   if (foreignKeys.length > 0) {
     sql += '  ' + foreignKeys.join(',\n  ') + '\n'
   }
-  
+
   sql += ');'
-  
+
   return sql
 }
 </script>
@@ -222,11 +227,7 @@ const generateSQL = () => {
         <CardContent class="space-y-4">
           <div class="space-y-2">
             <Label for="table-name">Table Name</Label>
-            <Input
-              id="table-name"
-              v-model="tableName"
-              placeholder="e.g., users, products"
-            />
+            <Input id="table-name" v-model="tableName" placeholder="e.g., users, products" />
           </div>
           <div class="space-y-2">
             <Label for="table-description">Description</Label>
@@ -255,19 +256,15 @@ const generateSQL = () => {
         </CardHeader>
         <CardContent>
           <div class="space-y-3 max-h-96 overflow-y-auto">
-            <div 
-              v-for="(column, index) in columns" 
+            <div
+              v-for="(column, index) in columns"
               :key="column.id"
-              class="flex items-center space-x-2 p-3 border rounded-lg bg-gray-50"
+              class="flex items-center space-x-2 p-3 border rounded-lg"
             >
               <GripVertical class="w-4 h-4 text-gray-400 cursor-move" />
-              
+
               <div class="flex-1 grid grid-cols-6 gap-2">
-                <Input
-                  v-model="column.name"
-                  placeholder="Column name"
-                  class="col-span-2"
-                />
+                <Input v-model="column.name" placeholder="Column name" class="col-span-2" />
                 <Select v-model="column.type">
                   <SelectTrigger>
                     <SelectValue placeholder="Type" />
@@ -278,20 +275,13 @@ const generateSQL = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <Input
-                  v-model="column.default_value"
-                  placeholder="Default"
-                  class="col-span-2"
-                />
+                <Input v-model="column.default_value" placeholder="Default" class="col-span-2" />
                 <div class="flex items-center space-x-1">
-                  <Checkbox
-                    v-model="column.nullable"
-                    id="nullable"
-                  />
+                  <Checkbox v-model="column.nullable" id="nullable" />
                   <Label for="nullable" class="text-xs">Nullable</Label>
                 </div>
               </div>
-              
+
               <div class="flex items-center space-x-1">
                 <Button
                   variant="ghost"
@@ -333,7 +323,9 @@ const generateSQL = () => {
         <CardDescription>Generated SQL for your table schema</CardDescription>
       </CardHeader>
       <CardContent>
-        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm"><code>{{ generateSQL() }}</code></pre>
+        <pre
+          class="text-green-400 p-4 rounded-lg overflow-x-auto text-sm"
+        ><code>{{ generateSQL() }}</code></pre>
       </CardContent>
     </Card>
 
@@ -347,7 +339,7 @@ const generateSQL = () => {
         <div class="overflow-x-auto">
           <table class="w-full border-collapse border border-gray-300">
             <thead>
-              <tr class="bg-gray-100">
+              <tr>
                 <th class="border border-gray-300 px-4 py-2 text-left font-medium">Column</th>
                 <th class="border border-gray-300 px-4 py-2 text-left font-medium">Type</th>
                 <th class="border border-gray-300 px-4 py-2 text-left font-medium">Nullable</th>
@@ -356,7 +348,7 @@ const generateSQL = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="column in columns" :key="column.id" class="hover:bg-gray-50">
+              <tr v-for="column in columns" :key="column.id">
                 <td class="border border-gray-300 px-4 py-2">
                   <div class="flex items-center space-x-2">
                     <span class="font-medium">{{ column.name || 'unnamed' }}</span>
@@ -366,7 +358,9 @@ const generateSQL = () => {
                     </div>
                   </div>
                 </td>
-                <td class="border border-gray-300 px-4 py-2 text-sm text-gray-600">{{ column.type }}</td>
+                <td class="border border-gray-300 px-4 py-2 text-sm text-gray-600">
+                  {{ column.type }}
+                </td>
                 <td class="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                   {{ column.nullable ? 'Yes' : 'No' }}
                 </td>
@@ -375,7 +369,9 @@ const generateSQL = () => {
                 </td>
                 <td class="border border-gray-300 px-4 py-2 text-sm text-gray-600">
                   <div class="flex space-x-1">
-                    <Badge v-if="column.primary_key" variant="default" class="text-xs">Primary Key</Badge>
+                    <Badge v-if="column.primary_key" variant="default" class="text-xs"
+                      >Primary Key</Badge
+                    >
                     <Badge v-if="column.unique" variant="secondary" class="text-xs">Unique</Badge>
                   </div>
                 </td>

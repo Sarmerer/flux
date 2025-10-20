@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { Bell, Database, Eye, EyeOff, Globe, Key, Save, Shield, User } from 'lucide-vue-next'
+import { onMounted, ref, watch } from 'vue'
+
 import { useAuthStore } from '@/stores/auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useTheme } from '@/composables/ui'
+
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -15,36 +18,32 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  User, 
-  Bell, 
-  Shield, 
-  Database,
-  Globe,
-  Key,
-  Save,
-  Eye,
-  EyeOff
-} from 'lucide-vue-next'
+// import { Textarea } from '@/components/ui/textarea'
 
 const authStore = useAuthStore()
+const { theme, setTheme } = useTheme()
 
 const user = ref({
   name: authStore.user?.name || '',
   email: authStore.user?.email || '',
-  avatar: ''
+  avatar: '',
 })
 
 const preferences = ref({
-  theme: 'light',
+  theme: theme.value,
   language: 'en',
   timezone: 'UTC',
   notifications: {
     email: true,
     push: true,
     workflow: true,
-    security: true
-  }
+    security: true,
+  },
+})
+
+// Watch for theme changes and apply them
+watch(() => preferences.value.theme, (newTheme) => {
+  setTheme(newTheme as 'light' | 'dark' | 'system')
 })
 
 const security = ref({
@@ -53,7 +52,7 @@ const security = ref({
   confirmPassword: '',
   twoFactorEnabled: false,
   apiKey: 'sk-1234567890abcdef',
-  showApiKey: false
+  showApiKey: false,
 })
 
 const database = ref({
@@ -61,7 +60,7 @@ const database = ref({
   defaultPort: 5432,
   connectionTimeout: 30,
   maxConnections: 10,
-  sslEnabled: true
+  sslEnabled: true,
 })
 
 const isSaving = ref(false)
@@ -70,14 +69,14 @@ const showApiKey = ref(false)
 const themes = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' }
+  { value: 'system', label: 'System' },
 ]
 
 const languages = [
   { value: 'en', label: 'English' },
   { value: 'es', label: 'Spanish' },
   { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' }
+  { value: 'de', label: 'German' },
 ]
 
 const timezones = [
@@ -88,7 +87,7 @@ const timezones = [
   { value: 'America/Los_Angeles', label: 'Pacific Time' },
   { value: 'Europe/London', label: 'London' },
   { value: 'Europe/Paris', label: 'Paris' },
-  { value: 'Asia/Tokyo', label: 'Tokyo' }
+  { value: 'Asia/Tokyo', label: 'Tokyo' },
 ]
 
 const saveProfile = async () => {
@@ -96,7 +95,7 @@ const saveProfile = async () => {
   try {
     // TODO: Call API to update profile
     console.log('Saving profile:', user.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Profile updated successfully!')
   } catch (error) {
     console.error('Failed to update profile:', error)
@@ -111,7 +110,7 @@ const savePreferences = async () => {
   try {
     // TODO: Call API to update preferences
     console.log('Saving preferences:', preferences.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Preferences updated successfully!')
   } catch (error) {
     console.error('Failed to update preferences:', error)
@@ -126,7 +125,7 @@ const saveSecurity = async () => {
   try {
     // TODO: Call API to update security settings
     console.log('Saving security settings:', security.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Security settings updated successfully!')
     security.value.currentPassword = ''
     security.value.newPassword = ''
@@ -144,7 +143,7 @@ const saveDatabase = async () => {
   try {
     // TODO: Call API to update database settings
     console.log('Saving database settings:', database.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Database settings updated successfully!')
   } catch (error) {
     console.error('Failed to update database settings:', error)
@@ -155,10 +154,15 @@ const saveDatabase = async () => {
 }
 
 const generateNewApiKey = async () => {
-  if (confirm('Are you sure you want to generate a new API key? The current key will be invalidated.')) {
+  if (
+    confirm('Are you sure you want to generate a new API key? The current key will be invalidated.')
+  ) {
     try {
       // TODO: Call API to generate new key
-      security.value.apiKey = 'sk-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      security.value.apiKey =
+        'sk-' +
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15)
       alert('New API key generated successfully!')
     } catch (error) {
       console.error('Failed to generate API key:', error)
@@ -171,7 +175,11 @@ const toggleTwoFactor = async () => {
   try {
     // TODO: Call API to toggle 2FA
     security.value.twoFactorEnabled = !security.value.twoFactorEnabled
-    alert(security.value.twoFactorEnabled ? 'Two-factor authentication enabled!' : 'Two-factor authentication disabled!')
+    alert(
+      security.value.twoFactorEnabled
+        ? 'Two-factor authentication enabled!'
+        : 'Two-factor authentication disabled!'
+    )
   } catch (error) {
     console.error('Failed to toggle 2FA:', error)
     alert('Failed to update two-factor authentication')
@@ -183,8 +191,8 @@ const toggleTwoFactor = async () => {
   <div class="p-6 space-y-6">
     <!-- Header -->
     <div>
-      <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
-      <p class="text-gray-600">Manage your account settings and preferences</p>
+      <h1 class="text-3xl font-bold text-foreground">Settings</h1>
+      <p class="text-muted-foreground">Manage your account settings and preferences</p>
     </div>
 
     <Tabs default-value="profile" class="space-y-6">
@@ -211,11 +219,7 @@ const toggleTwoFactor = async () => {
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <Label for="name">Full Name</Label>
-                <Input
-                  id="name"
-                  v-model="user.name"
-                  placeholder="Enter your full name"
-                />
+                <Input id="name" v-model="user.name" placeholder="Enter your full name" />
               </div>
               <div class="space-y-2">
                 <Label for="email">Email Address</Label>
@@ -254,9 +258,7 @@ const toggleTwoFactor = async () => {
                 <Globe class="w-5 h-5" />
                 <span>General Preferences</span>
               </CardTitle>
-              <CardDescription>
-                Configure your general application preferences
-              </CardDescription>
+              <CardDescription> Configure your general application preferences </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
               <div class="grid grid-cols-2 gap-4">
@@ -309,36 +311,34 @@ const toggleTwoFactor = async () => {
                 <Bell class="w-5 h-5" />
                 <span>Notifications</span>
               </CardTitle>
-              <CardDescription>
-                Configure your notification preferences
-              </CardDescription>
+              <CardDescription> Configure your notification preferences </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
               <div class="flex items-center justify-between">
                 <div>
                   <Label>Email Notifications</Label>
-                  <p class="text-sm text-gray-500">Receive notifications via email</p>
+                  <p class="text-sm text-muted-foreground">Receive notifications via email</p>
                 </div>
                 <Switch v-model="preferences.notifications.email" />
               </div>
               <div class="flex items-center justify-between">
                 <div>
                   <Label>Push Notifications</Label>
-                  <p class="text-sm text-gray-500">Receive push notifications in browser</p>
+                  <p class="text-sm text-muted-foreground">Receive push notifications in browser</p>
                 </div>
                 <Switch v-model="preferences.notifications.push" />
               </div>
               <div class="flex items-center justify-between">
                 <div>
                   <Label>Workflow Notifications</Label>
-                  <p class="text-sm text-gray-500">Get notified about workflow executions</p>
+                  <p class="text-sm text-muted-foreground">Get notified about workflow executions</p>
                 </div>
                 <Switch v-model="preferences.notifications.workflow" />
               </div>
               <div class="flex items-center justify-between">
                 <div>
                   <Label>Security Notifications</Label>
-                  <p class="text-sm text-gray-500">Get notified about security events</p>
+                  <p class="text-sm text-muted-foreground">Get notified about security events</p>
                 </div>
                 <Switch v-model="preferences.notifications.security" />
               </div>
@@ -363,9 +363,7 @@ const toggleTwoFactor = async () => {
                 <Shield class="w-5 h-5" />
                 <span>Password & Security</span>
               </CardTitle>
-              <CardDescription>
-                Update your password and security settings
-              </CardDescription>
+              <CardDescription> Update your password and security settings </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
               <div class="space-y-2">
@@ -400,7 +398,9 @@ const toggleTwoFactor = async () => {
               <div class="flex items-center justify-between">
                 <div>
                   <Label>Two-Factor Authentication</Label>
-                  <p class="text-sm text-gray-500">Add an extra layer of security to your account</p>
+                  <p class="text-sm text-muted-foreground">
+                    Add an extra layer of security to your account
+                  </p>
                 </div>
                 <Switch v-model="security.twoFactorEnabled" @click="toggleTwoFactor" />
               </div>
@@ -413,9 +413,7 @@ const toggleTwoFactor = async () => {
                 <Key class="w-5 h-5" />
                 <span>API Access</span>
               </CardTitle>
-              <CardDescription>
-                Manage your API keys for programmatic access
-              </CardDescription>
+              <CardDescription> Manage your API keys for programmatic access </CardDescription>
             </CardHeader>
             <CardContent class="space-y-4">
               <div class="space-y-2">
@@ -427,23 +425,15 @@ const toggleTwoFactor = async () => {
                     readonly
                     class="font-mono"
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    @click="showApiKey = !showApiKey"
-                  >
+                  <Button variant="outline" size="sm" @click="showApiKey = !showApiKey">
                     <Eye v-if="!showApiKey" class="w-4 h-4" />
                     <EyeOff v-else class="w-4 h-4" />
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    @click="generateNewApiKey"
-                  >
+                  <Button variant="outline" size="sm" @click="generateNewApiKey">
                     Generate New
                   </Button>
                 </div>
-                <p class="text-sm text-gray-500">
+                <p class="text-sm text-muted-foreground">
                   Keep your API key secure and never share it publicly
                 </p>
               </div>
@@ -467,19 +457,13 @@ const toggleTwoFactor = async () => {
               <Database class="w-5 h-5" />
               <span>Database Settings</span>
             </CardTitle>
-            <CardDescription>
-              Configure default database connection settings
-            </CardDescription>
+            <CardDescription> Configure default database connection settings </CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <Label for="default-host">Default Host</Label>
-                <Input
-                  id="default-host"
-                  v-model="database.defaultHost"
-                  placeholder="localhost"
-                />
+                <Input id="default-host" v-model="database.defaultHost" placeholder="localhost" />
               </div>
               <div class="space-y-2">
                 <Label for="default-port">Default Port</Label>
@@ -514,7 +498,7 @@ const toggleTwoFactor = async () => {
             <div class="flex items-center justify-between">
               <div>
                 <Label>SSL Enabled</Label>
-                <p class="text-sm text-gray-500">Use SSL for database connections</p>
+                <p class="text-sm text-muted-foreground">Use SSL for database connections</p>
               </div>
               <Switch v-model="database.sslEnabled" />
             </div>

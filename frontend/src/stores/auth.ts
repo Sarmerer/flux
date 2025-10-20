@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { User } from '@/types/api'
 import { defineStore } from 'pinia'
 
-import { apiClient } from '@/lib/api'
+import { authService } from '@/api/services/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -12,13 +12,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.email === 'admin@flow.com')
+  const hasToken = computed(() => !!localStorage.getItem('auth_token'))
 
   const login = async (email: string, password: string) => {
     isLoading.value = true
     error.value = null
 
     try {
-      await apiClient.login({ email, password })
+      await authService.login({ email, password })
       // Get user profile after successful login
       // For now, we'll create a mock user since we don't have the user ID yet
       user.value = {
@@ -41,8 +42,10 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const newUser = await apiClient.register({ name, email, password })
+      const newUser = await authService.register({ name, email, password })
       user.value = newUser
+      // Auto-login after registration
+      await login(email, password)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Registration failed'
       throw err
@@ -54,7 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
   const logout = async () => {
     isLoading.value = true
     try {
-      await apiClient.logout()
+      authService.logout()
     } finally {
       user.value = null
       error.value = null
@@ -67,7 +70,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const loadUser = async () => {
-    if (!apiClient.hasToken) return
+    if (!hasToken.value) return
 
     isLoading.value = true
     try {
@@ -82,7 +85,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
     } catch (err) {
       // Token might be invalid, clear it
-      apiClient.clearToken()
+      authService.logout()
       user.value = null
     } finally {
       isLoading.value = false
@@ -95,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     isAdmin,
+    hasToken,
     login,
     register,
     logout,

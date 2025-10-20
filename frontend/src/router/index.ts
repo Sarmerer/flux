@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
+import { useProjectStore } from '@/stores/projects'
 
 // Lazy load routes
 const Home = () => import('@/pages/Home.vue')
@@ -36,8 +37,31 @@ const routes = [
   {
     path: '/projects/:id',
     name: 'ProjectDetail',
+    redirect: { name: 'ProjectOverview' },
+  },
+  {
+    path: '/projects/:id/overview',
+    name: 'ProjectOverview',
     component: ProjectDetail,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, tab: 'overview' },
+  },
+  {
+    path: '/projects/:id/overview/tables',
+    name: 'ProjectTablesView',
+    component: ProjectDetail,
+    meta: { requiresAuth: true, tab: 'tables' },
+  },
+  {
+    path: '/projects/:id/overview/workflows',
+    name: 'ProjectWorkflowsView',
+    component: ProjectDetail,
+    meta: { requiresAuth: true, tab: 'workflows' },
+  },
+  {
+    path: '/projects/:id/overview/activity',
+    name: 'ProjectActivityView',
+    component: ProjectDetail,
+    meta: { requiresAuth: true, tab: 'activity' },
   },
   {
     path: '/projects/:projectId/tables',
@@ -89,14 +113,34 @@ export const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
+  const projectStore = useProjectStore()
 
+  // Auth guard
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
+    return
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
     next('/dashboard')
-  } else {
-    next()
+    return
   }
+
+  // Project context restoration for project-specific routes
+  const projectIdFromRoute = (to.params.projectId as string) || (to.params.id as string)
+
+  if (projectIdFromRoute) {
+    // If navigating to a project route and no current project or different project
+    if (!projectStore.currentProject || projectStore.currentProject.id !== projectIdFromRoute) {
+      try {
+        // Try to load the project (will use cache if available)
+        await projectStore.loadProjectById(projectIdFromRoute)
+      } catch (error) {
+        console.error('Failed to load project context:', error)
+        // Continue navigation anyway - the page will handle the error
+      }
+    }
+  }
+
+  next()
 })

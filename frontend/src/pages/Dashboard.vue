@@ -1,67 +1,75 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useProjectsStore } from '@/stores/projects'
-import { useAuthStore } from '@/stores/auth'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  FolderOpen, 
-  Plus, 
-  Activity, 
-  Database, 
-  Table, 
+import {
+  // Activity,
+  Clock,
+  Database,
+  FolderOpen,
+  Plus,
+  Table,
   Workflow,
-  TrendingUp,
-  Clock
 } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+import { useAuthStore } from '@/stores/auth'
+import { useResourceCache } from '@/composables/data'
+import { projectService } from '@/api/services/project'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const router = useRouter()
-const projectsStore = useProjectsStore()
 const authStore = useAuthStore()
 
-const recentActivity = ref([
+// Use resource cache instead of Pinia store
+const { data: projects, loading, error } = useResourceCache('dashboard-projects', {
+  fetchFn: () => projectService.getAll(),
+  subscribeToUpdates: true, // Real-time updates enabled
+  scope: 'global',
+  events: ['project_created', 'project_updated', 'project_deleted'],
+  ttl: 60000, // 1 minute cache
+})
+
+// Recent activity - in real app, fetch from API
+const recentActivity = [
   {
     id: '1',
     type: 'project_created',
     message: 'Created project "E-commerce Platform"',
     timestamp: '2 hours ago',
-    icon: FolderOpen
+    icon: FolderOpen,
   },
   {
     id: '2',
     type: 'table_created',
     message: 'Added table "users" to E-commerce Platform',
     timestamp: '4 hours ago',
-    icon: Table
+    icon: Table,
   },
   {
     id: '3',
     type: 'workflow_triggered',
     message: 'Workflow "New User Welcome" executed',
     timestamp: '6 hours ago',
-    icon: Workflow
-  }
-])
+    icon: Workflow,
+  },
+]
 
+// Computed stats from projects
 const stats = computed(() => ({
-  totalProjects: projectsStore.projects.length,
-  totalTables: projectsStore.projects.reduce((acc, project) => acc + (project as any).table_count || 0, 0),
-  totalWorkflows: projectsStore.projects.reduce((acc, project) => acc + (project as any).workflow_count || 0, 0),
-  activeConnections: projectsStore.projects.reduce((acc, project) => acc + (project as any).database_count || 0, 0)
+  totalProjects: projects.value?.length || 0,
+  totalTables: projects.value?.reduce((acc: number, project: any) => acc + ((project as any).table_count || 0), 0) || 0,
+  totalWorkflows: projects.value?.reduce((acc: number, project: any) => acc + ((project as any).workflow_count || 0), 0) || 0,
+  activeConnections: projects.value?.reduce((acc: number, project: any) => acc + ((project as any).database_count || 0), 0) || 0,
 }))
-
-onMounted(async () => {
-  try {
-    await projectsStore.fetchProjects()
-  } catch (error) {
-    console.error('Failed to fetch projects:', error)
-  }
-})
 
 const handleCreateProject = () => {
   router.push('/projects')
+}
+
+const handleProjectClick = (projectId: string) => {
+  router.push(`/projects/${projectId}`)
 }
 </script>
 
@@ -70,8 +78,10 @@ const handleCreateProject = () => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p class="text-gray-600">Welcome back, {{ authStore.user?.name || 'User' }}!</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+        <p class="text-gray-600 dark:text-gray-400">
+          Welcome back, {{ authStore.user?.name || 'User' }}!
+        </p>
       </div>
       <Button @click="handleCreateProject" class="flex items-center space-x-2">
         <Plus class="w-4 h-4" />
@@ -88,9 +98,7 @@ const handleCreateProject = () => {
         </CardHeader>
         <CardContent>
           <div class="text-2xl font-bold">{{ stats.totalProjects }}</div>
-          <p class="text-xs text-muted-foreground">
-            +2 from last month
-          </p>
+          <p class="text-xs text-muted-foreground">Your active projects</p>
         </CardContent>
       </Card>
 
@@ -101,9 +109,7 @@ const handleCreateProject = () => {
         </CardHeader>
         <CardContent>
           <div class="text-2xl font-bold">{{ stats.totalTables }}</div>
-          <p class="text-xs text-muted-foreground">
-            +12 from last month
-          </p>
+          <p class="text-xs text-muted-foreground">Across all projects</p>
         </CardContent>
       </Card>
 
@@ -114,9 +120,7 @@ const handleCreateProject = () => {
         </CardHeader>
         <CardContent>
           <div class="text-2xl font-bold">{{ stats.totalWorkflows }}</div>
-          <p class="text-xs text-muted-foreground">
-            +3 from last month
-          </p>
+          <p class="text-xs text-muted-foreground">Automation running</p>
         </CardContent>
       </Card>
 
@@ -127,9 +131,7 @@ const handleCreateProject = () => {
         </CardHeader>
         <CardContent>
           <div class="text-2xl font-bold">{{ stats.activeConnections }}</div>
-          <p class="text-xs text-muted-foreground">
-            All systems operational
-          </p>
+          <p class="text-xs text-muted-foreground">All systems operational</p>
         </CardContent>
       </Card>
     </div>
@@ -142,32 +144,63 @@ const handleCreateProject = () => {
           <CardDescription>Your most recently accessed projects</CardDescription>
         </CardHeader>
         <CardContent>
-          <div v-if="projectsStore.isLoading" class="flex items-center justify-center py-8">
+          <!-- Loading State -->
+          <div v-if="loading" class="flex items-center justify-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-          <div v-else-if="projectsStore.projects.length === 0" class="text-center py-8">
-            <FolderOpen class="mx-auto h-12 w-12 text-gray-400" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No projects</h3>
-            <p class="mt-1 text-sm text-gray-500">Get started by creating a new project.</p>
+
+          <!-- Error State -->
+          <div v-else-if="error" class="text-center py-8">
+            <div class="text-red-600 dark:text-red-400">
+              <p class="text-sm font-medium">Failed to load projects</p>
+              <p class="text-xs mt-1">{{ error.message }}</p>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="!projects || projects.length === 0" class="text-center py-8">
+            <FolderOpen class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No projects</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Get started by creating a new project.
+            </p>
             <div class="mt-6">
               <Button @click="handleCreateProject">Create Project</Button>
             </div>
           </div>
+
+          <!-- Projects List -->
           <div v-else class="space-y-3">
-            <div 
-              v-for="project in projectsStore.projects.slice(0, 5)" 
+            <div
+              v-for="project in projects.slice(0, 5)"
               :key="project.id"
-              class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-              @click="router.push(`/projects/${project.id}`)"
+              class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+              @click="handleProjectClick(project.id)"
             >
               <div class="flex items-center space-x-3">
-                <FolderOpen class="h-5 w-5 text-blue-600" />
+                <FolderOpen class="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <h4 class="text-sm font-medium">{{ project.name }}</h4>
-                  <p class="text-xs text-gray-500">{{ project.description || 'No description' }}</p>
+                  <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {{ project.name }}
+                  </h4>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ project.description || 'No description' }}
+                  </p>
                 </div>
               </div>
               <Badge variant="secondary">Active</Badge>
+            </div>
+
+            <!-- View All Button -->
+            <div v-if="projects.length > 5" class="pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                class="w-full"
+                @click="router.push('/projects')"
+              >
+                View All Projects ({{ projects.length }})
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -181,17 +214,17 @@ const handleCreateProject = () => {
         </CardHeader>
         <CardContent>
           <div class="space-y-4">
-            <div 
-              v-for="activity in recentActivity" 
+            <div
+              v-for="activity in recentActivity"
               :key="activity.id"
               class="flex items-start space-x-3"
             >
               <div class="flex-shrink-0">
-                <component :is="activity.icon" class="h-5 w-5 text-blue-600" />
+                <component :is="activity.icon" class="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div class="flex-1 min-w-0">
-                <p class="text-sm text-gray-900">{{ activity.message }}</p>
-                <p class="text-xs text-gray-500 flex items-center space-x-1">
+                <p class="text-sm text-gray-900 dark:text-gray-100">{{ activity.message }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
                   <Clock class="h-3 w-3" />
                   <span>{{ activity.timestamp }}</span>
                 </p>
@@ -199,7 +232,12 @@ const handleCreateProject = () => {
             </div>
           </div>
           <div class="mt-4">
-            <Button variant="outline" size="sm" class="w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              class="w-full"
+              @click="router.push('/activity')"
+            >
               View All Activity
             </Button>
           </div>

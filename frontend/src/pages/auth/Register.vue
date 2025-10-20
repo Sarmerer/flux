@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+
 import { useAuthStore } from '@/stores/auth'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Eye, EyeOff } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -24,17 +26,17 @@ const passwordsMatch = ref(true)
 
 const handleSubmit = async (e: Event) => {
   e.preventDefault()
-  
+
   if (!name.value || !email.value || !password.value || !confirmPassword.value) return
-  
+
   if (password.value !== confirmPassword.value) {
     passwordsMatch.value = false
     return
   }
-  
+
   passwordsMatch.value = true
   isLoading.value = true
-  
+
   try {
     await authStore.register(name.value, email.value, password.value)
     router.push('/dashboard')
@@ -55,19 +57,17 @@ const toggleConfirmPasswordVisibility = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
       <div class="text-center">
         <h1 class="text-3xl font-bold text-gray-900">FlowDB</h1>
         <p class="mt-2 text-sm text-gray-600">Create your account</p>
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Sign Up</CardTitle>
-          <CardDescription>
-            Create a new account to get started with FlowDB
-          </CardDescription>
+          <CardDescription> Create a new account to get started with FlowDB </CardDescription>
         </CardHeader>
         <CardContent>
           <form @submit="handleSubmit" class="space-y-4">
@@ -82,7 +82,7 @@ const toggleConfirmPasswordVisibility = () => {
                 :disabled="isLoading"
               />
             </div>
-            
+
             <div class="space-y-2">
               <Label for="email">Email</Label>
               <Input
@@ -94,7 +94,7 @@ const toggleConfirmPasswordVisibility = () => {
                 :disabled="isLoading"
               />
             </div>
-            
+
             <div class="space-y-2">
               <Label for="password">Password</Label>
               <div class="relative">
@@ -119,7 +119,7 @@ const toggleConfirmPasswordVisibility = () => {
                 </Button>
               </div>
             </div>
-            
+
             <div class="space-y-2">
               <Label for="confirmPassword">Confirm Password</Label>
               <div class="relative">
@@ -144,21 +144,21 @@ const toggleConfirmPasswordVisibility = () => {
                 </Button>
               </div>
             </div>
-            
+
             <Alert v-if="!passwordsMatch" variant="destructive">
               <AlertDescription>Passwords do not match</AlertDescription>
             </Alert>
-            
+
             <Alert v-if="authStore.error" variant="destructive">
               <AlertDescription>{{ authStore.error }}</AlertDescription>
             </Alert>
-            
+
             <Button type="submit" class="w-full" :disabled="isLoading">
               <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
               {{ isLoading ? 'Creating account...' : 'Create Account' }}
             </Button>
           </form>
-          
+
           <div class="mt-6 text-center">
             <p class="text-sm text-gray-600">
               Already have an account?

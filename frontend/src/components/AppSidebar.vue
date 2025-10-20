@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { User } from 'lucide-vue-next'
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
-import { useProjectsStore } from '@/stores/projects'
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
+import { useProjectStore } from '@/stores/projects'
+import { Badge } from '@/components/ui/badge'
 
 import {
   Sidebar,
@@ -21,13 +22,31 @@ import {
 } from '@/components/ui/sidebar'
 
 const router = useRouter()
-const { items, projectItems, userItems } = useSidebarItemsStore()
+const route = useRoute()
+const sidebarStore = useSidebarItemsStore()
 const authStore = useAuthStore()
+const projectStore = useProjectStore()
 
+const items = computed(() => sidebarStore.items)
+const projectItems = computed(() => sidebarStore.projectItems)
+const userItems = computed(() => sidebarStore.userItems)
+
+// Get current project ID from route or store
 const currentProjectId = computed(() => {
-  const route = router.currentRoute.value
-  return route.params.projectId as string
+  return (route.params.projectId as string) || (route.params.id as string) || projectStore.currentProject?.id
 })
+
+// Watch for project changes and update sidebar
+watch(currentProjectId, (newProjectId) => {
+  if (!newProjectId) {
+    sidebarStore.clearProjectItems()
+  }
+  // Note: The actual counts will be updated by the individual pages (Tables.vue, ProjectDetail.vue, etc.)
+}, { immediate: true })
+
+const isActive = (itemUrl: string) => {
+  return route.path === itemUrl || route.path.startsWith(itemUrl + '/')
+}
 
 const handleItemClick = async (item: any) => {
   if (item.action === 'logout') {
@@ -36,11 +55,6 @@ const handleItemClick = async (item: any) => {
   } else {
     router.push(item.url)
   }
-}
-
-// Set project items when we have a project ID
-if (currentProjectId.value) {
-  useSidebarItemsStore().setProjectItems(currentProjectId.value)
 }
 </script>
 
@@ -60,10 +74,17 @@ if (currentProjectId.value) {
         <SidebarGroupLabel>Application</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem v-for="item in items" :key="item.id">
-              <SidebarMenuButton @click="handleItemClick(item)">
+            <SidebarMenuItem v-for="item in items" :key="item.id" v-show="!item.hidden">
+              <SidebarMenuButton
+                @click="handleItemClick(item)"
+                :isActive="isActive(item.url)"
+                :disabled="item.disabled"
+              >
                 <component :is="item.icon" />
                 <span>{{ item.title }}</span>
+                <Badge v-if="item.badge" :variant="item.badgeVariant || 'default'" class="ml-auto">
+                  {{ item.badge }}
+                </Badge>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -75,10 +96,17 @@ if (currentProjectId.value) {
         <SidebarGroupLabel>Project</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            <SidebarMenuItem v-for="item in projectItems" :key="item.id">
-              <SidebarMenuButton @click="handleItemClick(item)">
+            <SidebarMenuItem v-for="item in projectItems" :key="item.id" v-show="!item.hidden">
+              <SidebarMenuButton
+                @click="handleItemClick(item)"
+                :isActive="isActive(item.url)"
+                :disabled="item.disabled"
+              >
                 <component :is="item.icon" />
                 <span>{{ item.title }}</span>
+                <Badge v-if="item.badge" :variant="item.badgeVariant || 'default'" class="ml-auto">
+                  {{ item.badge }}
+                </Badge>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -89,13 +117,17 @@ if (currentProjectId.value) {
     <!-- User Section -->
     <SidebarFooter class="p-4">
       <div class="space-y-2">
-        <div class="flex items-center space-x-2 text-sm text-gray-600">
+        <div class="flex items-center space-x-2 text-sm text-muted-foreground">
           <User class="w-4 h-4" />
           <span>{{ authStore.user?.name || 'User' }}</span>
         </div>
         <SidebarMenu>
           <SidebarMenuItem v-for="item in userItems" :key="item.id">
-            <SidebarMenuButton @click="handleItemClick(item)" class="text-sm">
+            <SidebarMenuButton
+              @click="handleItemClick(item)"
+              class="text-sm"
+              :isActive="item.id !== 'logout' && isActive(item.url)"
+            >
               <component :is="item.icon" />
               <span>{{ item.title }}</span>
             </SidebarMenuButton>

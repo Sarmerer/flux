@@ -15,7 +15,7 @@ export const tableService = {
     return http.post<Table>(`/projects/${projectId}/tables`, data)
   },
 
-  update(id: string, data: { name: string; description?: string }) {
+  update(id: string, data: { name?: string; description?: string }) {
     return http.put<Table>(`/tables/${id}`, data)
   },
 

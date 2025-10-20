@@ -1,19 +1,13 @@
 <script setup lang="ts">
-import AppSidebar from '@/components/AppSidebar.vue'
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import SimpleSidebar from '@/components/SimpleSidebar.vue'
+import Toaster from '@/components/ui/toast/Toaster.vue'
 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-
-const route = useRoute()
-
-// Which pages should be cached
-const cachedPages = ['Home', 'About']
 </script>
 
 <template>
   <SidebarProvider>
-    <AppSidebar />
+    <SimpleSidebar />
 
     <main class="flex-1">
       <header class="p-4 border-b">
@@ -26,5 +20,8 @@ const cachedPages = ['Home', 'About']
         </KeepAlive>
       </RouterView>
     </main>
+
+    <!-- Global Toast Notifications -->
+    <Toaster />
   </SidebarProvider>
 </template>

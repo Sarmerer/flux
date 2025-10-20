@@ -9,12 +9,12 @@ export const authService = {
 
   async login(data: { email: string; password: string }) {
     const res = await http.post<{ token: string }>('/auth/login', data)
-    localStorage.setItem('token', res.token)
+    localStorage.setItem('auth_token', res.token)
     return res
   },
 
   logout() {
-    localStorage.removeItem('token')
+    localStorage.removeItem('auth_token')
   },
 
   getProfile(userId: string) {

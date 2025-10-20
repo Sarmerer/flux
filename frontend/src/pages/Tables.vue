@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import {
+  Calendar,
+  // Database,
+  // Edit,
+  Eye,
+  // MoreHorizontal,
+  Plus,
+  Search,
+  Settings,
+  Table,
+  Trash2,
+} from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+
+import { useTables } from '@/composables/api'
+
 import { Badge } from '@/components/ui/badge'
-import { 
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,71 +30,57 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { 
-  Table, 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Database,
-  MoreHorizontal,
-  Eye,
-  Settings,
-  Calendar
-} from 'lucide-vue-next'
+// import { Textarea } from '@/components/ui/textarea'
+
+import { useToast } from '@/composables/ui'
+import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
+const sidebarStore = useSidebarItemsStore()
 
 const projectId = computed(() => route.params.projectId as string)
+
+// Use composable for tables management
+const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
+
+// Update sidebar when tables change
+watch(tables, (newTables) => {
+  if (projectId.value && sidebarStore.currentProjectId === projectId.value) {
+    sidebarStore.updateProjectCounts(newTables.length, sidebarStore.workflowCount)
+  }
+}, { immediate: true })
+
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
 const isEditDialogOpen = ref(false)
 const selectedTable = ref(null)
+const isCreating = ref(false)
 
-const tables = ref([
-  {
-    id: '1',
-    name: 'users',
-    description: 'User accounts and profiles',
-    columns: 5,
-    rows: 1250,
-    created_at: '2024-01-15T10:30:00Z',
-    updated_at: '2024-01-20T14:22:00Z'
-  },
-  {
-    id: '2',
-    name: 'products',
-    description: 'Product catalog and inventory',
-    columns: 8,
-    rows: 3400,
-    created_at: '2024-01-16T09:15:00Z',
-    updated_at: '2024-01-19T16:45:00Z'
-  },
-  {
-    id: '3',
-    name: 'orders',
-    description: 'Customer orders and transactions',
-    columns: 6,
-    rows: 890,
-    created_at: '2024-01-17T11:20:00Z',
-    updated_at: '2024-01-21T08:30:00Z'
-  }
-])
-
-const newTable = ref({
+const newTable = ref<{
+  name: string
+  description: string
+  columns: Array<{
+    name: string
+    type: string
+    nullable: boolean
+    primary_key: boolean
+    default_value: string
+  }>
+}>({
   name: '',
   description: '',
-  columns: []
+  columns: [],
 })
 
 const columnTypes = [
@@ -91,40 +93,41 @@ const columnTypes = [
   'TIMESTAMP',
   'TEXT',
   'JSON',
-  'UUID'
+  'UUID',
 ]
 
 const filteredTables = computed(() => {
+  if (!tables.value || !Array.isArray(tables.value)) return []
   if (!searchQuery.value) return tables.value
-  return tables.value.filter(table => 
-    table.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (table.description && table.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
+  return tables.value.filter(
+    (table) =>
+      table.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      (table.description &&
+        table.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
   )
 })
 
 const handleCreateTable = async () => {
   if (!newTable.value.name.trim()) return
-  
+
+  isCreating.value = true
   try {
-    // TODO: Call API to create table
-    const table = {
-      id: Date.now().toString(),
+    const createdTable = await createTable({
       name: newTable.value.name,
-      description: newTable.value.description,
-      columns: newTable.value.columns.length,
-      rows: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-    
-    tables.value.push(table)
+      description: newTable.value.description || undefined,
+    })
+
+    toast.success('Success', `Table "${createdTable.name}" has been created`)
     isCreateDialogOpen.value = false
     newTable.value = { name: '', description: '', columns: [] }
-    
+
     // Navigate to table builder
-    router.push(`/projects/${projectId.value}/tables/${table.id}/builder`)
-  } catch (error) {
+    router.push(`/projects/${projectId.value}/tables/${createdTable.id}/builder`)
+  } catch (error: any) {
     console.error('Failed to create table:', error)
+    toast.error('Error', error.message || 'Failed to create table')
+  } finally {
+    isCreating.value = false
   }
 }
 
@@ -133,13 +136,16 @@ const handleEditTable = (table: any) => {
   isEditDialogOpen.value = true
 }
 
-const handleDeleteTable = async (tableId: string) => {
-  if (confirm('Are you sure you want to delete this table? This action cannot be undone.')) {
+const handleDeleteTable = async (tableId: string, tableName: string) => {
+  if (
+    confirm(`Are you sure you want to delete table "${tableName}"? This action cannot be undone.`)
+  ) {
     try {
-      // TODO: Call API to delete table
-      tables.value = tables.value.filter(t => t.id !== tableId)
-    } catch (error) {
+      await deleteTable(tableId)
+      toast.success('Deleted', `Table "${tableName}" has been deleted`)
+    } catch (error: any) {
       console.error('Failed to delete table:', error)
+      toast.error('Error', error.message || 'Failed to delete table')
     }
   }
 }
@@ -156,7 +162,7 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
   })
 }
 
@@ -166,7 +172,7 @@ const addColumn = () => {
     type: 'VARCHAR',
     nullable: true,
     primary_key: false,
-    default_value: ''
+    default_value: '',
   })
 }
 
@@ -180,8 +186,8 @@ const removeColumn = (index: number) => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Tables</h1>
-        <p class="text-gray-600">Manage your database tables and schemas</p>
+        <h1 class="text-3xl font-bold text-foreground">Tables</h1>
+        <p class="text-muted-foreground">Manage your database tables and schemas</p>
       </div>
       <Dialog v-model:open="isCreateDialogOpen">
         <DialogTrigger asChild>
@@ -217,7 +223,7 @@ const removeColumn = (index: number) => {
                 />
               </div>
             </div>
-            
+
             <div class="space-y-4">
               <div class="flex items-center justify-between">
                 <Label>Columns</Label>
@@ -226,18 +232,15 @@ const removeColumn = (index: number) => {
                   Add Column
                 </Button>
               </div>
-              
+
               <div class="space-y-3 max-h-60 overflow-y-auto">
-                <div 
-                  v-for="(column, index) in newTable.columns" 
+                <div
+                  v-for="(column, index) in newTable.columns"
                   :key="index"
                   class="flex items-center space-x-2 p-3 border rounded-lg"
                 >
                   <div class="flex-1 grid grid-cols-4 gap-2">
-                    <Input
-                      v-model="column.name"
-                      placeholder="Column name"
-                    />
+                    <Input v-model="column.name" placeholder="Column name" />
                     <Select v-model="column.type">
                       <SelectTrigger>
                         <SelectValue placeholder="Type" />
@@ -248,25 +251,13 @@ const removeColumn = (index: number) => {
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input
-                      v-model="column.default_value"
-                      placeholder="Default value"
-                    />
+                    <Input v-model="column.default_value" placeholder="Default value" />
                     <div class="flex items-center space-x-2">
-                      <input
-                        v-model="column.nullable"
-                        type="checkbox"
-                        class="rounded"
-                      />
+                      <input v-model="column.nullable" type="checkbox" class="rounded" />
                       <span class="text-sm">Nullable</span>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    @click="removeColumn(index)"
-                  >
+                  <Button type="button" variant="ghost" size="sm" @click="removeColumn(index)">
                     <Trash2 class="w-4 h-4" />
                   </Button>
                 </div>
@@ -274,11 +265,11 @@ const removeColumn = (index: number) => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isCreateDialogOpen = false">
+            <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
               Cancel
             </Button>
-            <Button @click="handleCreateTable" :disabled="!newTable.name.trim()">
-              Create Table
+            <Button @click="handleCreateTable" :disabled="!newTable.name.trim() || isCreating">
+              {{ isCreating ? 'Creating...' : 'Create Table' }}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -288,30 +279,33 @@ const removeColumn = (index: number) => {
     <!-- Search -->
     <div class="relative">
       <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-      <Input
-        v-model="searchQuery"
-        placeholder="Search tables..."
-        class="pl-10"
-      />
+      <Input v-model="searchQuery" placeholder="Search tables..." class="pl-10" />
     </div>
 
-    <!-- Tables Grid -->
-    <div v-if="filteredTables.length === 0" class="text-center py-12">
-      <Table class="mx-auto h-12 w-12 text-gray-400" />
-      <h3 class="mt-2 text-sm font-medium text-gray-900">
-        {{ searchQuery ? 'No tables found' : 'No tables yet' }}
-      </h3>
-      <p class="mt-1 text-sm text-gray-500">
-        {{ searchQuery ? 'Try adjusting your search terms.' : 'Get started by creating your first table.' }}
-      </p>
-      <div v-if="!searchQuery" class="mt-6">
-        <Button @click="isCreateDialogOpen = true">Create Table</Button>
-      </div>
+    <!-- Loading State -->
+    <LoadingSpinner v-if="isLoading" text="Loading tables..." />
+
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="filteredTables.length === 0 && !searchQuery"
+      :icon="Table"
+      title="No tables yet"
+      description="Get started by creating your first table"
+      actionLabel="Create Table"
+      :actionIcon="Plus"
+      @action="isCreateDialogOpen = true"
+    />
+
+    <!-- No Search Results -->
+    <div v-else-if="filteredTables.length === 0 && searchQuery" class="text-center py-12">
+      <Table class="mx-auto h-12 w-12 text-muted-foreground" />
+      <h3 class="mt-2 text-sm font-medium text-foreground">No tables found</h3>
+      <p class="mt-1 text-sm text-muted-foreground">Try adjusting your search terms.</p>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <Card 
-        v-for="table in filteredTables" 
+      <Card
+        v-for="table in filteredTables"
         :key="table.id"
         class="hover:shadow-lg transition-shadow duration-200"
       >
@@ -348,7 +342,7 @@ const removeColumn = (index: number) => {
               <Button
                 variant="ghost"
                 size="sm"
-                @click="handleDeleteTable(table.id)"
+                @click="handleDeleteTable(table.id, table.name)"
                 title="Delete Table"
               >
                 <Trash2 class="h-4 w-4" />
@@ -360,36 +354,26 @@ const removeColumn = (index: number) => {
           <div class="space-y-3">
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-500">Columns</span>
-              <span class="font-medium">{{ table.columns }}</span>
+              <span class="font-medium">{{ table.columns ?? 0 }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-gray-500">Rows</span>
-              <span class="font-medium">{{ table.rows.toLocaleString() }}</span>
+              <span class="font-medium">{{ (table.rows ?? 0).toLocaleString() }}</span>
             </div>
             <div class="flex items-center justify-between text-sm text-gray-500">
               <div class="flex items-center space-x-1">
                 <Calendar class="h-4 w-4" />
-                <span>Updated {{ formatDate(table.updated_at) }}</span>
+                <span>Updated {{ table.updated_at ? formatDate(table.updated_at) : 'Unknown' }}</span>
               </div>
               <Badge variant="secondary">Active</Badge>
             </div>
           </div>
           <div class="mt-4 flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              class="flex-1"
-              @click="handleViewTable(table.id)"
-            >
+            <Button variant="outline" size="sm" class="flex-1" @click="handleViewTable(table.id)">
               <Eye class="w-4 h-4 mr-1" />
               View Data
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              class="flex-1"
-              @click="handleEditSchema(table.id)"
-            >
+            <Button variant="outline" size="sm" class="flex-1" @click="handleEditSchema(table.id)">
               <Settings class="w-4 h-4 mr-1" />
               Edit Schema
             </Button>

@@ -15,11 +15,19 @@ export interface Project {
   updated_at: string
 }
 
+export interface ProjectWithMetrics extends Project {
+  table_count?: number
+  workflow_count?: number
+  database_count?: number
+}
+
 export interface Table {
   id: string
   name: string
   description?: string
   project_id: string
+  columns?: number
+  rows?: number
   created_at: string
   updated_at: string
 }
@@ -59,16 +67,23 @@ export interface ForeignKey {
   referenced_column: string
 }
 
-export interface DatabaseMutation {
+export interface BaseDatabaseMutation {
   id: string
-  type: 'create_table' | 'drop_table' | 'add_column' | 'remove_column' | 'modify_column' | 'add_foreign_key' | 'remove_foreign_key'
   table_name: string
-  data: any
   status: 'pending' | 'in_progress' | 'completed' | 'failed'
   created_at: string
   completed_at?: string
   error_message?: string
 }
+
+export type DatabaseMutation =
+  | (BaseDatabaseMutation & { type: 'create_table'; data: { columns: TableColumn[] } })
+  | (BaseDatabaseMutation & { type: 'drop_table'; data: Record<string, never> })
+  | (BaseDatabaseMutation & { type: 'add_column'; data: { column: TableColumn } })
+  | (BaseDatabaseMutation & { type: 'remove_column'; data: { column_name: string } })
+  | (BaseDatabaseMutation & { type: 'modify_column'; data: { column: TableColumn } })
+  | (BaseDatabaseMutation & { type: 'add_foreign_key'; data: { foreign_key: ForeignKey } })
+  | (BaseDatabaseMutation & { type: 'remove_foreign_key'; data: { column_name: string } })
 
 export interface Workflow {
   id: string
@@ -82,35 +97,82 @@ export interface Workflow {
   updated_at: string
 }
 
-export interface WorkflowTrigger {
-  type: 'on_row_created' | 'on_row_updated' | 'on_row_deleted' | 'scheduled' | 'webhook'
-  table_name?: string
-  conditions?: Record<string, any>
-  schedule?: string
-}
+export type WorkflowTrigger =
+  | { type: 'on_row_created'; table_name: string; conditions?: Record<string, unknown> }
+  | { type: 'on_row_updated'; table_name: string; conditions?: Record<string, unknown> }
+  | { type: 'on_row_deleted'; table_name: string; conditions?: Record<string, unknown> }
+  | { type: 'scheduled'; schedule: string }
+  | { type: 'webhook'; webhook_url?: string }
 
-export interface WorkflowAction {
+export interface BaseWorkflowAction {
   id: string
-  type: 'send_webhook' | 'send_email' | 'update_row' | 'create_row' | 'delete_row'
-  config: Record<string, any>
   order: number
 }
 
-export interface ActivityLog {
+export type WorkflowAction =
+  | (BaseWorkflowAction & {
+      type: 'send_webhook'
+      config: {
+        url: string
+        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+        payload?: Record<string, unknown>
+        headers?: Record<string, string>
+      }
+    })
+  | (BaseWorkflowAction & {
+      type: 'send_email'
+      config: {
+        to: string
+        subject: string
+        template: string
+        variables?: Record<string, unknown>
+      }
+    })
+  | (BaseWorkflowAction & {
+      type: 'update_row'
+      config: {
+        table: string
+        condition: string
+        updates: Record<string, unknown>
+      }
+    })
+  | (BaseWorkflowAction & {
+      type: 'create_row'
+      config: {
+        table: string
+        values: Record<string, unknown>
+      }
+    })
+  | (BaseWorkflowAction & {
+      type: 'delete_row'
+      config: {
+        table: string
+        condition: string
+      }
+    })
+
+export interface BaseActivityLog {
   id: string
   project_id: string
-  type: 'table_created' | 'table_updated' | 'table_deleted' | 'row_created' | 'row_updated' | 'row_deleted' | 'workflow_triggered' | 'workflow_completed' | 'workflow_failed'
   entity_type: 'table' | 'row' | 'workflow' | 'database'
   entity_id: string
   entity_name: string
-  details: Record<string, any>
   user_id?: string
   created_at: string
 }
 
-export interface TableData {
-  [key: string]: any
-}
+export type ActivityLog =
+  | (BaseActivityLog & { type: 'table_created'; details: { columns: number; description?: string } })
+  | (BaseActivityLog & { type: 'table_updated'; details: { changes: string[] } })
+  | (BaseActivityLog & { type: 'table_deleted'; details: Record<string, never> })
+  | (BaseActivityLog & { type: 'row_created'; details: { table: string; row_id: string } })
+  | (BaseActivityLog & { type: 'row_updated'; details: { table: string; row_id: string; fields: string[] } })
+  | (BaseActivityLog & { type: 'row_deleted'; details: { table: string; row_id: string } })
+  | (BaseActivityLog & { type: 'workflow_triggered'; details: { trigger_type: string } })
+  | (BaseActivityLog & { type: 'workflow_completed'; details: { duration_ms: number; actions_executed: number } })
+  | (BaseActivityLog & { type: 'workflow_failed'; details: { error: string; failed_action?: string } })
+
+export type TableData = Record<string, unknown>
 
 export interface PaginatedResponse<T> {
   data: T[]
@@ -125,4 +187,20 @@ export interface ApiError {
   code?: string
   details?: Record<string, any>
   field?: string
+}
+
+export interface WorkflowCreateRequest {
+  name: string
+  description?: string
+  trigger?: WorkflowTrigger
+  actions?: WorkflowAction[]
+  is_active?: boolean
+}
+
+export interface WorkflowUpdateRequest {
+  name?: string
+  description?: string
+  trigger?: WorkflowTrigger
+  actions?: WorkflowAction[]
+  is_active?: boolean
 }
