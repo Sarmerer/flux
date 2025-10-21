@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { User } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
-import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 import { useProjectStore } from '@/stores/projects'
-import { Badge } from '@/components/ui/badge'
+import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
+import { Badge } from '@/components/ui/badge'
 import {
   Sidebar,
   SidebarContent,
@@ -33,16 +33,20 @@ const userItems = computed(() => sidebarStore.userItems)
 
 // Get current project ID from route or store
 const currentProjectId = computed(() => {
-  return (route.params.projectId as string) || (route.params.id as string) || projectStore.currentProject?.id
+  return (route.params.projectId as string) || projectStore.currentProject?.id
 })
 
 // Watch for project changes and update sidebar
-watch(currentProjectId, (newProjectId) => {
-  if (!newProjectId) {
-    sidebarStore.clearProjectItems()
-  }
-  // Note: The actual counts will be updated by the individual pages (Tables.vue, ProjectDetail.vue, etc.)
-}, { immediate: true })
+watch(
+  currentProjectId,
+  (newProjectId) => {
+    if (!newProjectId) {
+      sidebarStore.clearProjectItems()
+    }
+    // Note: The actual counts will be updated by the individual pages (Tables.vue, ProjectDetail.vue, etc.)
+  },
+  { immediate: true }
+)
 
 const isActive = (itemUrl: string) => {
   return route.path === itemUrl || route.path.startsWith(itemUrl + '/')

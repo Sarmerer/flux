@@ -35,30 +35,30 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:id',
+    path: '/projects/:projectId',
     name: 'ProjectDetail',
     redirect: { name: 'ProjectOverview' },
   },
   {
-    path: '/projects/:id/overview',
+    path: '/projects/:projectId/overview',
     name: 'ProjectOverview',
     component: ProjectDetail,
     meta: { requiresAuth: true, tab: 'overview' },
   },
   {
-    path: '/projects/:id/overview/tables',
+    path: '/projects/:projectId/overview/tables',
     name: 'ProjectTablesView',
     component: ProjectDetail,
     meta: { requiresAuth: true, tab: 'tables' },
   },
   {
-    path: '/projects/:id/overview/workflows',
+    path: '/projects/:projectId/overview/workflows',
     name: 'ProjectWorkflowsView',
     component: ProjectDetail,
     meta: { requiresAuth: true, tab: 'workflows' },
   },
   {
-    path: '/projects/:id/overview/activity',
+    path: '/projects/:projectId/overview/activity',
     name: 'ProjectActivityView',
     component: ProjectDetail,
     meta: { requiresAuth: true, tab: 'activity' },
@@ -127,7 +127,7 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   // Project context restoration for project-specific routes
-  const projectIdFromRoute = (to.params.projectId as string) || (to.params.id as string)
+  const projectIdFromRoute = to.params.projectId as string
 
   if (projectIdFromRoute) {
     // If navigating to a project route and no current project or different project

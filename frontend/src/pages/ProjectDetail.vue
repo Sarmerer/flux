@@ -33,7 +33,7 @@ const projectsStore = useProjectStore()
 const sidebarStore = useSidebarItemsStore()
 const toast = useToast()
 
-const projectId = computed(() => route.params.id as string)
+const projectId = computed(() => route.params.projectId as string)
 const project = computed(() => projectsStore.currentProject)
 
 // Get the current tab from route meta or default to 'overview'
