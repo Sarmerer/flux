@@ -1,9 +1,8 @@
 import { computed, ref } from 'vue'
 
+import { authService } from '@/api/services/auth'
 import type { User } from '@/types/api'
 import { defineStore } from 'pinia'
-
-import { authService } from '@/api/services/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -20,8 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       await authService.login({ email, password })
-      // Get user profile after successful login
-      // For now, we'll create a mock user since we don't have the user ID yet
+
       user.value = {
         id: '1',
         email: email,
@@ -44,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const newUser = await authService.register({ name, email, password })
       user.value = newUser
-      // Auto-login after registration
+
       await login(email, password)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Registration failed'
@@ -74,8 +72,6 @@ export const useAuthStore = defineStore('auth', () => {
 
     isLoading.value = true
     try {
-      // For now, we'll create a mock user since we don't have a profile endpoint
-      // In a real app, you would decode the JWT token or call a profile endpoint
       user.value = {
         id: '1',
         email: 'user@example.com',
@@ -84,7 +80,6 @@ export const useAuthStore = defineStore('auth', () => {
         updated_at: new Date().toISOString(),
       }
     } catch (err) {
-      // Token might be invalid, clear it
       authService.logout()
       user.value = null
     } finally {

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { AlertCircle, RefreshCw, Server } from 'lucide-vue-next'
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface Props {
   error?: Error | string
@@ -11,12 +12,14 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const errorMessage = typeof props.error === 'string' ? props.error : props.error?.message || 'An error occurred'
+const errorMessage =
+  typeof props.error === 'string' ? props.error : props.error?.message || 'An error occurred'
 
-const isConnectionError = errorMessage.includes('Failed to fetch') ||
-                          errorMessage.includes('Network') ||
-                          errorMessage.includes('CORS') ||
-                          errorMessage.includes('ERR_CONNECTION')
+const isConnectionError =
+  errorMessage.includes('Failed to fetch') ||
+  errorMessage.includes('Network') ||
+  errorMessage.includes('CORS') ||
+  errorMessage.includes('ERR_CONNECTION')
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
 </script>
@@ -46,7 +49,10 @@ const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
           <div class="text-sm text-muted-foreground space-y-2">
             <p class="font-medium">Please check:</p>
             <ul class="list-disc list-inside space-y-1 ml-2">
-              <li>Backend server is running on <code class="text-xs bg-muted px-1 py-0.5 rounded">{{ apiUrl }}</code></li>
+              <li>
+                Backend server is running on
+                <code class="text-xs bg-muted px-1 py-0.5 rounded">{{ apiUrl }}</code>
+              </li>
               <li>CORS is properly configured</li>
               <li>Network connection is stable</li>
             </ul>

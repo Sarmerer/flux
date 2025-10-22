@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 
 import { projectService } from '@/api/services/project'
+import { useCacheStore } from '@/stores/cache'
 import type { Project } from '@/types/api'
 
 import { useResourceCache } from '../data/useResourceCache'
@@ -10,6 +11,8 @@ import { useResourceCache } from '../data/useResourceCache'
  * Use this instead of direct API calls in components
  */
 export function useProjects() {
+  const cacheStore = useCacheStore()
+
   const {
     data: projects,
     loading,
@@ -19,28 +22,35 @@ export function useProjects() {
   } = useResourceCache<Project[]>('projects', {
     fetchFn: () => projectService.getAll(),
     subscribeToUpdates: true,
-    scope: 'global',
     events: ['project:created', 'project:updated', 'project:deleted'],
-    ttl: 60000, // 1 minute
-    refetchOnMount: true,
-    optimisticUpdate: true,
+    ttlMs: 60000,
+    fetchOnMount: true,
+    tags: ['projects', 'global'],
   })
 
   const createProject = async (data: { name: string; description?: string }) => {
     const newProject = await projectService.create(data)
-    refresh() // Refresh to get updated list
+    refresh()
+
+    cacheStore.invalidateByTag('projects')
     return newProject
   }
 
   const updateProject = async (id: string, data: { name?: string; description?: string }) => {
     const updated = await projectService.update(id, data)
-    refresh() // Refresh to get updated list
+    refresh()
+
+    cacheStore.invalidate(`project:${id}`)
+    cacheStore.invalidateByTag('projects')
     return updated
   }
 
   const deleteProject = async (id: string) => {
     await projectService.delete(id)
-    refresh() // Refresh to get updated list
+    refresh()
+
+    cacheStore.invalidateByTag(`project:${id}`)
+    cacheStore.invalidateByTag('projects')
   }
 
   const getProjectById = async (id: string) => {

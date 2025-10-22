@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
 /**
@@ -40,7 +40,7 @@ export function useStatusFormatting() {
       failed: 'destructive',
       error: 'destructive',
       inactive: 'outline',
-      cancelled: 'outline'
+      cancelled: 'outline',
     }
 
     return statusMap[status.toLowerCase()] || 'outline'
@@ -58,7 +58,7 @@ export function useStatusFormatting() {
       pending: Clock,
       in_progress: Clock,
       completed: CheckCircle,
-      failed: AlertCircle
+      failed: AlertCircle,
     }
 
     return iconMap[status] || Clock
@@ -76,7 +76,7 @@ export function useStatusFormatting() {
       pending: 'text-yellow-600',
       in_progress: 'text-blue-600',
       completed: 'text-green-600',
-      failed: 'text-red-600'
+      failed: 'text-red-600',
     }
 
     return colorMap[status] || 'text-gray-600'
@@ -94,7 +94,7 @@ export function useStatusFormatting() {
       pending: 'bg-yellow-50',
       in_progress: 'bg-blue-50',
       completed: 'bg-green-50',
-      failed: 'bg-red-50'
+      failed: 'bg-red-50',
     }
 
     return colorMap[status] || 'bg-gray-50'
@@ -106,6 +106,6 @@ export function useStatusFormatting() {
     getStatusBadgeVariant,
     getMutationStatusIcon,
     getMutationStatusColor,
-    getMutationStatusBgColor
+    getMutationStatusBgColor,
   }
 }

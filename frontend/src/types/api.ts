@@ -15,12 +15,6 @@ export interface Project {
   updated_at: string
 }
 
-export interface ProjectWithMetrics extends Project {
-  table_count?: number
-  workflow_count?: number
-  database_count?: number
-}
-
 export interface Table {
   id: string
   name: string
@@ -28,18 +22,6 @@ export interface Table {
   project_id: string
   columns?: number
   rows?: number
-  created_at: string
-  updated_at: string
-}
-
-export interface Database {
-  id: string
-  name: string
-  host: string
-  port: number
-  username: string
-  database: string
-  project_id: string
   created_at: string
   updated_at: string
 }
@@ -162,15 +144,27 @@ export interface BaseActivityLog {
 }
 
 export type ActivityLog =
-  | (BaseActivityLog & { type: 'table_created'; details: { columns: number; description?: string } })
+  | (BaseActivityLog & {
+      type: 'table_created'
+      details: { columns: number; description?: string }
+    })
   | (BaseActivityLog & { type: 'table_updated'; details: { changes: string[] } })
   | (BaseActivityLog & { type: 'table_deleted'; details: Record<string, never> })
   | (BaseActivityLog & { type: 'row_created'; details: { table: string; row_id: string } })
-  | (BaseActivityLog & { type: 'row_updated'; details: { table: string; row_id: string; fields: string[] } })
+  | (BaseActivityLog & {
+      type: 'row_updated'
+      details: { table: string; row_id: string; fields: string[] }
+    })
   | (BaseActivityLog & { type: 'row_deleted'; details: { table: string; row_id: string } })
   | (BaseActivityLog & { type: 'workflow_triggered'; details: { trigger_type: string } })
-  | (BaseActivityLog & { type: 'workflow_completed'; details: { duration_ms: number; actions_executed: number } })
-  | (BaseActivityLog & { type: 'workflow_failed'; details: { error: string; failed_action?: string } })
+  | (BaseActivityLog & {
+      type: 'workflow_completed'
+      details: { duration_ms: number; actions_executed: number }
+    })
+  | (BaseActivityLog & {
+      type: 'workflow_failed'
+      details: { error: string; failed_action?: string }
+    })
 
 export type TableData = Record<string, unknown>
 

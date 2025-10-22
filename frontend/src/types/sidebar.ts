@@ -8,7 +8,14 @@ export interface SidebarItem {
   children?: SidebarItem[]
   action?: string
   badge?: string | number
-  badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info'
+  badgeVariant?:
+    | 'default'
+    | 'secondary'
+    | 'destructive'
+    | 'outline'
+    | 'success'
+    | 'warning'
+    | 'info'
   hidden?: boolean
   disabled?: boolean
 }

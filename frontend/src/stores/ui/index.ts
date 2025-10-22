@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+
 import { defineStore } from 'pinia'
 
 /**
@@ -23,7 +24,6 @@ export const useUIStore = defineStore('ui', () => {
     localStorage.setItem('sidebar-open', String(open))
   }
 
-  // Load from localStorage
   const savedOpen = localStorage.getItem('sidebar-open')
   if (savedOpen !== null) {
     sidebarOpen.value = savedOpen === 'true'

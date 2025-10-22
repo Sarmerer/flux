@@ -174,7 +174,6 @@ const handleCreateWorkflow = async () => {
   if (!newWorkflow.value.name.trim()) return
 
   try {
-    // TODO: Call API to create workflow
     const workflow = {
       id: Date.now().toString(),
       name: newWorkflow.value.name,
@@ -201,7 +200,6 @@ const handleCreateWorkflow = async () => {
       actions: [],
     }
 
-    // Navigate to workflow builder
     router.push(`/projects/${projectId.value}/workflows/${workflow.id}/builder`)
   } catch (error) {
     console.error('Failed to create workflow:', error)
@@ -216,7 +214,6 @@ const handleEditWorkflow = (workflow: any) => {
 const handleDeleteWorkflow = async (workflowId: string) => {
   if (confirm('Are you sure you want to delete this workflow? This action cannot be undone.')) {
     try {
-      // TODO: Call API to delete workflow
       workflows.value = workflows.value.filter((w) => w.id !== workflowId)
     } catch (error) {
       console.error('Failed to delete workflow:', error)
@@ -226,7 +223,6 @@ const handleDeleteWorkflow = async (workflowId: string) => {
 
 const handleToggleWorkflow = async (workflow: any) => {
   try {
-    // TODO: Call API to toggle workflow status
     workflow.is_active = !workflow.is_active
   } catch (error) {
     console.error('Failed to toggle workflow:', error)
@@ -235,7 +231,6 @@ const handleToggleWorkflow = async (workflow: any) => {
 
 const handleRunWorkflow = async (workflow: any) => {
   try {
-    // TODO: Call API to run workflow
     console.log('Running workflow:', workflow.id)
   } catch (error) {
     console.error('Failed to run workflow:', error)

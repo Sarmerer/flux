@@ -9,11 +9,13 @@ import {
   Plus,
   Save,
   Settings,
-  Trash2
+  Trash2,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,10 +28,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,7 +51,7 @@ const workflow = ref<WorkflowState>({
   trigger: {
     type: 'on_row_created',
     table_name: 'users',
-    conditions: {}
+    conditions: {},
   },
   actions: [
     {
@@ -59,12 +60,12 @@ const workflow = ref<WorkflowState>({
       config: {
         template: 'welcome',
         to: '{{user.email}}',
-        subject: 'Welcome to our platform!'
+        subject: 'Welcome to our platform!',
       },
-      order: 1
-    }
+      order: 1,
+    },
   ],
-  is_active: false
+  is_active: false,
 })
 
 const isSaving = ref(false)
@@ -82,7 +83,7 @@ const triggerTypes: TypeOption[] = [
   { value: 'on_row_updated', label: 'On Row Updated', icon: Database },
   { value: 'on_row_deleted', label: 'On Row Deleted', icon: Database },
   { value: 'scheduled', label: 'Scheduled', icon: Settings },
-  { value: 'webhook', label: 'Webhook', icon: Globe }
+  { value: 'webhook', label: 'Webhook', icon: Globe },
 ]
 
 const actionTypes: TypeOption[] = [
@@ -90,7 +91,7 @@ const actionTypes: TypeOption[] = [
   { value: 'send_email', label: 'Send Email', icon: Mail },
   { value: 'update_row', label: 'Update Row', icon: Database },
   { value: 'create_row', label: 'Create Row', icon: Database },
-  { value: 'delete_row', label: 'Delete Row', icon: Database }
+  { value: 'delete_row', label: 'Delete Row', icon: Database },
 ]
 
 const addAction = () => {
@@ -99,16 +100,16 @@ const addAction = () => {
     type: 'send_webhook',
     config: {
       url: '',
-      method: 'POST'
+      method: 'POST',
     },
-    order: workflow.value.actions.length + 1
+    order: workflow.value.actions.length + 1,
   }
   workflow.value.actions.push(newAction)
 }
 
 const removeAction = (actionId: string) => {
   workflow.value.actions = workflow.value.actions.filter((action) => action.id !== actionId)
-  // Reorder actions
+
   workflow.value.actions.forEach((action, index) => {
     action.order = index + 1
   })
@@ -118,7 +119,7 @@ const moveAction = (fromIndex: number, toIndex: number) => {
   const action = workflow.value.actions.splice(fromIndex, 1)[0]
   if (action) {
     workflow.value.actions.splice(toIndex, 0, action)
-    // Update order
+
     workflow.value.actions.forEach((act, index) => {
       act.order = index + 1
     })
@@ -128,13 +129,10 @@ const moveAction = (fromIndex: number, toIndex: number) => {
 const saveWorkflow = async () => {
   isSaving.value = true
   try {
-    // TODO: Call API to save workflow
     console.log('Saving workflow:', workflow.value)
 
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Navigate back to workflows list
     router.push(`/projects/${projectId.value}/workflows`)
   } catch (error) {
     console.error('Failed to save workflow:', error)
@@ -146,10 +144,8 @@ const saveWorkflow = async () => {
 const runWorkflow = async () => {
   isRunning.value = true
   try {
-    // TODO: Call API to run workflow
     console.log('Running workflow:', workflow.value)
 
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
     alert('Workflow executed successfully!')
@@ -171,7 +167,6 @@ const getTriggerIcon = (triggerType: string): Component => {
   return trigger?.icon || Database
 }
 
-// Type guards for trigger
 const isTriggerWithTable = (
   trigger: WorkflowTrigger
 ): trigger is Extract<WorkflowTrigger, { table_name: string }> => {
@@ -190,7 +185,6 @@ const isWebhookTrigger = (
   return trigger.type === 'webhook'
 }
 
-// Type guards for actions
 const isWebhookAction = (
   action: WorkflowAction
 ): action is Extract<WorkflowAction, { type: 'send_webhook' }> => {

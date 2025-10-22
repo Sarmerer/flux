@@ -49,6 +49,9 @@ export const workflowService = {
    * Execute/test a workflow manually
    */
   execute(projectId: string, id: string) {
-    return http.post<{ message: string; result: any }>(`/projects/${projectId}/workflows/${id}/execute`, {})
+    return http.post<{ message: string; result: any }>(
+      `/projects/${projectId}/workflows/${id}/execute`,
+      {}
+    )
   },
 }

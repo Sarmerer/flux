@@ -3,7 +3,6 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import {
   Activity,
   Calendar,
-  // Database,
   ExternalLink,
   Plus,
   Settings,
@@ -36,15 +35,12 @@ const toast = useToast()
 const projectId = computed(() => route.params.projectId as string)
 const project = computed(() => projectsStore.currentProject)
 
-// Get the current tab from route meta or default to 'overview'
 const currentTab = computed(() => (route.meta.tab as string) || 'overview')
 
-// Use composables for data management
 const { getProjectById } = useProjects()
 const { tables, loading: tablesLoading } = useTables(projectId.value)
 const { workflows, loading: workflowsLoading } = useWorkflows(projectId.value)
 
-// Update sidebar when tables or workflows change
 watch(
   [tables, workflows],
   ([newTables, newWorkflows]) => {
@@ -65,10 +61,9 @@ const stats = computed(() => ({
   lastActivity: '2 hours ago',
 }))
 
-const isLoading = computed(() => !project.value && projectsStore.isLoadingProject)
+const isLoading = computed(() => !project.value && projectsStore.isLoading)
 
 onMounted(async () => {
-  // If project is not in store, load it
   if (!project.value || project.value.id !== projectId.value) {
     try {
       const fetchedProject = await getProjectById(projectId.value)
@@ -79,7 +74,6 @@ onMounted(async () => {
     }
   }
 
-  // Set sidebar items
   if (projectId.value) {
     sidebarStore.setProjectItems(
       projectId.value,

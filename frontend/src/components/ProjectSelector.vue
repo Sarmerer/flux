@@ -1,32 +1,31 @@
 <script setup lang="ts">
+import { Check, ChevronsUpDown, FolderOpen, Plus } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { FolderOpen, Check, ChevronsUpDown, Plus } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
 
-import { useResourceCache } from '@/composables/data'
 import { projectService } from '@/api/services/project'
 import type { Project } from '@/types/api'
 
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
+
+import { useResourceCache } from '@/composables/data'
 
 const router = useRouter()
 const route = useRoute()
 
-// Fetch projects
 const { data: projects, loading } = useResourceCache<Project>('projects-list', {
   fetchFn: () => projectService.getAll(),
   subscribeToUpdates: true,
-  scope: 'global',
-  events: ['project_created', 'project_updated', 'project_deleted'],
-  ttl: 60000
+  events: ['project:created', 'project:updated', 'project:deleted'],
+  ttlMs: 60000,
 })
 
 const currentProjectId = computed(() => route.params.projectId as string)
@@ -52,11 +51,7 @@ const handleViewAllProjects = () => {
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
-      <Button
-        variant="outline"
-        class="w-full justify-between"
-        :disabled="loading"
-      >
+      <Button variant="outline" class="w-full justify-between" :disabled="loading">
         <div class="flex items-center space-x-2 truncate">
           <FolderOpen class="w-4 h-4 flex-shrink-0" />
           <span class="truncate">
@@ -83,14 +78,14 @@ const handleViewAllProjects = () => {
               <FolderOpen class="w-4 h-4 flex-shrink-0" />
               <span class="truncate">{{ project.name }}</span>
             </div>
-            <Check
-              v-if="currentProjectId === project.id"
-              class="w-4 h-4 flex-shrink-0"
-            />
+            <Check v-if="currentProjectId === project.id" class="w-4 h-4 flex-shrink-0" />
           </div>
         </DropdownMenuItem>
 
-        <div v-if="!projects?.length && !loading" class="px-2 py-3 text-sm text-muted-foreground text-center">
+        <div
+          v-if="!projects?.length && !loading"
+          class="px-2 py-3 text-sm text-muted-foreground text-center"
+        >
           No projects yet
         </div>
       </div>

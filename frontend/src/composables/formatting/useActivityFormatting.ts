@@ -1,15 +1,16 @@
 import {
-  Table,
-  Plus,
-  Edit,
-  Trash,
-  Play,
   CheckCircle,
-  XCircle,
   Database,
-  Workflow
+  Edit,
+  Play,
+  Plus,
+  Table,
+  Trash,
+  Workflow,
+  XCircle,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
+
 import type { ActivityLog } from '@/types/api'
 
 /**
@@ -56,7 +57,7 @@ export function useActivityFormatting() {
       table: Table,
       row: Table,
       workflow: Workflow,
-      database: Database
+      database: Database,
     }
 
     return iconMap[entityType] || Table
@@ -77,7 +78,7 @@ export function useActivityFormatting() {
       row_deleted: 'text-red-600',
       workflow_triggered: 'text-purple-600',
       workflow_completed: 'text-green-600',
-      workflow_failed: 'text-red-600'
+      workflow_failed: 'text-red-600',
     }
 
     return colorMap[type] || 'text-gray-600'
@@ -98,7 +99,7 @@ export function useActivityFormatting() {
       row_deleted: 'bg-red-50',
       workflow_triggered: 'bg-purple-50',
       workflow_completed: 'bg-green-50',
-      workflow_failed: 'bg-red-50'
+      workflow_failed: 'bg-red-50',
     }
 
     return colorMap[type] || 'bg-gray-50'
@@ -119,7 +120,7 @@ export function useActivityFormatting() {
       row_deleted: 'Row Deleted',
       workflow_triggered: 'Workflow Triggered',
       workflow_completed: 'Workflow Completed',
-      workflow_failed: 'Workflow Failed'
+      workflow_failed: 'Workflow Failed',
     }
 
     return typeMap[type] || type
@@ -140,6 +141,6 @@ export function useActivityFormatting() {
     getActivityColor,
     getActivityBgColor,
     formatActivityType,
-    formatEntityType
+    formatEntityType,
   }
 }

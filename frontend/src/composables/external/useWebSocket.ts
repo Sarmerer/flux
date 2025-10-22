@@ -1,7 +1,6 @@
-import { ref, onUnmounted, computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 
 interface SubscriptionOptions {
-  scope: 'project' | 'table' | 'workflow' | 'global'
   resourceId?: string
   events?: string[]
   onMessage: (data: any) => void
@@ -49,7 +48,6 @@ class SmartWebSocketManager {
         this.flushMessageQueue()
         this.startHeartbeat()
 
-        // Resubscribe to all active subscriptions
         this.subscriptions.forEach((sub) => {
           this.sendSubscribeMessage(sub.options)
         })
@@ -87,7 +85,7 @@ class SmartWebSocketManager {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({ type: 'ping' })
       }
-    }, 30000) // 30 seconds
+    }, 30000)
   }
 
   private stopHeartbeat() {
@@ -99,12 +97,14 @@ class SmartWebSocketManager {
 
   private scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.warn('[WebSocket] Max reconnection attempts reached. Call connect() manually to retry.')
+      console.warn(
+        '[WebSocket] Max reconnection attempts reached. Call connect() manually to retry.'
+      )
       return
     }
 
     this.reconnectAttempts++
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000) // Cap at 30s
+    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000)
 
     console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
 
@@ -120,14 +120,12 @@ class SmartWebSocketManager {
   }
 
   private handleMessage(message: any) {
-    // Route message to appropriate subscriptions
-    const { type, scope, resourceId, data } = message
+    const { type, resourceId, event, data } = message
 
     this.subscriptions.forEach((sub) => {
       const { options } = sub
 
-      // Check if subscription matches message
-      if (options.scope !== scope && options.scope !== 'global') {
+      if (!options.events || (event && !options.events.includes(event))) {
         return
       }
 
@@ -139,7 +137,6 @@ class SmartWebSocketManager {
         return
       }
 
-      // Handle throttling
       if (options.throttle) {
         this.throttledCallback(sub.id, () => options.onMessage(data), options.throttle)
       } else {
@@ -167,7 +164,6 @@ class SmartWebSocketManager {
   subscribe(options: SubscriptionOptions): () => void {
     const id = this.generateSubscriptionId(options)
 
-    // Don't duplicate subscriptions
     if (this.subscriptions.has(id)) {
       return this.subscriptions.get(id)!.unsubscribe
     }
@@ -185,7 +181,6 @@ class SmartWebSocketManager {
 
     this.subscriptions.set(id, subscription)
 
-    // Send subscribe message if connected
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.sendSubscribeMessage(options)
     }
@@ -194,13 +189,12 @@ class SmartWebSocketManager {
   }
 
   private generateSubscriptionId(options: SubscriptionOptions): string {
-    return `${options.scope}-${options.resourceId || 'all'}-${options.events?.join(',') || 'all'}`
+    return `${options.resourceId || 'all'}-${options.events?.join(',') || 'all'}`
   }
 
   private sendSubscribeMessage(options: SubscriptionOptions) {
     this.send({
       type: 'subscribe',
-      scope: options.scope,
       resourceId: options.resourceId,
       events: options.events,
     })
@@ -209,7 +203,6 @@ class SmartWebSocketManager {
   private sendUnsubscribeMessage(options: SubscriptionOptions) {
     this.send({
       type: 'unsubscribe',
-      scope: options.scope,
       resourceId: options.resourceId,
       events: options.events,
     })
@@ -247,11 +240,9 @@ class SmartWebSocketManager {
   }
 }
 
-// Singleton instance
 let wsManager: SmartWebSocketManager | null = null
 
 export function useWebSocket(autoConnect = false) {
-  // Initialize manager if needed
   if (!wsManager) {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
     wsManager = new SmartWebSocketManager(wsUrl)
@@ -260,7 +251,6 @@ export function useWebSocket(autoConnect = false) {
   const isConnected = ref(false)
   const subscriptions = ref<(() => void)[]>([])
 
-  // Connect on mount if authenticated and autoConnect is enabled
   if (autoConnect) {
     const token = localStorage.getItem('auth_token')
     if (token && !wsManager.isConnected()) {
@@ -268,7 +258,6 @@ export function useWebSocket(autoConnect = false) {
     }
   }
 
-  // Check connection status
   const checkConnection = () => {
     isConnected.value = wsManager?.isConnected() || false
   }
@@ -291,7 +280,6 @@ export function useWebSocket(autoConnect = false) {
     wsManager?.disconnect()
   }
 
-  // Cleanup on unmount
   onUnmounted(() => {
     clearInterval(connectionInterval)
     subscriptions.value.forEach((unsub) => unsub())

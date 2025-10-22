@@ -8,7 +8,7 @@ import {
   Save,
   Search,
   Trash2,
-  Upload
+  Upload,
 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -22,7 +22,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,8 +31,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select'
+
 import { useFormatting } from '@/composables/formatting'
 
 const route = useRoute()
@@ -70,7 +71,7 @@ const columns = ref<TableColumn[]>([
   { key: 'name', label: 'Name', type: 'varchar', sortable: true },
   { key: 'role', label: 'Role', type: 'varchar', sortable: true },
   { key: 'created_at', label: 'Created', type: 'timestamp', sortable: true },
-  { key: 'status', label: 'Status', type: 'varchar', sortable: true }
+  { key: 'status', label: 'Status', type: 'varchar', sortable: true },
 ])
 
 const data = ref<TableRow[]>([
@@ -80,7 +81,7 @@ const data = ref<TableRow[]>([
     name: 'John Doe',
     role: 'admin',
     created_at: '2024-01-15T10:30:00Z',
-    status: 'active'
+    status: 'active',
   },
   {
     id: '2',
@@ -88,7 +89,7 @@ const data = ref<TableRow[]>([
     name: 'Jane Smith',
     role: 'user',
     created_at: '2024-01-16T14:22:00Z',
-    status: 'active'
+    status: 'active',
   },
   {
     id: '3',
@@ -96,8 +97,8 @@ const data = ref<TableRow[]>([
     name: 'Bob Johnson',
     role: 'user',
     created_at: '2024-01-17T09:15:00Z',
-    status: 'inactive'
-  }
+    status: 'inactive',
+  },
 ])
 
 const newRow = ref<Partial<TableRow>>({})
@@ -171,7 +172,6 @@ const handleEditRow = (row: TableRow) => {
 const handleDeleteRow = async (rowId: string) => {
   if (confirm('Are you sure you want to delete this row?')) {
     try {
-      // TODO: Call API to delete row
       data.value = data.value.filter((row) => row.id !== rowId)
     } catch (error) {
       console.error('Failed to delete row:', error)
@@ -181,7 +181,6 @@ const handleDeleteRow = async (rowId: string) => {
 
 const saveNewRow = async () => {
   try {
-    // TODO: Call API to create row
     const newId = Date.now().toString()
     data.value.push({ ...newRow.value, id: newId } as TableRow)
     isAddDialogOpen.value = false
@@ -193,7 +192,6 @@ const saveNewRow = async () => {
 
 const saveEditRow = async () => {
   try {
-    // TODO: Call API to update row
     if (!editRow.value.id) return
 
     const index = data.value.findIndex((row) => row.id === editRow.value.id)

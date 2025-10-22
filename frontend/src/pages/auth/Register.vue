@@ -41,7 +41,6 @@ const handleSubmit = async (e: Event) => {
     await authStore.register(name.value, email.value, password.value)
     router.push('/dashboard')
   } catch (error) {
-    // Error is handled by the store
   } finally {
     isLoading.value = false
   }

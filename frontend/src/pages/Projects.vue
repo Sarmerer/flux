@@ -1,19 +1,8 @@
 <script setup lang="ts">
-import {
-  Calendar,
-  Edit,
-  FolderOpen,
-  // MoreHorizontal,
-  Plus,
-  Search,
-  Settings,
-  Trash2,
-} from 'lucide-vue-next'
+import ApiErrorBoundary from '@/components/ApiErrorBoundary.vue'
+import { Calendar, Edit, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-
-import { useProjects } from '@/composables/api'
-import ApiErrorBoundary from '@/components/ApiErrorBoundary.vue'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,9 +20,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
+import { useProjects } from '@/composables/api'
+
 const router = useRouter()
 
-// Use composable for projects management
 const { projects, loading, error, refresh, createProject, deleteProject } = useProjects()
 
 const searchQuery = ref('')
@@ -82,7 +72,6 @@ const handleProjectClick = (projectId: string) => {
 
 const handleEditProject = (projectId: string, event: Event) => {
   event.stopPropagation()
-  // TODO: Implement edit functionality
 }
 
 const handleDeleteProject = async (projectId: string, event: Event) => {
@@ -152,10 +141,7 @@ const formatDate = (dateString: string) => {
             <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
               Cancel
             </Button>
-            <Button
-              @click="handleCreateProject"
-              :disabled="!newProject.name.trim() || isCreating"
-            >
+            <Button @click="handleCreateProject" :disabled="!newProject.name.trim() || isCreating">
               {{ isCreating ? 'Creating...' : 'Create Project' }}
             </Button>
           </DialogFooter>

@@ -9,7 +9,7 @@ export interface RequestOptions extends RequestInit {
 }
 
 async function request<T = unknown>(url: string, options: RequestOptions = {}): Promise<T> {
-  const token = localStorage.getItem('auth_token') // Use same key as apiClient
+  const token = localStorage.getItem('auth_token')
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -30,12 +30,10 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
     throw new Error(body?.message || `HTTP ${response.status}: ${response.statusText}`)
   }
 
-  // Handle empty responses (204 No Content, etc)
   if (response.status === 204 || response.headers.get('content-length') === '0') {
     return undefined as T
   }
 
-  // Check if response is actually JSON
   const contentType = response.headers.get('content-type')
   if (!contentType || !contentType.includes('application/json')) {
     const text = await response.text()
@@ -43,18 +41,18 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
       url: url.startsWith('/') ? `${BASE_URL}${url}` : url,
       contentType,
       status: response.status,
-      text: text.substring(0, 200)
+      text: text.substring(0, 200),
     })
     throw new Error(`Expected JSON response but got ${contentType || 'unknown'}`)
   }
 
   try {
-    const data = await response.json() as T
+    const data = (await response.json()) as T
     return data
   } catch (error) {
     console.error('JSON parse error:', {
       url: url.startsWith('/') ? `${BASE_URL}${url}` : url,
-      error
+      error,
     })
     throw new Error('Invalid JSON in response')
   }

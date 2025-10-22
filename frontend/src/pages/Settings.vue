@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { Bell, Database, Eye, EyeOff, Globe, Key, Save, Shield, User } from 'lucide-vue-next'
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useAuthStore } from '@/stores/auth'
-import { useTheme } from '@/composables/ui'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +17,8 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-// import { Textarea } from '@/components/ui/textarea'
+
+import { useTheme } from '@/composables/ui'
 
 const authStore = useAuthStore()
 const { theme, setTheme } = useTheme()
@@ -41,10 +41,12 @@ const preferences = ref({
   },
 })
 
-// Watch for theme changes and apply them
-watch(() => preferences.value.theme, (newTheme) => {
-  setTheme(newTheme as 'light' | 'dark' | 'system')
-})
+watch(
+  () => preferences.value.theme,
+  (newTheme) => {
+    setTheme(newTheme as 'light' | 'dark' | 'system')
+  }
+)
 
 const security = ref({
   currentPassword: '',
@@ -93,7 +95,6 @@ const timezones = [
 const saveProfile = async () => {
   isSaving.value = true
   try {
-    // TODO: Call API to update profile
     console.log('Saving profile:', user.value)
     await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Profile updated successfully!')
@@ -108,7 +109,6 @@ const saveProfile = async () => {
 const savePreferences = async () => {
   isSaving.value = true
   try {
-    // TODO: Call API to update preferences
     console.log('Saving preferences:', preferences.value)
     await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Preferences updated successfully!')
@@ -123,7 +123,6 @@ const savePreferences = async () => {
 const saveSecurity = async () => {
   isSaving.value = true
   try {
-    // TODO: Call API to update security settings
     console.log('Saving security settings:', security.value)
     await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Security settings updated successfully!')
@@ -141,7 +140,6 @@ const saveSecurity = async () => {
 const saveDatabase = async () => {
   isSaving.value = true
   try {
-    // TODO: Call API to update database settings
     console.log('Saving database settings:', database.value)
     await new Promise((resolve) => setTimeout(resolve, 1000))
     alert('Database settings updated successfully!')
@@ -158,7 +156,6 @@ const generateNewApiKey = async () => {
     confirm('Are you sure you want to generate a new API key? The current key will be invalidated.')
   ) {
     try {
-      // TODO: Call API to generate new key
       security.value.apiKey =
         'sk-' +
         Math.random().toString(36).substring(2, 15) +
@@ -173,7 +170,6 @@ const generateNewApiKey = async () => {
 
 const toggleTwoFactor = async () => {
   try {
-    // TODO: Call API to toggle 2FA
     security.value.twoFactorEnabled = !security.value.twoFactorEnabled
     alert(
       security.value.twoFactorEnabled
@@ -331,7 +327,9 @@ const toggleTwoFactor = async () => {
               <div class="flex items-center justify-between">
                 <div>
                   <Label>Workflow Notifications</Label>
-                  <p class="text-sm text-muted-foreground">Get notified about workflow executions</p>
+                  <p class="text-sm text-muted-foreground">
+                    Get notified about workflow executions
+                  </p>
                 </div>
                 <Switch v-model="preferences.notifications.workflow" />
               </div>

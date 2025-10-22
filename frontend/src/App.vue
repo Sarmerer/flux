@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SimpleSidebar from '@/components/SimpleSidebar.vue'
+import AppSidebar from '@/components/AppSidebar.vue'
 import Toaster from '@/components/ui/toast/Toaster.vue'
 
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
@@ -7,7 +7,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 
 <template>
   <SidebarProvider>
-    <SimpleSidebar />
+    <AppSidebar />
 
     <main class="flex-1">
       <header class="p-4 border-b">

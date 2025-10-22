@@ -1,37 +1,30 @@
 <script setup lang="ts">
-import {
-  // Activity,
-  Clock,
-  Database,
-  FolderOpen,
-  Plus,
-  Table,
-  Workflow,
-} from 'lucide-vue-next'
+import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useAuthStore } from '@/stores/auth'
-import { useResourceCache } from '@/composables/data'
 import { projectService } from '@/api/services/project'
+import { useAuthStore } from '@/stores/auth'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
+import { useResourceCache } from '@/composables/data'
+
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Use resource cache instead of Pinia store
-const { data: projects, loading, error } = useResourceCache('dashboard-projects', {
+const {
+  data: projects,
+  loading,
+  error,
+} = useResourceCache('dashboard-projects', {
   fetchFn: () => projectService.getAll(),
-  subscribeToUpdates: true, // Real-time updates enabled
-  scope: 'global',
+  subscribeToUpdates: true,
   events: ['project_created', 'project_updated', 'project_deleted'],
-  ttl: 60000, // 1 minute cache
 })
 
-// Recent activity - in real app, fetch from API
 const recentActivity = [
   {
     id: '1',
@@ -55,14 +48,6 @@ const recentActivity = [
     icon: Workflow,
   },
 ]
-
-// Computed stats from projects
-const stats = computed(() => ({
-  totalProjects: projects.value?.length || 0,
-  totalTables: projects.value?.reduce((acc: number, project: any) => acc + ((project as any).table_count || 0), 0) || 0,
-  totalWorkflows: projects.value?.reduce((acc: number, project: any) => acc + ((project as any).workflow_count || 0), 0) || 0,
-  activeConnections: projects.value?.reduce((acc: number, project: any) => acc + ((project as any).database_count || 0), 0) || 0,
-}))
 
 const handleCreateProject = () => {
   router.push('/projects')
@@ -90,48 +75,37 @@ const handleProjectClick = (projectId: string) => {
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <Card>
+    <div class="flex gap-6">
+      <Card class="grow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium">Total Projects</CardTitle>
           <FolderOpen class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ stats.totalProjects }}</div>
+          <div class="text-2xl font-bold">{{ 0 }}</div>
           <p class="text-xs text-muted-foreground">Your active projects</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card class="grow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium">Total Tables</CardTitle>
           <Table class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ stats.totalTables }}</div>
+          <div class="text-2xl font-bold">{{ 0 }}</div>
           <p class="text-xs text-muted-foreground">Across all projects</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card class="grow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium">Active Workflows</CardTitle>
           <Workflow class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ stats.totalWorkflows }}</div>
+          <div class="text-2xl font-bold">{{ 0 }}</div>
           <p class="text-xs text-muted-foreground">Automation running</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Database Connections</CardTitle>
-          <Database class="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div class="text-2xl font-bold">{{ stats.activeConnections }}</div>
-          <p class="text-xs text-muted-foreground">All systems operational</p>
         </CardContent>
       </Card>
     </div>
@@ -193,12 +167,7 @@ const handleProjectClick = (projectId: string) => {
 
             <!-- View All Button -->
             <div v-if="projects.length > 5" class="pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                class="w-full"
-                @click="router.push('/projects')"
-              >
+              <Button variant="ghost" size="sm" class="w-full" @click="router.push('/projects')">
                 View All Projects ({{ projects.length }})
               </Button>
             </div>
@@ -232,12 +201,7 @@ const handleProjectClick = (projectId: string) => {
             </div>
           </div>
           <div class="mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              class="w-full"
-              @click="router.push('/activity')"
-            >
+            <Button variant="outline" size="sm" class="w-full" @click="router.push('/activity')">
               View All Activity
             </Button>
           </div>

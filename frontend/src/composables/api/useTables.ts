@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 
 import { tableService } from '@/api/services/table'
+import { useCacheStore } from '@/stores/cache'
 import type { Table } from '@/types/api'
 
 import { useResourceCache } from '../data/useResourceCache'
@@ -11,6 +12,7 @@ import { useResourceCache } from '../data/useResourceCache'
  */
 export function useTables(projectId: string) {
   const cacheKey = `tables:${projectId}`
+  const cacheStore = useCacheStore()
 
   const {
     data: tables,
@@ -21,29 +23,36 @@ export function useTables(projectId: string) {
   } = useResourceCache<Table[]>(cacheKey, {
     fetchFn: () => tableService.getAll(projectId),
     subscribeToUpdates: true,
-    scope: 'project',
     resourceId: projectId,
     events: ['table:created', 'table:updated', 'table:deleted'],
-    ttl: 60000, // 1 minute
-    refetchOnMount: true,
-    optimisticUpdate: true,
+    ttlMs: 60000,
+    fetchOnMount: true,
+    tags: ['tables', `project:${projectId}`],
   })
 
   const createTable = async (data: { name: string; description?: string }) => {
     const newTable = await tableService.create(projectId, data)
-    refresh() // Refresh to get updated list
+    refresh()
+
+    cacheStore.invalidateByTag(`project:${projectId}`)
     return newTable
   }
 
   const updateTable = async (tableId: string, data: { name?: string; description?: string }) => {
     const updated = await tableService.update(tableId, data)
-    refresh() // Refresh to get updated list
+    refresh()
+
+    cacheStore.invalidate(`table:${tableId}`)
+    cacheStore.invalidateByTag(`project:${projectId}`)
     return updated
   }
 
   const deleteTable = async (tableId: string) => {
     await tableService.delete(tableId)
-    refresh() // Refresh to get updated list
+    refresh()
+
+    cacheStore.invalidate(`table:${tableId}`)
+    cacheStore.invalidateByTag(`project:${projectId}`)
   }
 
   const getTableById = async (tableId: string) => {

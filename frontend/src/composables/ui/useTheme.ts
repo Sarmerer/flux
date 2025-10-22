@@ -1,4 +1,4 @@
-import { onMounted, ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 type Theme = 'dark' | 'light' | 'system'
 
@@ -19,14 +19,12 @@ export function useTheme() {
       actualTheme = theme
     }
 
-    // Update document class
     if (actualTheme === 'dark') {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
 
-    // Save to localStorage
     localStorage.setItem(THEME_KEY, theme)
   }
 
@@ -46,14 +44,12 @@ export function useTheme() {
     setTheme(isDark.value ? 'light' : 'dark')
   }
 
-  // Load theme from localStorage or use default
   const loadTheme = () => {
     const saved = localStorage.getItem(THEME_KEY) as Theme | null
     const theme = saved || 'dark' // Default to dark
     setTheme(theme)
   }
 
-  // Listen for system theme changes
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
   const handleSystemThemeChange = () => {
     if (currentTheme.value === 'system') {

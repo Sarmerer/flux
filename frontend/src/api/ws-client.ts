@@ -1,15 +1,17 @@
-// src/api/wsClient.ts
 import mitt from 'mitt'
 
 export type ServerMessage =
-  | { type: 'progress'; id: string; data: { operation_id: string; step: string; progress: number; message: string } }
+  | {
+      type: 'progress'
+      id: string
+      data: { operation_id: string; step: string; progress: number; message: string }
+    }
   | { type: 'error'; id?: string; data: { operation_id?: string; message: string; error?: string } }
   | { type: 'success'; id?: string; data: any }
   | { type: 'notification'; data: { message: string; data?: any } }
   | { type: 'ping' }
 
-export type ClientMessage =
-  | { type: 'pong' }
+export type ClientMessage = { type: 'pong' }
 
 export type ServerEventMap = {
   [K in ServerMessage['type']]: Extract<ServerMessage, { type: K }>
@@ -31,7 +33,6 @@ class WebSocketClient {
     this.socket = new WebSocket(WS_URL)
     this.connectionPromise = new Promise((resolve, reject) => {
       this.socket!.onopen = () => {
-        // Send auth message immediately after connection opens
         const token = localStorage.getItem('token')
         if (token) {
           const authMsg = { type: 'auth', token: `Bearer ${token}` }
@@ -44,7 +45,6 @@ class WebSocketClient {
       this.socket!.onmessage = (e) => {
         try {
           const data: ServerMessage = JSON.parse(e.data)
-          // Respond to ping
           if ((data as any).type === 'ping') {
             this.socket!.send(JSON.stringify({ type: 'pong' }))
             return

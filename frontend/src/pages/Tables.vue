@@ -1,22 +1,11 @@
 <script setup lang="ts">
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import {
-  Calendar,
-  // Database,
-  // Edit,
-  Eye,
-  // MoreHorizontal,
-  Plus,
-  Search,
-  Settings,
-  Table,
-  Trash2,
-} from 'lucide-vue-next'
+import { Calendar, Eye, Plus, Search, Settings, Table, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useTables } from '@/composables/api'
+import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,10 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-// import { Textarea } from '@/components/ui/textarea'
 
+import { useTables } from '@/composables/api'
 import { useToast } from '@/composables/ui'
-import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,15 +39,17 @@ const sidebarStore = useSidebarItemsStore()
 
 const projectId = computed(() => route.params.projectId as string)
 
-// Use composable for tables management
 const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
 
-// Update sidebar when tables change
-watch(tables, (newTables) => {
-  if (projectId.value && sidebarStore.currentProjectId === projectId.value) {
-    sidebarStore.updateProjectCounts(newTables.length, sidebarStore.workflowCount)
-  }
-}, { immediate: true })
+watch(
+  tables,
+  (newTables) => {
+    if (projectId.value && sidebarStore.currentProjectId === projectId.value) {
+      sidebarStore.updateProjectCounts(newTables.length, sidebarStore.workflowCount)
+    }
+  },
+  { immediate: true }
+)
 
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
@@ -121,7 +111,6 @@ const handleCreateTable = async () => {
     isCreateDialogOpen.value = false
     newTable.value = { name: '', description: '', columns: [] }
 
-    // Navigate to table builder
     router.push(`/projects/${projectId.value}/tables/${createdTable.id}/builder`)
   } catch (error: any) {
     console.error('Failed to create table:', error)
@@ -363,7 +352,9 @@ const removeColumn = (index: number) => {
             <div class="flex items-center justify-between text-sm text-gray-500">
               <div class="flex items-center space-x-1">
                 <Calendar class="h-4 w-4" />
-                <span>Updated {{ table.updated_at ? formatDate(table.updated_at) : 'Unknown' }}</span>
+                <span
+                  >Updated {{ table.updated_at ? formatDate(table.updated_at) : 'Unknown' }}</span
+                >
               </div>
               <Badge variant="secondary">Active</Badge>
             </div>

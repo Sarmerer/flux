@@ -47,7 +47,7 @@ export function useFormatting() {
     options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     }
   ): string => {
     return new Date(dateString).toLocaleDateString(undefined, options)
@@ -64,7 +64,7 @@ export function useFormatting() {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     })
   }
 
@@ -119,6 +119,6 @@ export function useFormatting() {
     formatDateTime,
     formatNumber,
     formatBytes,
-    formatDuration
+    formatDuration,
   }
 }

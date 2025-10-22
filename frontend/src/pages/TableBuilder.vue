@@ -8,7 +8,6 @@ import {
   Link,
   Plus,
   Save,
-  // Table,
   Trash2,
 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
@@ -32,7 +31,6 @@ const route = useRoute()
 const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
-// const tableId = computed(() => route.params.tableId as string)
 
 const tableName = ref('users')
 const tableDescription = ref('User accounts and profiles')
@@ -116,17 +114,16 @@ const addColumn = () => {
 
 const removeColumn = (columnId: string) => {
   columns.value = columns.value.filter((col) => col.id !== columnId)
-  // Reorder remaining columns
+
   columns.value.forEach((col, _index) => {
     col.order = _index + 1
   })
 }
 
-// @ts-expect-error - unused but may be needed later
 const moveColumn = (fromIndex: number, toIndex: number) => {
   const column = columns.value.splice(fromIndex, 1)[0]
   columns.value.splice(toIndex, 0, column)
-  // Update order
+
   columns.value.forEach((col, _index) => {
     col.order = _index + 1
   })
@@ -135,17 +132,14 @@ const moveColumn = (fromIndex: number, toIndex: number) => {
 const saveTable = async () => {
   isSaving.value = true
   try {
-    // TODO: Call API to save table schema
     console.log('Saving table:', {
       name: tableName.value,
       description: tableDescription.value,
       columns: columns.value,
     })
 
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Navigate back to tables list
     router.push(`/projects/${projectId.value}/tables`)
   } catch (error) {
     console.error('Failed to save table:', error)
@@ -155,7 +149,6 @@ const saveTable = async () => {
 }
 
 const generateSQL = () => {
-  // const primaryKeys = columns.value.filter((col) => col.primary_key).map((col) => col.name)
   const foreignKeys = columns.value
     .filter((col) => col.foreign_key)
     .map(
