@@ -3,6 +3,8 @@ package routes
 import (
 	"net/http"
 
+	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/domain/repositories"
 	"github.com/flow/internal/infrastructure/handlers"
 	authMiddleware "github.com/flow/internal/infrastructure/middleware"
 	"github.com/flow/internal/errors"
@@ -21,6 +23,7 @@ func SetupRoutes(
 	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
 	workflowHandler *handlers.WorkflowHandler,
 	logHandler *handlers.LogHandler,
+	userRepo repositories.UserRepository,
 	jwtSecret string,
 	corsAllowedOrigins []string,
 ) http.Handler {
@@ -81,28 +84,46 @@ func SetupRoutes(
 
 			// Project routes
 			r.Route("/projects", func(r chi.Router) {
-				r.Post("/", projectHandler.CreateProject)
+				// Everyone can view projects
 				r.Get("/", projectHandler.GetProjects)
 				r.Get("/{id}", projectHandler.GetProject)
-				r.Put("/{id}", projectHandler.UpdateProject)
-				r.Delete("/{id}", projectHandler.DeleteProject)
+
+				// Require permissions for create/update/delete
+				r.With(authMiddleware.RequirePermission(userRepo, entities.PermProjectsCreate)).
+					Post("/", projectHandler.CreateProject)
+
+				r.With(authMiddleware.RequirePermission(userRepo, entities.PermProjectsEdit)).
+					Put("/{id}", projectHandler.UpdateProject)
+
+				r.With(authMiddleware.RequirePermission(userRepo, entities.PermProjectsDelete)).
+					Delete("/{id}", projectHandler.DeleteProject)
 
 				// Project-specific log routes
 				r.Get("/{projectId}/logs", logHandler.GetProjectLogs)
 
 				// Table routes under projects
 				r.Route("/{projectId}/tables", func(r chi.Router) {
-					r.Post("/", tableHandler.CreateTable)
+					// Everyone can view tables
 					r.Get("/", tableHandler.GetTables)
 					r.Get("/{id}", tableHandler.GetTable)
-					r.Put("/{id}", tableHandler.UpdateTable)
-					r.Delete("/{id}", tableHandler.DeleteTable)
 
-					// Table routes with progress tracking
-					r.Post("/with-progress", dbMutationProgressHandler.CreateTableWithProgress)
+					// Require permissions for create/update/delete
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesCreate)).
+						Post("/", tableHandler.CreateTable)
 
-					// Table schema mutation routes
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesCreate)).
+						Post("/with-progress", dbMutationProgressHandler.CreateTableWithProgress)
+
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesEdit)).
+						Put("/{id}", tableHandler.UpdateTable)
+
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesDelete)).
+						Delete("/{id}", tableHandler.DeleteTable)
+
+					// Table schema mutation routes - require edit permission
 					r.Route("/{tableName}/schema", func(r chi.Router) {
+						r.Use(authMiddleware.RequirePermission(userRepo, entities.PermTablesEdit))
+
 						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)
 						r.Delete("/drop", tableSchemaMutationHandler.DropTableFromDatabase)
 						r.Post("/columns/add", tableSchemaMutationHandler.AddColumnToTable)
@@ -115,13 +136,25 @@ func SetupRoutes(
 
 				// Workflow routes under projects
 				r.Route("/{projectId}/workflows", func(r chi.Router) {
-					r.Post("/", workflowHandler.CreateWorkflow)
+					// Everyone can view workflows
 					r.Get("/", workflowHandler.GetWorkflows)
 					r.Get("/{id}", workflowHandler.GetWorkflow)
-					r.Put("/{id}", workflowHandler.UpdateWorkflow)
-					r.Delete("/{id}", workflowHandler.DeleteWorkflow)
-					r.Post("/{id}/toggle", workflowHandler.ToggleWorkflowActive)
-					r.Post("/{id}/execute", workflowHandler.ExecuteWorkflow)
+
+					// Require permissions for create/update/delete
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsCreate)).
+						Post("/", workflowHandler.CreateWorkflow)
+
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsEdit)).
+						Put("/{id}", workflowHandler.UpdateWorkflow)
+
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsEdit)).
+						Post("/{id}/toggle", workflowHandler.ToggleWorkflowActive)
+
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsEdit)).
+						Post("/{id}/execute", workflowHandler.ExecuteWorkflow)
+
+					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsDelete)).
+						Delete("/{id}", workflowHandler.DeleteWorkflow)
 				})
 
 				// Public WebSocket endpoint (auth via WS handshake)

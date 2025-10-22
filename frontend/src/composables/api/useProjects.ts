@@ -20,12 +20,15 @@ export function useProjects() {
     refresh,
     invalidate,
   } = useResourceCache<Project[]>('projects', {
-    fetchFn: () => projectService.getAll(),
-    subscribeToUpdates: true,
-    events: ['project:created', 'project:updated', 'project:deleted'],
     ttlMs: 60000,
-    fetchOnMount: true,
     tags: ['projects', 'global'],
+    fetch: {
+      fn: () => projectService.getAll(),
+      onMount: true,
+    },
+    realtime: {
+      events: ['project:created', 'project:updated', 'project:deleted'],
+    },
   })
 
   const createProject = async (data: { name: string; description?: string }) => {

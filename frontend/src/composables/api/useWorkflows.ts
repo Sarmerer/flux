@@ -21,13 +21,16 @@ export function useWorkflows(projectId: string) {
     refresh,
     invalidate,
   } = useResourceCache<Workflow[]>(cacheKey, {
-    fetchFn: () => workflowService.getAll(projectId),
-    subscribeToUpdates: true,
-    resourceId: projectId,
-    events: ['workflow:created', 'workflow:updated', 'workflow:deleted'],
     ttlMs: 60000,
-    fetchOnMount: true,
     tags: ['workflows', `project:${projectId}`],
+    fetch: {
+      fn: () => workflowService.getAll(projectId),
+      onMount: true,
+    },
+    realtime: {
+      resourceId: projectId,
+      events: ['workflow:created', 'workflow:updated', 'workflow:deleted'],
+    },
   })
 
   const createWorkflow = async (data: WorkflowCreateRequest) => {

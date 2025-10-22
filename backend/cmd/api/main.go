@@ -128,7 +128,7 @@ func main() {
 	logHandler := handlers.NewLogHandler(logStorage, logStreamer)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
+	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, userRepo, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
 
 	// Create HTTP server
 	server := &http.Server{

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
-import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { projectService } from '@/api/services/project'
@@ -20,9 +19,7 @@ const {
   loading,
   error,
 } = useResourceCache('dashboard-projects', {
-  fetchFn: () => projectService.getAll(),
-  subscribeToUpdates: true,
-  events: ['project_created', 'project_updated', 'project_deleted'],
+  fetch: { fn: () => projectService.getAll(), onMount: true },
 })
 
 const recentActivity = [
@@ -49,18 +46,17 @@ const recentActivity = [
   },
 ]
 
-const handleCreateProject = () => {
-  router.push('/projects')
+const onCreateProjectClick = () => {
+  router.push('/projects/new')
 }
 
-const handleProjectClick = (projectId: string) => {
+const onProjectClick = (projectId: string) => {
   router.push(`/projects/${projectId}`)
 }
 </script>
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
@@ -68,13 +64,12 @@ const handleProjectClick = (projectId: string) => {
           Welcome back, {{ authStore.user?.name || 'User' }}!
         </p>
       </div>
-      <Button @click="handleCreateProject" class="flex items-center space-x-2">
+      <Button @click="onCreateProjectClick" class="flex items-center space-x-2">
         <Plus class="w-4 h-4" />
         <span>New Project</span>
       </Button>
     </div>
 
-    <!-- Stats Grid -->
     <div class="flex gap-6">
       <Card class="grow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -111,19 +106,16 @@ const handleProjectClick = (projectId: string) => {
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Recent Projects -->
       <Card>
         <CardHeader>
           <CardTitle>Recent Projects</CardTitle>
           <CardDescription>Your most recently accessed projects</CardDescription>
         </CardHeader>
         <CardContent>
-          <!-- Loading State -->
           <div v-if="loading" class="flex items-center justify-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
 
-          <!-- Error State -->
           <div v-else-if="error" class="text-center py-8">
             <div class="text-red-600 dark:text-red-400">
               <p class="text-sm font-medium">Failed to load projects</p>
@@ -131,7 +123,6 @@ const handleProjectClick = (projectId: string) => {
             </div>
           </div>
 
-          <!-- Empty State -->
           <div v-else-if="!projects || projects.length === 0" class="text-center py-8">
             <FolderOpen class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
             <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No projects</h3>
@@ -139,17 +130,16 @@ const handleProjectClick = (projectId: string) => {
               Get started by creating a new project.
             </p>
             <div class="mt-6">
-              <Button @click="handleCreateProject">Create Project</Button>
+              <Button @click="onCreateProjectClick">Create Project</Button>
             </div>
           </div>
 
-          <!-- Projects List -->
           <div v-else class="space-y-3">
             <div
               v-for="project in projects.slice(0, 5)"
               :key="project.id"
               class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-              @click="handleProjectClick(project.id)"
+              @click="onProjectClick(project.id)"
             >
               <div class="flex items-center space-x-3">
                 <FolderOpen class="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -165,7 +155,6 @@ const handleProjectClick = (projectId: string) => {
               <Badge variant="secondary">Active</Badge>
             </div>
 
-            <!-- View All Button -->
             <div v-if="projects.length > 5" class="pt-2">
               <Button variant="ghost" size="sm" class="w-full" @click="router.push('/projects')">
                 View All Projects ({{ projects.length }})
@@ -175,7 +164,6 @@ const handleProjectClick = (projectId: string) => {
         </CardContent>
       </Card>
 
-      <!-- Recent Activity -->
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>

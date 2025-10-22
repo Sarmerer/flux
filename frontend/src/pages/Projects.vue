@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import ApiErrorBoundary from '@/components/ApiErrorBoundary.vue'
 import { Calendar, Edit, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,17 +14,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 import { useProjects } from '@/composables/api'
+import { usePermissions } from '@/composables/usePermissions'
 
+const route = useRoute()
 const router = useRouter()
 
 const { projects, loading, error, refresh, createProject, deleteProject } = useProjects()
+const { can } = usePermissions()
 
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
@@ -93,6 +95,24 @@ const formatDate = (dateString: string) => {
     day: 'numeric',
   })
 }
+
+// Watch route to open modal when navigating to /projects/new
+watch(
+  () => route.meta.openCreateModal,
+  (shouldOpen) => {
+    if (shouldOpen) {
+      isCreateDialogOpen.value = true
+    }
+  },
+  { immediate: true }
+)
+
+// Watch modal state to update route when closing
+watch(isCreateDialogOpen, (isOpen) => {
+  if (!isOpen && route.path === '/projects/new') {
+    router.push('/projects')
+  }
+})
 </script>
 
 <template>
@@ -103,13 +123,16 @@ const formatDate = (dateString: string) => {
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Projects</h1>
         <p class="text-gray-600 dark:text-gray-400">Manage your database projects</p>
       </div>
+      <!-- Only show create button if user has permission -->
+      <Button
+        v-if="can('projects.create')"
+        class="flex items-center space-x-2"
+        @click="router.push('/projects/new')"
+      >
+        <Plus class="w-4 h-4" />
+        <span>New Project</span>
+      </Button>
       <Dialog v-model:open="isCreateDialogOpen">
-        <DialogTrigger asChild>
-          <Button class="flex items-center space-x-2">
-            <Plus class="w-4 h-4" />
-            <span>New Project</span>
-          </Button>
-        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
@@ -200,10 +223,22 @@ const formatDate = (dateString: string) => {
               </div>
             </div>
             <div class="flex items-center space-x-1">
-              <Button variant="ghost" size="sm" @click="handleEditProject(project.id, $event)">
+              <!-- Only show edit button if user has permission -->
+              <Button
+                v-if="can('projects.edit')"
+                variant="ghost"
+                size="sm"
+                @click="handleEditProject(project.id, $event)"
+              >
                 <Edit class="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" @click="handleDeleteProject(project.id, $event)">
+              <!-- Only show delete button if user has permission -->
+              <Button
+                v-if="can('projects.delete')"
+                variant="ghost"
+                size="sm"
+                @click="handleDeleteProject(project.id, $event)"
+              >
                 <Trash2 class="h-4 w-4" />
               </Button>
             </div>

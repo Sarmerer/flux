@@ -21,13 +21,16 @@ export function useTables(projectId: string) {
     refresh,
     invalidate,
   } = useResourceCache<Table[]>(cacheKey, {
-    fetchFn: () => tableService.getAll(projectId),
-    subscribeToUpdates: true,
-    resourceId: projectId,
-    events: ['table:created', 'table:updated', 'table:deleted'],
     ttlMs: 60000,
-    fetchOnMount: true,
     tags: ['tables', `project:${projectId}`],
+    fetch: {
+      fn: () => tableService.getAll(projectId),
+      onMount: true,
+    },
+    realtime: {
+      resourceId: projectId,
+      events: ['table:created', 'table:updated', 'table:deleted'],
+    },
   })
 
   const createTable = async (data: { name: string; description?: string }) => {

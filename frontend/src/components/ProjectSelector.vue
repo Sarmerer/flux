@@ -23,7 +23,6 @@ const route = useRoute()
 
 const { data: projects, loading } = useResourceCache<Project>('projects-list', {
   fetchFn: () => projectService.getAll(),
-  subscribeToUpdates: true,
   events: ['project:created', 'project:updated', 'project:deleted'],
   ttlMs: 60000,
 })

@@ -5,25 +5,23 @@ import { useCacheStore } from '@/stores/cache'
 import { useWebSocket } from '../external/useWebSocket'
 
 interface CacheOptions<T> {
-  fetchFn: () => Promise<T>
-  subscribeToUpdates?: boolean
-  resourceId?: string
-  events?: string[]
   ttlMs?: number
-  fetchOnMount?: boolean
   tags?: string[]
+  fetch: {
+    fn: () => Promise<T>
+    onMount?: boolean
+  }
+  realtime?: {
+    resourceId?: string
+    events: string[]
+    throttleMs?: number
+  }
 }
 
 export function useResourceCache<T>(key: string, options: CacheOptions<T>) {
-  const {
-    fetchFn,
-    subscribeToUpdates = false,
-    resourceId,
-    events,
-    ttlMs = 60000,
-    fetchOnMount = true,
-    tags,
-  } = options
+  const { ttlMs = 60000, tags, fetch: fetchConfig, realtime: wsConfig } = options
+  const { fn: fetchFn, onMount: fetchOnMount = true } = fetchConfig
+  const { resourceId, events, throttleMs = 500 } = wsConfig || {}
 
   const cacheStore = useCacheStore()
   const data = ref<T | null>(null)
@@ -120,14 +118,14 @@ export function useResourceCache<T>(key: string, options: CacheOptions<T>) {
     }
   }
 
-  if (subscribeToUpdates && events?.length) {
+  if (wsConfig && events?.length) {
     try {
       const { subscribe } = useWebSocket()
       unsubscribe = subscribe({
         resourceId,
         events,
         onMessage: handleRealtimeUpdate,
-        throttle: 500,
+        throttle: throttleMs,
       })
     } catch (err) {
       console.warn('[Cache] WebSocket not available, updates will be manual only')
