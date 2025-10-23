@@ -27,7 +27,7 @@ const handleSubmit = async (e: Event) => {
   isLoading.value = true
   try {
     await authStore.login(email.value, password.value)
-    router.push('/dashboard')
+    router.push('/')
   } catch (error) {
   } finally {
     isLoading.value = false

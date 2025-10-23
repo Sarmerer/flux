@@ -78,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
         id: '1',
         email: 'user@example.com',
         name: 'User',
-        role: 'viewer' as Role,
+        role: 'admin' as Role,
         permissions: [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -91,9 +91,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * Check if user has a specific permission
-   */
   const hasPermission = (permission: Permission | Permission[]): boolean => {
     if (!user.value) return false
 
@@ -101,24 +98,18 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value.role === 'admin') return true
 
     const perms = Array.isArray(permission) ? permission : [permission]
-    return perms.every(p => user.value!.permissions.includes(p))
+    return perms.every((p) => user.value!.permissions.includes(p))
   }
 
-  /**
-   * Check if user has any of the specified permissions
-   */
   const hasAnyPermission = (permissions: Permission[]): boolean => {
     if (!user.value) return false
 
     // Admins have all permissions
     if (user.value.role === 'admin') return true
 
-    return permissions.some(p => user.value!.permissions.includes(p))
+    return permissions.some((p) => user.value!.permissions.includes(p))
   }
 
-  /**
-   * Check if user has a specific role
-   */
   const hasRole = (roles: Role | Role[]): boolean => {
     if (!user.value) return false
 
@@ -126,9 +117,6 @@ export const useAuthStore = defineStore('auth', () => {
     return roleArray.includes(user.value.role)
   }
 
-  /**
-   * Check if user can perform an action (alias for hasPermission)
-   */
   const can = (permission: Permission | Permission[]): boolean => {
     return hasPermission(permission)
   }

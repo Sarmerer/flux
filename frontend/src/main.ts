@@ -1,5 +1,6 @@
 import App from './App.vue'
 import { createApp } from 'vue'
+import { createI18n } from 'vue-i18n'
 
 import { createPinia } from 'pinia'
 
@@ -8,8 +9,10 @@ import { router } from './router'
 import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
+const I18n = createI18n({ legacy: false, locale: 'en-US', fallbackLocale: 'en-US' })
 const pinia = createPinia()
 
+app.use(I18n)
 app.use(pinia)
 app.use(router)
 

@@ -6,10 +6,6 @@ import type { Workflow, WorkflowCreateRequest, WorkflowUpdateRequest } from '@/t
 
 import { useResourceCache } from '../data/useResourceCache'
 
-/**
- * Composable for managing workflows data for a specific project
- * Use this instead of direct API calls in components
- */
 export function useWorkflows(projectId: string) {
   const cacheKey = `workflows:${projectId}`
   const cacheStore = useCacheStore()

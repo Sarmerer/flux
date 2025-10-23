@@ -11,7 +11,6 @@ declare module 'vue-router' {
     requiresGuest?: boolean
     permissions?: Permission[]
     roles?: Role[]
-    openCreateModal?: boolean
     tab?: string
   }
 }
@@ -19,6 +18,7 @@ declare module 'vue-router' {
 const Login = () => import('@/pages/auth/Login.vue')
 const Register = () => import('@/pages/auth/Register.vue')
 const Dashboard = () => import('@/pages/Dashboard.vue')
+const NewProject = () => import('@/pages/NewProject.vue')
 const Projects = () => import('@/pages/Projects.vue')
 const ProjectDetail = () => import('@/pages/ProjectDetail.vue')
 const Tables = () => import('@/pages/Tables.vue')
@@ -67,8 +67,8 @@ const routes = [
   {
     path: '/projects/new',
     name: 'ProjectsNew',
-    component: Projects,
-    meta: { requiresAuth: true, openCreateModal: true },
+    component: NewProject,
+    meta: { requiresAuth: true },
   },
   {
     path: '/projects/:projectId',
@@ -151,7 +151,7 @@ router.beforeEach(async (to, _from, next) => {
     next('/login')
     return
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/dashboard')
+    next('/')
     return
   }
 

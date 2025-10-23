@@ -6,10 +6,6 @@ import type { Project } from '@/types/api'
 
 import { useResourceCache } from '../data/useResourceCache'
 
-/**
- * Composable for managing projects data
- * Use this instead of direct API calls in components
- */
 export function useProjects() {
   const cacheStore = useCacheStore()
 
@@ -20,14 +16,9 @@ export function useProjects() {
     refresh,
     invalidate,
   } = useResourceCache<Project[]>('projects', {
-    ttlMs: 60000,
-    tags: ['projects', 'global'],
     fetch: {
       fn: () => projectService.getAll(),
       onMount: true,
-    },
-    realtime: {
-      events: ['project:created', 'project:updated', 'project:deleted'],
     },
   })
 

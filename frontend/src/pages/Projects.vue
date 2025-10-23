@@ -1,82 +1,43 @@
 <script setup lang="ts">
 import ApiErrorBoundary from '@/components/ApiErrorBoundary.vue'
 import { Calendar, Edit, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 
 import { useProjects } from '@/composables/api'
+import { useFormatting } from '@/composables/formatting'
 import { usePermissions } from '@/composables/usePermissions'
 
-const route = useRoute()
 const router = useRouter()
+const { formatDate } = useFormatting()
 
-const { projects, loading, error, refresh, createProject, deleteProject } = useProjects()
+const { projects, loading, error, refresh, deleteProject } = useProjects()
 const { can } = usePermissions()
 
 const searchQuery = ref('')
-const isCreateDialogOpen = ref(false)
-const isCreating = ref(false)
-const newProject = ref({
-  name: '',
-  description: '',
-})
 
 const filteredProjects = computed(() => {
-  if (!projects.value || !Array.isArray(projects.value)) return []
-  if (!searchQuery.value) return projects.value
-  return projects.value.filter(
-    (project) =>
-      project?.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (project?.description &&
-        project.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
-  )
+  const list = projects.value
+  const query = searchQuery.value?.toLowerCase().trim()
+
+  if (!list?.length) return []
+  if (!query) return list
+
+  return list.filter(({ name = '', description = '' }) => {
+    return name.toLowerCase().includes(query) || description.toLowerCase().includes(query)
+  })
 })
 
-const handleCreateProject = async () => {
-  if (!newProject.value.name.trim()) return
-
-  isCreating.value = true
-  try {
-    const project = await createProject({
-      name: newProject.value.name,
-      description: newProject.value.description || undefined,
-    })
-    isCreateDialogOpen.value = false
-    newProject.value = { name: '', description: '' }
-
-    router.push(`/projects/${project.id}`)
-  } catch (error) {
-    console.error('Failed to create project:', error)
-    alert('Failed to create project. Please try again.')
-  } finally {
-    isCreating.value = false
-  }
-}
-
-const handleProjectClick = (projectId: string) => {
+const onProjectClick = (projectId: string) => {
   router.push(`/projects/${projectId}`)
 }
 
-const handleEditProject = (projectId: string, event: Event) => {
-  event.stopPropagation()
-}
-
-const handleDeleteProject = async (projectId: string, event: Event) => {
+const onProjectDelete = async (projectId: string, event: Event) => {
   event.stopPropagation()
   if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
     try {
@@ -87,32 +48,6 @@ const handleDeleteProject = async (projectId: string, event: Event) => {
     }
   }
 }
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-// Watch route to open modal when navigating to /projects/new
-watch(
-  () => route.meta.openCreateModal,
-  (shouldOpen) => {
-    if (shouldOpen) {
-      isCreateDialogOpen.value = true
-    }
-  },
-  { immediate: true }
-)
-
-// Watch modal state to update route when closing
-watch(isCreateDialogOpen, (isOpen) => {
-  if (!isOpen && route.path === '/projects/new') {
-    router.push('/projects')
-  }
-})
 </script>
 
 <template>
@@ -132,44 +67,6 @@ watch(isCreateDialogOpen, (isOpen) => {
         <Plus class="w-4 h-4" />
         <span>New Project</span>
       </Button>
-      <Dialog v-model:open="isCreateDialogOpen">
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
-            <DialogDescription>
-              Create a new project to start building your database schema and workflows.
-            </DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <Label for="project-name">Project Name</Label>
-              <Input
-                id="project-name"
-                v-model="newProject.name"
-                placeholder="Enter project name"
-                required
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="project-description">Description (Optional)</Label>
-              <Textarea
-                id="project-description"
-                v-model="newProject.description"
-                placeholder="Enter project description"
-                rows="3"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
-              Cancel
-            </Button>
-            <Button @click="handleCreateProject" :disabled="!newProject.name.trim() || isCreating">
-              {{ isCreating ? 'Creating...' : 'Create Project' }}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
 
     <!-- Search -->
@@ -198,7 +95,7 @@ watch(isCreateDialogOpen, (isOpen) => {
         }}
       </p>
       <div v-if="!searchQuery" class="mt-6">
-        <Button @click="isCreateDialogOpen = true">Create Project</Button>
+        <Button @click="router.push('/projects/new')">Create Project</Button>
       </div>
     </div>
 
@@ -207,7 +104,7 @@ watch(isCreateDialogOpen, (isOpen) => {
         v-for="project in filteredProjects"
         :key="project.id"
         class="cursor-pointer hover:shadow-lg dark:hover:shadow-gray-800 transition-shadow duration-200"
-        @click="handleProjectClick(project.id)"
+        @click="onProjectClick(project.id)"
       >
         <CardHeader class="pb-3">
           <div class="flex items-start justify-between">
@@ -223,21 +120,14 @@ watch(isCreateDialogOpen, (isOpen) => {
               </div>
             </div>
             <div class="flex items-center space-x-1">
-              <!-- Only show edit button if user has permission -->
-              <Button
-                v-if="can('projects.edit')"
-                variant="ghost"
-                size="sm"
-                @click="handleEditProject(project.id, $event)"
-              >
-                <Edit class="h-4 w-4" />
+              <Button v-if="can('projects.edit')" variant="ghost" size="sm">
+                <Settings class="h-4 w-4 mr-1" />
               </Button>
-              <!-- Only show delete button if user has permission -->
               <Button
                 v-if="can('projects.delete')"
                 variant="ghost"
                 size="sm"
-                @click="handleDeleteProject(project.id, $event)"
+                @click="onProjectDelete(project.id, $event)"
               >
                 <Trash2 class="h-4 w-4" />
               </Button>
@@ -257,10 +147,6 @@ watch(isCreateDialogOpen, (isOpen) => {
               <span>0 Tables</span>
               <span>0 Workflows</span>
             </div>
-            <Button variant="outline" size="sm">
-              <Settings class="h-4 w-4 mr-1" />
-              Settings
-            </Button>
           </div>
         </CardContent>
       </Card>

@@ -1,33 +1,15 @@
 import { AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
-/**
- * Shared utilities for formatting status indicators, icons, and colors
- */
 export function useStatusFormatting() {
-  /**
-   * Get icon component for a boolean status
-   * @param isActive Status boolean
-   * @returns Icon component
-   */
   const getStatusIcon = (isActive: boolean): Component => {
     return isActive ? CheckCircle : XCircle
   }
 
-  /**
-   * Get color class for a boolean status
-   * @param isActive Status boolean
-   * @returns Tailwind color class
-   */
   const getStatusColor = (isActive: boolean): string => {
     return isActive ? 'text-green-600' : 'text-gray-400'
   }
 
-  /**
-   * Get badge variant for a status string
-   * @param status Status string (e.g., 'completed', 'failed', 'pending')
-   * @returns Badge variant name
-   */
   const getStatusBadgeVariant = (
     status: string
   ): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -46,11 +28,6 @@ export function useStatusFormatting() {
     return statusMap[status.toLowerCase()] || 'outline'
   }
 
-  /**
-   * Get icon for mutation status
-   * @param status Mutation status
-   * @returns Icon component
-   */
   const getMutationStatusIcon = (
     status: 'pending' | 'in_progress' | 'completed' | 'failed'
   ): Component => {
@@ -64,11 +41,6 @@ export function useStatusFormatting() {
     return iconMap[status] || Clock
   }
 
-  /**
-   * Get color for mutation status
-   * @param status Mutation status
-   * @returns Tailwind color class
-   */
   const getMutationStatusColor = (
     status: 'pending' | 'in_progress' | 'completed' | 'failed'
   ): string => {
@@ -82,11 +54,6 @@ export function useStatusFormatting() {
     return colorMap[status] || 'text-gray-600'
   }
 
-  /**
-   * Get background color for mutation status
-   * @param status Mutation status
-   * @returns Tailwind background color class
-   */
   const getMutationStatusBgColor = (
     status: 'pending' | 'in_progress' | 'completed' | 'failed'
   ): string => {

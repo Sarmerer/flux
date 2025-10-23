@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 
 import { useTables } from '@/composables/api'
+import { useFormatting } from '@/composables/formatting'
 import { useToast } from '@/composables/ui'
 
 const route = useRoute()
@@ -72,6 +73,8 @@ const newTable = ref<{
   description: '',
   columns: [],
 })
+
+const { formatDate } = useFormatting()
 
 const columnTypes = [
   'VARCHAR',
@@ -145,14 +148,6 @@ const handleViewTable = (tableId: string) => {
 
 const handleEditSchema = (tableId: string) => {
   router.push(`/projects/${projectId.value}/tables/${tableId}/builder`)
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
 
 const addColumn = () => {
@@ -352,9 +347,7 @@ const removeColumn = (index: number) => {
             <div class="flex items-center justify-between text-sm text-gray-500">
               <div class="flex items-center space-x-1">
                 <Calendar class="h-4 w-4" />
-                <span
-                  >Updated {{ table.updated_at ? formatDate(table.updated_at) : 'Unknown' }}</span
-                >
+                <span>Updated {{ formatDate(table.updated_at) }}</span>
               </div>
               <Badge variant="secondary">Active</Badge>
             </div>

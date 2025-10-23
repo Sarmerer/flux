@@ -13,3 +13,4 @@ export async function safeJson<T = unknown>(res: Response): Promise<T | null> {
     return null
   }
 }
+

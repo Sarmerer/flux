@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
+import { useFormatting } from '@/composables/formatting'
+
 const route = useRoute()
 const router = useRouter()
 
@@ -152,6 +154,8 @@ const newWorkflow = ref({
   actions: [] as any[],
 })
 
+const { formatDateTime } = useFormatting()
+
 const triggerTypes = [
   { value: 'on_row_created', label: 'On Row Created' },
   { value: 'on_row_updated', label: 'On Row Updated' },
@@ -235,16 +239,6 @@ const handleRunWorkflow = async (workflow: any) => {
   } catch (error) {
     console.error('Failed to run workflow:', error)
   }
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 const getStatusIcon = (workflow: any) => {
@@ -440,7 +434,7 @@ const getStatusColor = (workflow: any) => {
             >
               <div class="flex items-center space-x-1">
                 <Clock class="h-4 w-4" />
-                <span>Last run {{ formatDate(workflow.last_run) }}</span>
+                <span>Last run {{ formatDateTime(workflow.last_run) }}</span>
               </div>
             </div>
           </div>

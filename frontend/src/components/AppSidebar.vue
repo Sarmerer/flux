@@ -208,10 +208,7 @@ const handleLogout = async () => {
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                @click="router.push('/dashboard')"
-                :isActive="isActive('/dashboard')"
-              >
+              <SidebarMenuButton @click="router.push('/')" :isActive="isActive('/')">
                 <Home class="w-4 h-4" />
                 <span>Dashboard</span>
               </SidebarMenuButton>

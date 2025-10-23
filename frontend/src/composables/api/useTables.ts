@@ -6,10 +6,6 @@ import type { Table } from '@/types/api'
 
 import { useResourceCache } from '../data/useResourceCache'
 
-/**
- * Composable for managing tables data for a specific project
- * Use this instead of direct API calls in components
- */
 export function useTables(projectId: string) {
   const cacheKey = `tables:${projectId}`
   const cacheStore = useCacheStore()

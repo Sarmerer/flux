@@ -13,15 +13,7 @@ import type { Component } from 'vue'
 
 import type { ActivityLog } from '@/types/api'
 
-/**
- * Formatting utilities specific to activity logs
- */
 export function useActivityFormatting() {
-  /**
-   * Get icon for activity type
-   * @param activity Activity log entry
-   * @returns Icon component
-   */
   const getActivityIcon = (activity: ActivityLog): Component => {
     switch (activity.type) {
       case 'table_created':
@@ -47,11 +39,6 @@ export function useActivityFormatting() {
     }
   }
 
-  /**
-   * Get icon for entity type
-   * @param entityType Entity type string
-   * @returns Icon component
-   */
   const getEntityIcon = (entityType: string): Component => {
     const iconMap: Record<string, Component> = {
       table: Table,
@@ -63,11 +50,6 @@ export function useActivityFormatting() {
     return iconMap[entityType] || Table
   }
 
-  /**
-   * Get color class for activity type
-   * @param type Activity type
-   * @returns Tailwind color class
-   */
   const getActivityColor = (type: ActivityLog['type']): string => {
     const colorMap: Record<ActivityLog['type'], string> = {
       table_created: 'text-green-600',
@@ -84,11 +66,6 @@ export function useActivityFormatting() {
     return colorMap[type] || 'text-gray-600'
   }
 
-  /**
-   * Get background color for activity type
-   * @param type Activity type
-   * @returns Tailwind background color class
-   */
   const getActivityBgColor = (type: ActivityLog['type']): string => {
     const colorMap: Record<ActivityLog['type'], string> = {
       table_created: 'bg-green-50',
@@ -105,11 +82,6 @@ export function useActivityFormatting() {
     return colorMap[type] || 'bg-gray-50'
   }
 
-  /**
-   * Format activity type to human-readable string
-   * @param type Activity type
-   * @returns Formatted string
-   */
   const formatActivityType = (type: ActivityLog['type']): string => {
     const typeMap: Record<ActivityLog['type'], string> = {
       table_created: 'Table Created',
@@ -126,11 +98,6 @@ export function useActivityFormatting() {
     return typeMap[type] || type
   }
 
-  /**
-   * Format entity type to human-readable string
-   * @param entityType Entity type
-   * @returns Formatted string
-   */
   const formatEntityType = (entityType: string): string => {
     return entityType.charAt(0).toUpperCase() + entityType.slice(1)
   }

@@ -4,9 +4,6 @@ import { tableService } from '@/api/services/table'
 import type { Table } from '@/types/api'
 import { defineStore } from 'pinia'
 
-/**
- * Table store - manages tables for the current project
- */
 export const useTableStore = defineStore('tables', () => {
   const tablesByProject = ref<Map<string, Table[]>>(new Map())
   const isLoading = ref(false)

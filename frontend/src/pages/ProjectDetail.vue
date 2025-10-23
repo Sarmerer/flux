@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useProjects } from '@/composables/api'
 import { useTables } from '@/composables/api'
 import { useWorkflows } from '@/composables/api'
+import { useFormatting } from '@/composables/formatting'
 import { useToast } from '@/composables/ui'
 
 const route = useRoute()
@@ -31,6 +32,7 @@ const router = useRouter()
 const projectsStore = useProjectStore()
 const sidebarStore = useSidebarItemsStore()
 const toast = useToast()
+const { formatDate } = useFormatting()
 
 const projectId = computed(() => route.params.projectId as string)
 const project = computed(() => projectsStore.currentProject)
@@ -205,11 +207,7 @@ const handleTabChange = (tab: string | number) => {
                   <span class="text-sm font-medium">Created</span>
                   <div class="flex items-center space-x-1 text-sm text-muted-foreground">
                     <Calendar class="w-4 h-4" />
-                    <span>{{
-                      project?.created_at
-                        ? new Date(project.created_at).toLocaleDateString()
-                        : 'Unknown'
-                    }}</span>
+                    <span>{{ formatDate(project.created_at) }}</span>
                   </div>
                 </div>
                 <div class="flex items-center justify-between">

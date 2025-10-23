@@ -4,9 +4,6 @@ import { workflowService } from '@/api/services/workflow'
 import type { Workflow } from '@/types/api'
 import { defineStore } from 'pinia'
 
-/**
- * Workflow store - manages workflows for the current project
- */
 export const useWorkflowStore = defineStore('workflows', () => {
   const workflowsByProject = ref<Map<string, Workflow[]>>(new Map())
   const isLoading = ref(false)
