@@ -15,10 +15,10 @@ import (
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/infrastructure/handlers"
 	"github.com/flow/internal/infrastructure/logging"
-	postgresRepo "github.com/flow/internal/infrastructure/repositories/postgres"
-	"github.com/flow/internal/infrastructure/routes"
 	"github.com/flow/internal/infrastructure/progress"
 	"github.com/flow/internal/infrastructure/realtime"
+	postgresRepo "github.com/flow/internal/infrastructure/repositories/postgres"
+	"github.com/flow/internal/infrastructure/routes"
 )
 
 func main() {
@@ -45,8 +45,14 @@ func main() {
 	}
 	defer db.Close()
 
-	// Run migrations
-	if err := database.Migrate(ctx, db); err != nil {
+	// Initialize basic logger for migrations (no WebSocket streaming yet)
+	logStorage := logging.NewPostgresLogStorage(db)
+	// Use nil streamer during migrations since hub isn't ready yet
+	migrationLogger := logging.NewDevelopmentLogger(logStorage, nil)
+
+	// Run migrations automatically on startup using SQL files and structured logging
+	log.Println("Running database migrations...")
+	if err := database.AutoMigrate(ctx, db, migrationLogger); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
@@ -88,8 +94,7 @@ func main() {
 	// Start progress tracker cleanup routine
 	progressTracker.StartCleanupRoutine(ctx, 5*time.Minute, 1*time.Hour)
 
-	// Initialize logging infrastructure
-	logStorage := logging.NewPostgresLogStorage(db)
+	// Update log streamer with WebSocket hub (was initialized earlier without hub)
 	logStreamer := logging.NewWebSocketLogStreamer(wsHub)
 	appLogger := logging.NewDevelopmentLogger(logStorage, logStreamer)
 

@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS idx_logs_project_timestamp;
+DROP INDEX IF EXISTS idx_logs_operation;
+DROP INDEX IF EXISTS idx_logs_level;
+DROP INDEX IF EXISTS idx_logs_user_id;
+DROP INDEX IF EXISTS idx_logs_workflow_id;
+DROP INDEX IF EXISTS idx_logs_table_id;
+DROP INDEX IF EXISTS idx_logs_database_id;
+DROP INDEX IF EXISTS idx_logs_project_id;
+DROP INDEX IF EXISTS idx_logs_timestamp;
+DROP TABLE IF EXISTS logs CASCADE;

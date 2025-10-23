@@ -9,8 +9,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"flow-backend/internal/domain/entities"
-	"flow-backend/internal/domain/repositories"
+	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/domain/repositories"
 )
 
 type contextKey string
