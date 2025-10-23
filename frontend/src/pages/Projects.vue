@@ -52,13 +52,11 @@ const onProjectDelete = async (projectId: string, event: Event) => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Projects</h1>
         <p class="text-gray-600 dark:text-gray-400">Manage your database projects</p>
       </div>
-      <!-- Only show create button if user has permission -->
       <Button
         v-if="can('projects.create')"
         class="flex items-center space-x-2"
@@ -69,13 +67,11 @@ const onProjectDelete = async (projectId: string, event: Event) => {
       </Button>
     </div>
 
-    <!-- Search -->
     <div class="relative">
       <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
       <Input v-model="searchQuery" placeholder="Search projects..." class="pl-10" />
     </div>
 
-    <!-- Projects Grid -->
     <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
     </div>

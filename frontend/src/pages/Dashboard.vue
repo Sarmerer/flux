@@ -2,25 +2,18 @@
 import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
-import { projectService } from '@/api/services/project'
 import { useAuthStore } from '@/stores/auth'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-import { useResourceCache } from '@/composables/data'
+import { useProjects } from '@/composables/api/useProjects'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const {
-  data: projects,
-  loading,
-  error,
-} = useResourceCache('dashboard-projects', {
-  fetch: { fn: () => projectService.getAll(), onMount: true },
-})
+const { projects, loading, error } = useProjects()
 
 const recentActivity = [
   {
