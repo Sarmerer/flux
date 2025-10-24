@@ -9,6 +9,7 @@ export interface RequestOptions extends RequestInit {
 }
 
 async function request<T = unknown>(url: string, options: RequestOptions = {}): Promise<T> {
+  url = url.startsWith('/') ? `${BASE_URL}${url}` : url
   const token = localStorage.getItem('auth_token')
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -16,7 +17,7 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
     ...options.headers,
   }
 
-  const response = await fetch(url.startsWith('/') ? `${BASE_URL}${url}` : url, {
+  const response = await fetch(url, {
     ...options,
     headers,
     body:
@@ -50,10 +51,7 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
     const data = (await response.json()) as T
     return data
   } catch (error) {
-    console.error('JSON parse error:', {
-      url: url.startsWith('/') ? `${BASE_URL}${url}` : url,
-      error,
-    })
+    console.error('JSON parse error:', { url, error })
     throw new Error('Invalid JSON in response')
   }
 }

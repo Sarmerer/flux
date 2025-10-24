@@ -5,84 +5,34 @@ import type { Workflow } from '@/types/api'
 import { defineStore } from 'pinia'
 
 export const useWorkflowStore = defineStore('workflows', () => {
-  const workflowsByProject = ref<Map<string, Workflow[]>>(new Map())
+  const workflows = ref<Workflow[]>([])
   const isLoading = ref(false)
-  const currentProjectId = ref<string | null>(null)
 
-  const currentWorkflows = computed(() => {
-    if (!currentProjectId.value) return []
-    return workflowsByProject.value.get(currentProjectId.value) || []
-  })
+  const length = computed(() => workflows.value.length)
 
-  const workflowCount = computed(() => currentWorkflows.value.length)
-
-  const setCurrentProject = (projectId: string | null) => {
-    currentProjectId.value = projectId
-  }
-
-  const loadWorkflows = async (projectId: string) => {
+  const loadByProjectId = async (projectId: string) => {
     isLoading.value = true
     try {
-      const workflows = await workflowService.getAll(projectId)
-      workflowsByProject.value.set(projectId, Array.isArray(workflows) ? workflows : [])
-      currentProjectId.value = projectId
+      workflows.value = await workflowService.getAll(projectId)
       return workflows
     } catch (error) {
       console.error('Failed to load workflows:', error)
-      workflowsByProject.value.set(projectId, [])
+      workflows.value = []
       throw error
     } finally {
       isLoading.value = false
     }
   }
 
-  const addWorkflow = (projectId: string, workflow: Workflow) => {
-    const workflows = workflowsByProject.value.get(projectId) || []
-    workflowsByProject.value.set(projectId, [...workflows, workflow])
-  }
-
-  const updateWorkflow = (projectId: string, workflowId: string, updates: Partial<Workflow>) => {
-    const workflows = workflowsByProject.value.get(projectId)
-    if (!workflows) return
-
-    const index = workflows.findIndex((w) => w.id === workflowId)
-    if (index !== -1) {
-      const updatedWorkflow = { ...workflows[index], ...updates } as Workflow
-      workflows[index] = updatedWorkflow
-      workflowsByProject.value.set(projectId, [...workflows])
-    }
-  }
-
-  const removeWorkflow = (projectId: string, workflowId: string) => {
-    const workflows = workflowsByProject.value.get(projectId)
-    if (!workflows) return
-
-    workflowsByProject.value.set(
-      projectId,
-      workflows.filter((w) => w.id !== workflowId)
-    )
-  }
-
-  const clearProject = (projectId: string) => {
-    workflowsByProject.value.delete(projectId)
-  }
-
-  const clearAll = () => {
-    workflowsByProject.value.clear()
-    currentProjectId.value = null
+  const clear = () => {
+    workflows.value = []
   }
 
   return {
-    currentWorkflows,
-    workflowCount,
+    workflows,
+    length,
     isLoading,
-    currentProjectId,
-    setCurrentProject,
-    loadWorkflows,
-    addWorkflow,
-    updateWorkflow,
-    removeWorkflow,
-    clearProject,
-    clearAll,
+    loadByProjectId,
+    clear,
   }
 })

@@ -13,7 +13,7 @@ import {
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useProjectStore } from '@/stores/projects'
+import { useActiveProjectStore } from '@/stores/activeProject'
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 import { Badge } from '@/components/ui/badge'
@@ -21,25 +21,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { useProjects } from '@/composables/api'
 import { useTables } from '@/composables/api'
 import { useWorkflows } from '@/composables/api'
 import { useFormatting } from '@/composables/formatting'
-import { useToast } from '@/composables/ui'
 
 const route = useRoute()
 const router = useRouter()
-const projectsStore = useProjectStore()
+const activeProjectStore = useActiveProjectStore()
 const sidebarStore = useSidebarItemsStore()
-const toast = useToast()
 const { formatDate } = useFormatting()
 
 const projectId = computed(() => route.params.projectId as string)
-const project = computed(() => projectsStore.currentProject)
+const project = computed(() => activeProjectStore.activeProject)
 
 const currentTab = computed(() => (route.meta.tab as string) || 'overview')
 
-const { getProjectById } = useProjects()
 const { tables, loading: tablesLoading } = useTables(projectId.value)
 const { workflows, loading: workflowsLoading } = useWorkflows(projectId.value)
 
@@ -63,27 +59,7 @@ const stats = computed(() => ({
   lastActivity: '2 hours ago',
 }))
 
-const isLoading = computed(() => !project.value && projectsStore.isLoading)
-
-onMounted(async () => {
-  if (!project.value || project.value.id !== projectId.value) {
-    try {
-      const fetchedProject = await getProjectById(projectId.value)
-      projectsStore.setCurrentProject(fetchedProject)
-    } catch (error: any) {
-      console.error('Failed to fetch project:', error)
-      toast.error('Error', error.message || 'Failed to load project')
-    }
-  }
-
-  if (projectId.value) {
-    sidebarStore.setProjectItems(
-      projectId.value,
-      tables.value?.length || 0,
-      workflows.value?.length || 0
-    )
-  }
-})
+const isLoading = computed(() => !project.value && activeProjectStore.isLoading)
 
 const handleCreateTable = () => {
   router.push(`/projects/${projectId.value}/tables`)

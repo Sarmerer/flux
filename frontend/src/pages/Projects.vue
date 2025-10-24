@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ApiErrorBoundary from '@/components/ApiErrorBoundary.vue'
-import { Calendar, Edit, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue-next'
+import { Calendar, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
-import { useProjectStore } from '@/stores/projects'
 import type { Permission, Role } from '@/types/auth'
 
 // Extend route meta with permission and role fields
@@ -144,7 +144,7 @@ export const router = createRouter({
 
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
-  const projectStore = useProjectStore()
+  const activeProjectStore = useActiveProjectStore()
 
   // Check authentication
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
@@ -181,15 +181,15 @@ router.beforeEach(async (to, _from, next) => {
   const projectIdFromRoute = to.params.projectId as string
 
   if (projectIdFromRoute) {
-    if (!projectStore.currentProject || projectStore.currentProject.id !== projectIdFromRoute) {
+    if (activeProjectStore.activeProject?.id !== projectIdFromRoute) {
       try {
-        await projectStore.loadProjectById(projectIdFromRoute)
+        await activeProjectStore.loadById(projectIdFromRoute)
       } catch (error) {
-        console.error('Failed to load project context:', error)
+        console.error('Failed to load project:', error)
       }
     }
   } else {
-    projectStore.setCurrentProject(null)
+    activeProjectStore.clear()
   }
 
   next()

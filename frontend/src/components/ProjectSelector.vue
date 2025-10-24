@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { Check, ChevronsUpDown, FolderOpen, Plus } from 'lucide-vue-next'
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { watch } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { projectService } from '@/api/services/project'
-import type { Project } from '@/types/api'
+import { useActiveProjectStore } from '@/stores/activeProject'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -16,33 +15,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-import { useResourceCache } from '@/composables/data'
+import { useProjects } from '@/composables/api'
 
 const router = useRouter()
-const route = useRoute()
+const { projects, loading } = useProjects()
+const activeProjectStore = useActiveProjectStore()
 
-const { data: projects, loading } = useResourceCache<Project>('projects-list', {
-  fetchFn: () => projectService.getAll(),
-  events: ['project:created', 'project:updated', 'project:deleted'],
-  ttlMs: 60000,
-})
-
-const currentProjectId = computed(() => route.params.projectId as string)
-
-const currentProject = computed(() => {
-  if (!currentProjectId.value || !projects.value) return null
-  return projects.value.find((p: Project) => p.id === currentProjectId.value)
-})
-
-const handleSelectProject = (projectId: string) => {
-  router.push(`/projects/${projectId}/tables`)
+const onProjectSelect = (projectId: string) => {
+  router.push(`/projects/${projectId}`)
 }
 
-const handleCreateProject = () => {
-  router.push('/projects?action=create')
+const onProjectCreateClick = () => {
+  router.push('/projects/new')
 }
 
-const handleViewAllProjects = () => {
+const onViewAllProjectsClick = () => {
   router.push('/projects')
 }
 </script>
@@ -54,7 +41,7 @@ const handleViewAllProjects = () => {
         <div class="flex items-center space-x-2 truncate">
           <FolderOpen class="w-4 h-4 flex-shrink-0" />
           <span class="truncate">
-            {{ currentProject?.name || 'Select Project' }}
+            {{ activeProjectStore.activeProject?.name || 'Select Project' }}
           </span>
         </div>
         <ChevronsUpDown class="w-4 h-4 ml-2 flex-shrink-0 opacity-50" />
@@ -69,7 +56,7 @@ const handleViewAllProjects = () => {
         <DropdownMenuItem
           v-for="project in projects"
           :key="project.id"
-          @click="handleSelectProject(project.id)"
+          @click="onProjectSelect(project.id)"
           class="cursor-pointer"
         >
           <div class="flex items-center justify-between w-full">
@@ -77,7 +64,10 @@ const handleViewAllProjects = () => {
               <FolderOpen class="w-4 h-4 flex-shrink-0" />
               <span class="truncate">{{ project.name }}</span>
             </div>
-            <Check v-if="currentProjectId === project.id" class="w-4 h-4 flex-shrink-0" />
+            <Check
+              v-if="activeProjectStore.activeProject?.id === project.id"
+              class="w-4 h-4 flex-shrink-0"
+            />
           </div>
         </DropdownMenuItem>
 
@@ -92,11 +82,11 @@ const handleViewAllProjects = () => {
       <DropdownMenuSeparator />
 
       <!-- Actions -->
-      <DropdownMenuItem @click="handleViewAllProjects" class="cursor-pointer">
+      <DropdownMenuItem @click="onViewAllProjectsClick" class="cursor-pointer">
         <FolderOpen class="w-4 h-4 mr-2" />
         View All Projects
       </DropdownMenuItem>
-      <DropdownMenuItem @click="handleCreateProject" class="cursor-pointer">
+      <DropdownMenuItem @click="onProjectCreateClick" class="cursor-pointer">
         <Plus class="w-4 h-4 mr-2" />
         Create New Project
       </DropdownMenuItem>
