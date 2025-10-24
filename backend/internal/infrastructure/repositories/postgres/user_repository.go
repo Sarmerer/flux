@@ -12,17 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// UserRepository implements the UserRepository interface using PostgreSQL
 type UserRepository struct {
 	db *pgxpool.Pool
 }
 
-// NewUserRepository creates a new UserRepository
 func NewUserRepository(db *pgxpool.Pool) repositories.UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Create creates a new user
 func (r *UserRepository) Create(ctx context.Context, user *entities.User) error {
 	query := `
 		INSERT INTO users (id, email, password, name, created_at, updated_at)
@@ -32,7 +29,6 @@ func (r *UserRepository) Create(ctx context.Context, user *entities.User) error 
 	return err
 }
 
-// GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.User, error) {
 	query := `
 		SELECT id, email, password, name, created_at, updated_at
@@ -51,7 +47,6 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.U
 	return &user, nil
 }
 
-// GetByEmail retrieves a user by email
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*entities.User, error) {
 	query := `
 		SELECT id, email, password, name, created_at, updated_at
@@ -70,10 +65,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*entitie
 	return &user, nil
 }
 
-// Update updates a user
 func (r *UserRepository) Update(ctx context.Context, user *entities.User) error {
 	query := `
-		UPDATE users 
+		UPDATE users
 		SET email = $2, password = $3, name = $4, updated_at = $5
 		WHERE id = $1
 	`
@@ -81,18 +75,16 @@ func (r *UserRepository) Update(ctx context.Context, user *entities.User) error 
 	return err
 }
 
-// Delete deletes a user
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM users WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
 
-// List retrieves users with pagination
 func (r *UserRepository) List(ctx context.Context, limit, offset int) ([]*entities.User, error) {
 	query := `
 		SELECT id, email, password, name, created_at, updated_at
-		FROM users 
+		FROM users
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`

@@ -1,4 +1,4 @@
-import type { User } from '@/types/api'
+import type { User } from '@/types/auth'
 
 import { http } from '../http-client'
 
@@ -15,6 +15,10 @@ export const authService = {
 
   logout() {
     localStorage.removeItem('auth_token')
+  },
+
+  getActiveUser() {
+    return http.get<User>('/me')
   },
 
   getProfile(userId: string) {

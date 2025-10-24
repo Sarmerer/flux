@@ -18,12 +18,13 @@ import (
 func SetupRoutes(
 	userHandler *handlers.UserHandler,
 	projectHandler *handlers.ProjectHandler,
+	projectMemberHandler *handlers.ProjectMemberHandler,
 	tableHandler *handlers.TableHandler,
 	dbMutationProgressHandler *handlers.DatabaseMutationProgressHandler,
 	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
 	workflowHandler *handlers.WorkflowHandler,
 	logHandler *handlers.LogHandler,
-	userRepo repositories.UserRepository,
+	projectMemberRepo repositories.ProjectMemberRepository,
 	jwtSecret string,
 	corsAllowedOrigins []string,
 ) http.Handler {
@@ -60,11 +61,11 @@ func SetupRoutes(
 			r.Post("/login", userHandler.Login)
 		})
 
-		// Protected routes (authentication required)
 		r.Route("/", func(r chi.Router) {
-			r.Use(authMiddleware.AuthMiddleware(jwtSecret)) // Add authentication middleware
+			r.Use(authMiddleware.AuthMiddleware(jwtSecret))
 
-			// User routes
+			r.Get("/me", userHandler.GetCurrentUser)
+
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/{id}", userHandler.GetProfile)
 			})
@@ -84,45 +85,68 @@ func SetupRoutes(
 
 			// Project routes
 			r.Route("/projects", func(r chi.Router) {
-				// Everyone can view projects
+				// List all projects user is a member of
 				r.Get("/", projectHandler.GetProjects)
-				r.Get("/{id}", projectHandler.GetProject)
 
-				// Require permissions for create/update/delete
-				r.With(authMiddleware.RequirePermission(userRepo, entities.PermProjectsCreate)).
-					Post("/", projectHandler.CreateProject)
+				// Create project - no permission check needed, anyone can create projects
+				r.Post("/", projectHandler.CreateProject)
 
-				r.With(authMiddleware.RequirePermission(userRepo, entities.PermProjectsEdit)).
+				// Project-specific routes require project membership
+				r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+					Get("/{id}", projectHandler.GetProject)
+
+				// Update and delete require project admin
+				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectsEdit)).
 					Put("/{id}", projectHandler.UpdateProject)
 
-				r.With(authMiddleware.RequirePermission(userRepo, entities.PermProjectsDelete)).
+				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectsDelete)).
 					Delete("/{id}", projectHandler.DeleteProject)
 
-				// Project-specific log routes
-				r.Get("/{projectId}/logs", logHandler.GetProjectLogs)
+				r.Route("/{projectId}/members", func(r chi.Router) {
+					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+						Get("/", projectMemberHandler.GetProjectMembers)
+
+					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+						Get("/me", projectMemberHandler.GetMyProjectRole)
+
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUsersManage)).
+						Post("/", projectMemberHandler.AddProjectMember)
+
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUsersManage)).
+						Put("/{memberId}", projectMemberHandler.UpdateProjectMember)
+
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUsersManage)).
+						Delete("/{memberId}", projectMemberHandler.RemoveProjectMember)
+				})
+
+				// Project-specific log routes - require membership to view
+				r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+					Get("/{projectId}/logs", logHandler.GetProjectLogs)
 
 				// Table routes under projects
 				r.Route("/{projectId}/tables", func(r chi.Router) {
-					// Everyone can view tables
-					r.Get("/", tableHandler.GetTables)
-					r.Get("/{id}", tableHandler.GetTable)
+					// View tables - require project membership
+					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+						Get("/", tableHandler.GetTables)
+					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+						Get("/{id}", tableHandler.GetTable)
 
-					// Require permissions for create/update/delete
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesCreate)).
+					// Require project-level permissions for create/update/delete
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesCreate)).
 						Post("/", tableHandler.CreateTable)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesCreate)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesCreate)).
 						Post("/with-progress", dbMutationProgressHandler.CreateTableWithProgress)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesEdit)).
 						Put("/{id}", tableHandler.UpdateTable)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermTablesDelete)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesDelete)).
 						Delete("/{id}", tableHandler.DeleteTable)
 
-					// Table schema mutation routes - require edit permission
+					// Table schema mutation routes - require project-level edit permission
 					r.Route("/{tableName}/schema", func(r chi.Router) {
-						r.Use(authMiddleware.RequirePermission(userRepo, entities.PermTablesEdit))
+						r.Use(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesEdit))
 
 						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)
 						r.Delete("/drop", tableSchemaMutationHandler.DropTableFromDatabase)
@@ -136,24 +160,26 @@ func SetupRoutes(
 
 				// Workflow routes under projects
 				r.Route("/{projectId}/workflows", func(r chi.Router) {
-					// Everyone can view workflows
-					r.Get("/", workflowHandler.GetWorkflows)
-					r.Get("/{id}", workflowHandler.GetWorkflow)
+					// View workflows - require project membership
+					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+						Get("/", workflowHandler.GetWorkflows)
+					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+						Get("/{id}", workflowHandler.GetWorkflow)
 
-					// Require permissions for create/update/delete
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsCreate)).
+					// Require project-level permissions for create/update/delete
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsCreate)).
 						Post("/", workflowHandler.CreateWorkflow)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsEdit)).
 						Put("/{id}", workflowHandler.UpdateWorkflow)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsEdit)).
 						Post("/{id}/toggle", workflowHandler.ToggleWorkflowActive)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsEdit)).
 						Post("/{id}/execute", workflowHandler.ExecuteWorkflow)
 
-					r.With(authMiddleware.RequirePermission(userRepo, entities.PermWorkflowsDelete)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsDelete)).
 						Delete("/{id}", workflowHandler.DeleteWorkflow)
 				})
 

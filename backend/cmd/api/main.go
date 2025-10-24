@@ -56,12 +56,12 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	// Initialize repositories
 	userRepo := postgresRepo.NewUserRepository(db)
 	projectRepo := postgresRepo.NewProjectRepository(db)
 	databaseRepo := postgresRepo.NewDatabaseRepository(db)
 	tableRepo := postgresRepo.NewTableRepository(db)
 	workflowRepo := postgresRepo.NewWorkflowRepository(db)
+	projectMemberRepo := postgresRepo.NewProjectMemberRepository(db)
 
 	// Initialize Realtime Service
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
@@ -114,15 +114,15 @@ func main() {
 	dbService := services.NewDatabaseService(databaseRepo, projectRepo, pgManagementService, connService, progressTracker, wsHub)
 	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
 
-	// Initialize services (after database service is available)
 	userService := services.NewUserService(userRepo, cfg.JWT.Secret)
-	projectService := services.NewProjectService(projectRepo, databaseRepo, pgManagementService, db, appLogger)
+	projectService := services.NewProjectService(projectRepo, databaseRepo, projectMemberRepo, pgManagementService, db, appLogger)
 	tableService := services.NewTableService(tableRepo)
 	workflowService := services.NewWorkflowService(workflowRepo, projectRepo, databaseRepo, pgManagementService, appLogger)
 
 	// Services wired with database handlers
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
+	projectMemberHandler := handlers.NewProjectMemberHandler(projectMemberRepo, userRepo, projectRepo)
 	tableHandler := handlers.NewTableHandler(tableService)
 	dbMutationProgressHandler := handlers.NewDatabaseMutationProgressHandler(dbService, progressTracker, wsHub)
 	dbMutationProgressHandler.SetJWTSecret(cfg.JWT.Secret)
@@ -133,7 +133,7 @@ func main() {
 	logHandler := handlers.NewLogHandler(logStorage, logStreamer)
 
 	// Setup routes
-	router := routes.SetupRoutes(userHandler, projectHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, userRepo, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
+	router := routes.SetupRoutes(userHandler, projectHandler, projectMemberHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, projectMemberRepo, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
 
 	// Create HTTP server
 	server := &http.Server{

@@ -60,7 +60,6 @@ func (s *UserService) Register(ctx context.Context, req *entities.UserCreateRequ
 		return nil, errors.NewInternalError(fmt.Errorf("failed to hash password: %w", err))
 	}
 
-	// Create user
 	user := &entities.User{
 		ID:        uuid.New(),
 		Email:     req.Email,

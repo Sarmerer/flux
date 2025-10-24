@@ -19,27 +19,30 @@ import (
 // ProjectService handles project-related business logic
 // This service is focused on PROJECT management, delegates infrastructure operations
 type ProjectService struct {
-	projectRepo repositories.ProjectRepository
-	dbRepo      repositories.DatabaseRepository
-	pgService   *database.PostgreSQLManagementService
-	coreDB      *pgxpool.Pool
-	logger      *logging.Logger
+	projectRepo       repositories.ProjectRepository
+	dbRepo            repositories.DatabaseRepository
+	projectMemberRepo repositories.ProjectMemberRepository
+	pgService         *database.PostgreSQLManagementService
+	coreDB            *pgxpool.Pool
+	logger            *logging.Logger
 }
 
 // NewProjectService creates a new ProjectService
 func NewProjectService(
 	projectRepo repositories.ProjectRepository,
 	dbRepo repositories.DatabaseRepository,
+	projectMemberRepo repositories.ProjectMemberRepository,
 	pgService *database.PostgreSQLManagementService,
 	coreDB *pgxpool.Pool,
 	logger *logging.Logger,
 ) *ProjectService {
 	return &ProjectService{
-		projectRepo: projectRepo,
-		dbRepo:      dbRepo,
-		pgService:   pgService,
-		coreDB:      coreDB,
-		logger:      logger,
+		projectRepo:       projectRepo,
+		dbRepo:            dbRepo,
+		projectMemberRepo: projectMemberRepo,
+		pgService:         pgService,
+		coreDB:            coreDB,
+		logger:            logger,
 	}
 }
 
@@ -80,7 +83,6 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 	}
 	defer tx.Rollback(ctx) // Rollback if not committed
 
-	// Create project in transaction
 	query := `
 		INSERT INTO projects (id, name, description, owner_id, database_url, api_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -88,6 +90,31 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 	if _, err := tx.Exec(ctx, query, project.ID, project.Name, project.Description, project.OwnerID, project.DatabaseURL, project.APIKey, project.CreatedAt, project.UpdatedAt); err != nil {
 		logger.Error("Failed to insert project", err)
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to create project")
+	}
+
+	// Give project creator admin role with all permissions
+	allPermissions := entities.Permissions{
+		entities.PermProjectsCreate,
+		entities.PermProjectsEdit,
+		entities.PermProjectsDelete,
+		entities.PermProjectsView,
+		entities.PermWorkflowsCreate,
+		entities.PermWorkflowsEdit,
+		entities.PermWorkflowsDelete,
+		entities.PermTablesCreate,
+		entities.PermTablesEdit,
+		entities.PermTablesDelete,
+		entities.PermSettingsManage,
+		entities.PermUsersManage,
+	}
+	memberQuery := `
+		INSERT INTO project_members (id, project_id, user_id, role, permissions, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+	memberID := uuid.New()
+	if _, err := tx.Exec(ctx, memberQuery, memberID, project.ID, ownerID, entities.RoleAdmin, allPermissions, time.Now(), time.Now()); err != nil {
+		logger.Error("Failed to assign creator as admin", err)
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to assign project role")
 	}
 
 	// Create database configuration and physical database
@@ -171,15 +198,21 @@ func (s *ProjectService) GetProjectByID(ctx context.Context, id uuid.UUID) (*ent
 	return &response, nil
 }
 
-// GetProjectsByOwnerID retrieves all projects for a user
-func (s *ProjectService) GetProjectsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*entities.ProjectResponse, error) {
-	projects, err := s.projectRepo.GetByOwnerID(ctx, ownerID)
+// GetProjectsByOwnerID retrieves all projects where the user is a member
+func (s *ProjectService) GetProjectsByOwnerID(ctx context.Context, userID uuid.UUID) ([]*entities.ProjectResponse, error) {
+	// Get all project memberships for this user
+	memberships, err := s.projectMemberRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to retrieve projects")
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to retrieve project memberships")
 	}
 
 	var responses []*entities.ProjectResponse
-	for _, project := range projects {
+	for _, membership := range memberships {
+		project, err := s.projectRepo.GetByID(ctx, membership.ProjectID)
+		if err != nil {
+			// Skip projects that can't be found (possibly deleted)
+			continue
+		}
 		response := project.ToResponse()
 		responses = append(responses, &response)
 	}

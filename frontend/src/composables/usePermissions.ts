@@ -1,30 +1,31 @@
-import { useAuthStore } from '@/stores/auth'
+import { useProjectMemberStore } from '@/stores/projectMember'
 import type { Permission, Role } from '@/types/auth'
 
 export function usePermissions() {
-  const authStore = useAuthStore()
+  const projectMemberStore = useProjectMemberStore()
+
   const can = (permission: Permission | Permission[]): boolean => {
-    return authStore.hasPermission(permission)
+    return projectMemberStore.hasPermission(permission)
   }
 
   const canAny = (permissions: Permission[]): boolean => {
-    return authStore.hasAnyPermission(permissions)
+    return projectMemberStore.hasAnyPermission(permissions)
   }
 
   const hasRole = (roles: Role | Role[]): boolean => {
-    return authStore.hasRole(roles)
+    return projectMemberStore.hasRole(roles)
   }
 
   const isAdmin = (): boolean => {
-    return authStore.isAdmin
+    return projectMemberStore.isAdmin
   }
 
   const getUserRole = (): Role | undefined => {
-    return authStore.userRole
+    return projectMemberStore.currentRole
   }
 
   const getUserPermissions = (): Permission[] => {
-    return authStore.permissions
+    return projectMemberStore.currentPermissions
   }
 
   const isFieldDisabled = (permission: Permission): boolean => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const email = ref('')
@@ -27,7 +28,9 @@ const handleSubmit = async (e: Event) => {
   isLoading.value = true
   try {
     await authStore.login(email.value, password.value)
-    router.push('/')
+
+    const redirect = route.query.redirect as string
+    router.push(redirect || '/')
   } catch (error) {
   } finally {
     isLoading.value = false

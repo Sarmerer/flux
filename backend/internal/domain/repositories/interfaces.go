@@ -58,3 +58,13 @@ type WorkflowRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*entities.Workflow, error)
 	ToggleActive(ctx context.Context, id uuid.UUID, isActive bool) error
 }
+
+type ProjectMemberRepository interface {
+	Create(ctx context.Context, member *entities.ProjectMember) error
+	GetByID(ctx context.Context, id uuid.UUID) (*entities.ProjectMember, error)
+	GetByProjectAndUser(ctx context.Context, projectID, userID uuid.UUID) (*entities.ProjectMember, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.ProjectMember, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entities.ProjectMember, error)
+	Update(ctx context.Context, member *entities.ProjectMember) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}

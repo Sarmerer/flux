@@ -15,9 +15,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
       </header>
 
       <RouterView v-slot="{ Component }">
-        <KeepAlive>
-          <component :is="Component" />
-        </KeepAlive>
+        <component :is="Component" />
       </RouterView>
     </main>
 

@@ -61,14 +61,12 @@ func (p *Permissions) Scan(value interface{}) error {
 
 // User represents a user in the system
 type User struct {
-	ID          uuid.UUID   `json:"id" db:"id"`
-	Email       string      `json:"email" db:"email"`
-	Password    string      `json:"-" db:"password"`
-	Name        string      `json:"name" db:"name"`
-	Role        Role        `json:"role" db:"role"`
-	Permissions Permissions `json:"permissions" db:"permissions"`
-	CreatedAt   time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at" db:"updated_at"`
+	ID        uuid.UUID `json:"id" db:"id"`
+	Email     string    `json:"email" db:"email"`
+	Password  string    `json:"-" db:"password"`
+	Name      string    `json:"name" db:"name"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // UserCreateRequest represents the data needed to create a new user
@@ -86,74 +84,21 @@ type UserLoginRequest struct {
 
 // UserResponse represents the user data returned in API responses
 type UserResponse struct {
-	ID          uuid.UUID   `json:"id"`
-	Email       string      `json:"email"`
-	Name        string      `json:"name"`
-	Role        Role        `json:"role"`
-	Permissions Permissions `json:"permissions"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // ToResponse converts a User entity to UserResponse
 func (u *User) ToResponse() UserResponse {
 	return UserResponse{
-		ID:          u.ID,
-		Email:       u.Email,
-		Name:        u.Name,
-		Role:        u.Role,
-		Permissions: u.Permissions,
-		CreatedAt:   u.CreatedAt,
-		UpdatedAt:   u.UpdatedAt,
+		ID:        u.ID,
+		Email:     u.Email,
+		Name:      u.Name,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
 }
 
-// HasPermission checks if user has a specific permission
-func (u *User) HasPermission(perm Permission) bool {
-	// Admins have all permissions
-	if u.Role == RoleAdmin {
-		return true
-	}
-
-	for _, p := range u.Permissions {
-		if p == perm {
-			return true
-		}
-	}
-	return false
-}
-
-// HasAnyPermission checks if user has any of the specified permissions
-func (u *User) HasAnyPermission(perms ...Permission) bool {
-	for _, perm := range perms {
-		if u.HasPermission(perm) {
-			return true
-		}
-	}
-	return false
-}
-
-// HasAllPermissions checks if user has all of the specified permissions
-func (u *User) HasAllPermissions(perms ...Permission) bool {
-	for _, perm := range perms {
-		if !u.HasPermission(perm) {
-			return false
-		}
-	}
-	return true
-}
-
-// HasRole checks if user has one of the specified roles
-func (u *User) HasRole(roles ...Role) bool {
-	for _, role := range roles {
-		if u.Role == role {
-			return true
-		}
-	}
-	return false
-}
-
-// IsAdmin checks if user is an admin
-func (u *User) IsAdmin() bool {
-	return u.Role == RoleAdmin
-}

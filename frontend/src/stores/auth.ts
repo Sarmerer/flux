@@ -1,8 +1,10 @@
 import { computed, ref } from 'vue'
 
 import { authService } from '@/api/services/auth'
-import type { Permission, Role, User } from '@/types/auth'
+import type { User } from '@/types/auth'
 import { defineStore } from 'pinia'
+
+const TOKEN_KEY = 'auth_token'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -10,25 +12,15 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
 
   const isAuthenticated = computed(() => !!user.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const hasToken = computed(() => !!localStorage.getItem('auth_token'))
-  const userRole = computed(() => user.value?.role)
-  const permissions = computed(() => user.value?.permissions ?? [])
+  const hasToken = computed(() => !!localStorage.getItem(TOKEN_KEY))
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<void> => {
     isLoading.value = true
     error.value = null
 
     try {
       await authService.login({ email, password })
-
-      user.value = {
-        id: '1',
-        email: email,
-        name: 'User',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      await loadUser()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Login failed'
       throw err
@@ -37,14 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string): Promise<void> => {
     isLoading.value = true
     error.value = null
 
     try {
-      const newUser = await authService.register({ name, email, password })
-      user.value = newUser
-
+      await authService.register({ name, email, password })
       await login(email, password)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Registration failed'
@@ -54,97 +44,46 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const logout = async () => {
-    isLoading.value = true
-    try {
-      authService.logout()
-    } finally {
-      user.value = null
-      error.value = null
-      isLoading.value = false
-    }
-  }
-
-  const clearError = () => {
+  const logout = (): void => {
+    authService.logout()
+    user.value = null
     error.value = null
   }
 
-  const loadUser = async () => {
-    if (!hasToken.value) return
+  const loadUser = async (): Promise<void> => {
+    if (!hasToken.value) {
+      user.value = null
+      return
+    }
 
     isLoading.value = true
     try {
-      user.value = {
-        id: '1',
-        email: 'user@example.com',
-        name: 'User',
-        role: 'admin' as Role,
-        permissions: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      const userData = await authService.getActiveUser()
+      user.value = userData
+      error.value = null
     } catch (err) {
       authService.logout()
       user.value = null
+      throw err
     } finally {
       isLoading.value = false
     }
   }
 
-  const hasPermission = (permission: Permission | Permission[]): boolean => {
-    if (!user.value) return false
-
-    // Admins have all permissions
-    if (user.value.role === 'admin') return true
-
-    const perms = Array.isArray(permission) ? permission : [permission]
-    return perms.every((p) => user.value!.permissions.includes(p))
-  }
-
-  const hasAnyPermission = (permissions: Permission[]): boolean => {
-    if (!user.value) return false
-
-    // Admins have all permissions
-    if (user.value.role === 'admin') return true
-
-    return permissions.some((p) => user.value!.permissions.includes(p))
-  }
-
-  const hasRole = (roles: Role | Role[]): boolean => {
-    if (!user.value) return false
-
-    const roleArray = Array.isArray(roles) ? roles : [roles]
-    return roleArray.includes(user.value.role)
-  }
-
-  const can = (permission: Permission | Permission[]): boolean => {
-    return hasPermission(permission)
+  const clearError = (): void => {
+    error.value = null
   }
 
   return {
-    // State
     user,
     isLoading,
     error,
-
-    // Computed
     isAuthenticated,
-    isAdmin,
     hasToken,
-    userRole,
-    permissions,
-
-    // Actions
     login,
     register,
     logout,
-    clearError,
     loadUser,
-
-    // Permission checks
-    hasPermission,
-    hasAnyPermission,
-    hasRole,
-    can,
+    clearError,
   }
 })

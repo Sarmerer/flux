@@ -1,11 +1,5 @@
-export enum Role {
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  DEVELOPER = 'developer',
-  VIEWER = 'viewer',
-}
+export type Role = 'admin' | 'manager' | 'developer' | 'viewer'
 
-// User permissions
 export type Permission =
   | 'projects.create'
   | 'projects.edit'
@@ -20,18 +14,34 @@ export type Permission =
   | 'settings.manage'
   | 'users.manage'
 
-// User interface with role and permissions
 export interface User {
   id: string
   email: string
   name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectMember {
+  id: string
+  project_id: string
+  user_id: string
   role: Role
   permissions: Permission[]
   created_at: string
   updated_at: string
 }
 
-// Login/Register types
+export interface ProjectMemberWithUser {
+  id: string
+  project_id: string
+  user: User
+  role: Role
+  permissions: Permission[]
+  created_at: string
+  updated_at: string
+}
+
 export interface LoginCredentials {
   email: string
   password: string

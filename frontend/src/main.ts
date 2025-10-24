@@ -8,14 +8,6 @@ import './index.css'
 import { router } from './router'
 import { useAuthStore } from './stores/auth'
 
-const app = createApp(App)
-const I18n = createI18n({ legacy: false, locale: 'en-US', fallbackLocale: 'en-US' })
-const pinia = createPinia()
-
-app.use(I18n)
-app.use(pinia)
-app.use(router)
-
 const savedTheme = localStorage.getItem('flow-theme') || 'dark'
 if (
   savedTheme === 'dark' ||
@@ -26,11 +18,27 @@ if (
   document.documentElement.classList.remove('dark')
 }
 
-app.mount('#app')
+const app = createApp(App)
+const i18n = createI18n({ legacy: false, locale: 'en-US', fallbackLocale: 'en-US' })
+const pinia = createPinia()
+
+app.use(i18n)
+app.use(pinia)
 
 const authStore = useAuthStore()
-if (authStore.hasToken) {
-  authStore.loadUser().catch(() => {
-    console.log('Session expired or invalid token')
-  })
+
+async function initializeApp() {
+  if (authStore.hasToken) {
+    try {
+      await authStore.loadUser()
+    } catch (error) {
+      console.log('Session expired or invalid token')
+      authStore.clearError()
+    }
+  }
+
+  app.use(router)
+  app.mount('#app')
 }
+
+initializeApp()

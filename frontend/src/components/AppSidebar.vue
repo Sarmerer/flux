@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   Table as TableIcon,
   User,
+  Users,
 } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -120,6 +121,23 @@ const onLogoutClick = async () => {
               >
                 <SettingsIcon class="w-4 h-4" />
                 <span>Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup v-if="activeProjectId">
+        <SidebarGroupLabel>Project</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                @click="router.push(`/projects/${activeProjectId}/members`)"
+                :isActive="isActive(`/projects/${activeProjectId}/members`)"
+              >
+                <Users class="w-4 h-4" />
+                <span>Members</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

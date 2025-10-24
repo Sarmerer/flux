@@ -4,7 +4,6 @@ import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
 import type { Permission, Role } from '@/types/auth'
 
-// Extend route meta with permission and role fields
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
@@ -21,6 +20,7 @@ const Dashboard = () => import('@/pages/Dashboard.vue')
 const NewProject = () => import('@/pages/NewProject.vue')
 const Projects = () => import('@/pages/Projects.vue')
 const ProjectDetail = () => import('@/pages/ProjectDetail.vue')
+const ProjectMembers = () => import('@/pages/ProjectMembers.vue')
 const Tables = () => import('@/pages/Tables.vue')
 const TableBuilder = () => import('@/pages/TableBuilder.vue')
 const DataGrid = () => import('@/pages/DataGrid.vue')
@@ -135,6 +135,12 @@ const routes = [
     component: Activity,
     meta: { requiresAuth: true },
   },
+  {
+    path: '/projects/:projectId/members',
+    name: 'ProjectMembers',
+    component: ProjectMembers,
+    meta: { requiresAuth: true },
+  },
 ]
 
 export const router = createRouter({
@@ -146,50 +152,31 @@ router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
   const activeProjectStore = useActiveProjectStore()
 
-  // Check authentication
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-    return
-  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/')
-    return
-  }
-
-  // Check permissions
-  if (to.meta.permissions && to.meta.permissions.length > 0) {
-    const hasPermission = authStore.hasPermission(to.meta.permissions)
-    if (!hasPermission) {
-      console.warn('User does not have required permissions:', to.meta.permissions)
-      // Redirect to dashboard or unauthorized page
-      next('/')
+  if (to.meta.requiresAuth) {
+    if (!authStore.isAuthenticated) {
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath },
+      })
       return
     }
-  }
 
-  // Check roles
-  if (to.meta.roles && to.meta.roles.length > 0) {
-    const hasRole = authStore.hasRole(to.meta.roles)
-    if (!hasRole) {
-      console.warn('User does not have required role:', to.meta.roles)
-      // Redirect to dashboard or unauthorized page
-      next('/')
-      return
-    }
-  }
 
-  // Load project context if needed
-  const projectIdFromRoute = to.params.projectId as string
-
-  if (projectIdFromRoute) {
-    if (activeProjectStore.activeProject?.id !== projectIdFromRoute) {
+    const projectIdFromRoute = to.params.projectId as string
+    if (projectIdFromRoute && activeProjectStore.activeProject?.id !== projectIdFromRoute) {
       try {
         await activeProjectStore.loadById(projectIdFromRoute)
       } catch (error) {
         console.error('Failed to load project:', error)
+        next('/')
+        return
       }
+    } else if (!projectIdFromRoute) {
+      activeProjectStore.clear()
     }
-  } else {
-    activeProjectStore.clear()
+  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next('/')
+    return
   }
 
   next()

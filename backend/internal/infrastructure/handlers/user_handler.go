@@ -8,6 +8,7 @@ import (
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/errors"
+	"github.com/flow/internal/infrastructure/middleware"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -99,7 +100,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetProfile handles getting user profile
 func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userIDStr := chi.URLParam(r, "id")
 	userID, err := uuid.Parse(userIDStr)
@@ -111,7 +111,27 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		// Check if error is already an APIError
+		if apiErr, ok := err.(*errors.APIError); ok {
+			errors.WriteError(w, apiErr)
+		} else {
+			errors.WriteError(w, errors.NewNotFoundError("User"))
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		errors.WriteError(w, errors.NewUnauthorizedError().WithDetails("User ID not found in context"))
+		return
+	}
+
+	user, err := h.userService.GetUserByID(r.Context(), userID)
+	if err != nil {
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
