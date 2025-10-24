@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -30,7 +29,6 @@ func NewUserHandler(userService services.UserServiceInterface) *UserHandler {
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req entities.UserCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		fmt.Println(err)
 		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
 		return

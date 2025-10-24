@@ -11,9 +11,9 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
+	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/infrastructure/logging"
-	"github.com/flow/internal/errors"
 
 	"github.com/google/uuid"
 )
@@ -105,7 +105,7 @@ func (s *WorkflowService) GetWorkflowsByProjectID(ctx context.Context, projectID
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflows")
 	}
 
-	var responses []*entities.WorkflowResponse
+	responses := make([]*entities.WorkflowResponse, 0)
 	for _, workflow := range workflows {
 		response := workflow.ToResponse()
 		responses = append(responses, &response)

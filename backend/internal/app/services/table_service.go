@@ -68,7 +68,7 @@ func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.
 		return nil, fmt.Errorf("failed to get tables: %w", err)
 	}
 
-	var responses []*entities.TableResponse
+	responses := make([]*entities.TableResponse, 0)
 	for _, table := range tables {
 		response := table.ToResponse()
 		responses = append(responses, &response)
