@@ -245,7 +245,7 @@ func (s *DatabaseService) GetProjectDatabases(ctx context.Context, projectID uui
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to get databases")
 	}
 
-	var responses []*entities.DatabaseResponse
+	responses := make([]*entities.DatabaseResponse, 0)
 	for _, database := range databases {
 		response := database.ToResponse()
 		responses = append(responses, &response)

@@ -66,11 +66,16 @@ func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var response []ProjectMemberWithUser
+	response := make([]ProjectMemberWithUser, 0)
 	for _, member := range members {
 		user, err := h.userRepo.GetByID(r.Context(), member.UserID)
 		if err != nil {
 			continue
+		}
+
+		permissions := member.Permissions
+		if permissions == nil {
+			permissions = entities.Permissions{}
 		}
 
 		response = append(response, ProjectMemberWithUser{
@@ -78,7 +83,7 @@ func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.
 			ProjectID:   member.ProjectID,
 			User:        user.ToResponse(),
 			Role:        member.Role,
-			Permissions: member.Permissions,
+			Permissions: permissions,
 			CreatedAt:   member.CreatedAt,
 			UpdatedAt:   member.UpdatedAt,
 		})
@@ -139,12 +144,17 @@ func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	responsePermissions := member.Permissions
+	if responsePermissions == nil {
+		responsePermissions = entities.Permissions{}
+	}
+
 	response := ProjectMemberWithUser{
 		ID:          member.ID,
 		ProjectID:   member.ProjectID,
 		User:        user.ToResponse(),
 		Role:        member.Role,
-		Permissions: member.Permissions,
+		Permissions: responsePermissions,
 		CreatedAt:   member.CreatedAt,
 		UpdatedAt:   member.UpdatedAt,
 	}
@@ -187,7 +197,12 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 	}
 
 	member.Role = req.Role
-	member.Permissions = req.Permissions
+
+	permissions := req.Permissions
+	if permissions == nil {
+		permissions = entities.Permissions{}
+	}
+	member.Permissions = permissions
 	member.UpdatedAt = time.Now()
 
 	if err := h.memberRepo.Update(r.Context(), member); err != nil {
@@ -201,12 +216,17 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 		return
 	}
 
+	responsePermissions := member.Permissions
+	if responsePermissions == nil {
+		responsePermissions = entities.Permissions{}
+	}
+
 	response := ProjectMemberWithUser{
 		ID:          member.ID,
 		ProjectID:   member.ProjectID,
 		User:        user.ToResponse(),
 		Role:        member.Role,
-		Permissions: member.Permissions,
+		Permissions: responsePermissions,
 		CreatedAt:   member.CreatedAt,
 		UpdatedAt:   member.UpdatedAt,
 	}

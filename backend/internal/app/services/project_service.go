@@ -206,7 +206,7 @@ func (s *ProjectService) GetProjectsByOwnerID(ctx context.Context, userID uuid.U
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to retrieve project memberships")
 	}
 
-	var responses []*entities.ProjectResponse
+	responses := make([]*entities.ProjectResponse, 0)
 	for _, membership := range memberships {
 		project, err := s.projectRepo.GetByID(ctx, membership.ProjectID)
 		if err != nil {

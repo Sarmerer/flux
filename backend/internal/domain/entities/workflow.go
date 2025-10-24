@@ -114,13 +114,17 @@ type WorkflowResponse struct {
 
 // ToResponse converts a Workflow entity to WorkflowResponse
 func (w *Workflow) ToResponse() WorkflowResponse {
+	actions := w.Actions
+	if actions == nil {
+		actions = []WorkflowAction{}
+	}
 	return WorkflowResponse{
 		ID:          w.ID,
 		ProjectID:   w.ProjectID,
 		Name:        w.Name,
 		Description: w.Description,
 		Trigger:     w.Trigger,
-		Actions:     w.Actions,
+		Actions:     actions,
 		IsActive:    w.IsActive,
 		CreatedAt:   w.CreatedAt,
 		UpdatedAt:   w.UpdatedAt,

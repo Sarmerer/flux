@@ -155,7 +155,7 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 	defer rows.Close()
 
 	// Parse results
-	var entries []*LogEntry
+	entries := make([]*LogEntry, 0)
 	for rows.Next() {
 		entry := &LogEntry{}
 		var fieldsJSON []byte
