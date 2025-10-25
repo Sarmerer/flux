@@ -99,14 +99,16 @@ func main() {
 
 	connService := database.NewConnectionService(db)
 	pgManagementService := database.NewPostgreSQLManagementService(connService)
+	dataManipulationService := database.NewDataManipulationService(connService)
+	schemaManagementService := database.NewSchemaManagementService(connService)
 
 	dbService := services.NewDatabaseService(databaseRepo, projectRepo, pgManagementService, connService, progressTracker, wsHub)
-	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
+	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo, schemaManagementService)
 
 	userService := services.NewUserService(userRepo, cfg.JWT.Secret)
 	projectService := services.NewProjectService(projectRepo, databaseRepo, projectMemberRepo, pgManagementService, db, appLogger)
 	tableService := services.NewTableService(tableRepo)
-	workflowService := services.NewWorkflowService(workflowRepo, projectRepo, databaseRepo, pgManagementService, appLogger)
+	workflowService := services.NewWorkflowService(workflowRepo, projectRepo, databaseRepo, dataManipulationService, appLogger)
 
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)

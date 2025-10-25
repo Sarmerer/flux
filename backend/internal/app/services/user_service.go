@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -111,10 +109,4 @@ func (s *UserService) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.
 
 	response := user.ToResponse()
 	return &response, nil
-}
-
-func generateAPIKey() string {
-	bytes := make([]byte, 32)
-	rand.Read(bytes)
-	return hex.EncodeToString(bytes)
 }

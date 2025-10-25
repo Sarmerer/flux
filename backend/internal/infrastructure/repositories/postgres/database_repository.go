@@ -29,6 +29,15 @@ func (r *DatabaseRepository) Create(ctx context.Context, database *entities.Data
 	return err
 }
 
+func (r *DatabaseRepository) CreateTx(ctx context.Context, tx pgx.Tx, database *entities.Database) error {
+	query := `
+		INSERT INTO databases (id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`
+	_, err := tx.Exec(ctx, query, database.ID, database.ProjectID, database.Name, database.Host, database.Port, database.Username, database.Password, database.Database, database.SSLMode, database.CreatedAt, database.UpdatedAt)
+	return err
+}
+
 func (r *DatabaseRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Database, error) {
 	query := `
 		SELECT id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at
@@ -74,7 +83,7 @@ func (r *DatabaseRepository) GetByProjectID(ctx context.Context, projectID uuid.
 
 func (r *DatabaseRepository) Update(ctx context.Context, database *entities.Database) error {
 	query := `
-		UPDATE databases 
+		UPDATE databases
 		SET name = $2, host = $3, port = $4, username = $5, password = $6, database = $7, ssl_mode = $8, updated_at = $9
 		WHERE id = $1
 	`
@@ -82,9 +91,25 @@ func (r *DatabaseRepository) Update(ctx context.Context, database *entities.Data
 	return err
 }
 
+func (r *DatabaseRepository) UpdateTx(ctx context.Context, tx pgx.Tx, database *entities.Database) error {
+	query := `
+		UPDATE databases
+		SET name = $2, host = $3, port = $4, username = $5, password = $6, database = $7, ssl_mode = $8, updated_at = $9
+		WHERE id = $1
+	`
+	_, err := tx.Exec(ctx, query, database.ID, database.Name, database.Host, database.Port, database.Username, database.Password, database.Database, database.SSLMode, database.UpdatedAt)
+	return err
+}
+
 func (r *DatabaseRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM databases WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
+func (r *DatabaseRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+	query := `DELETE FROM databases WHERE id = $1`
+	_, err := tx.Exec(ctx, query, id)
 	return err
 }
 

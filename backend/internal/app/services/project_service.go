@@ -10,9 +10,11 @@ import (
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/infrastructure/logging"
+	"github.com/flow/internal/utils"
 	"github.com/flow/internal/validation"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -54,7 +56,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 		Name:        req.Name,
 		Description: req.Description,
 		OwnerID:     ownerID,
-		APIKey:      generateAPIKey(),
+		APIKey:      utils.GenerateAPIKey(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -68,22 +70,6 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 		"project_name": req.Name,
 		"owner_id":     ownerID.String(),
 	})
-
-	tx, err := s.coreDB.Begin(ctx)
-	if err != nil {
-		logger.Error("Failed to begin transaction for project creation", err)
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to begin transaction")
-	}
-	defer tx.Rollback(ctx)
-
-	query := `
-		INSERT INTO projects (id, name, description, owner_id, database_url, api_key, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`
-	if _, err := tx.Exec(ctx, query, project.ID, project.Name, project.Description, project.OwnerID, project.DatabaseURL, project.APIKey, project.CreatedAt, project.UpdatedAt); err != nil {
-		logger.Error("Failed to insert project", err)
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to create project")
-	}
 
 	allPermissions := entities.Permissions{
 		entities.PermProjectsCreate,
@@ -99,18 +85,20 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 		entities.PermSettingsManage,
 		entities.PermUsersManage,
 	}
-	memberQuery := `
-		INSERT INTO project_members (id, project_id, user_id, role, permissions, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`
-	memberID := uuid.New()
-	if _, err := tx.Exec(ctx, memberQuery, memberID, project.ID, ownerID, entities.RoleAdmin, allPermissions, time.Now(), time.Now()); err != nil {
-		logger.Error("Failed to assign creator as admin", err)
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to assign project role")
+
+	member := &entities.ProjectMember{
+		ID:          uuid.New(),
+		ProjectID:   project.ID,
+		UserID:      ownerID,
+		Role:        entities.RoleAdmin,
+		Permissions: allPermissions,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
+	var database *entities.Database
 	if s.pgService != nil {
-		database := &entities.Database{
+		database = &entities.Database{
 			ID:        uuid.New(),
 			ProjectID: project.ID,
 			Name:      fmt.Sprintf("%s_db", req.Name),
@@ -123,16 +111,34 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
+	}
 
-		dbQuery := `
-			INSERT INTO databases (id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		`
-		if _, err := tx.Exec(ctx, dbQuery, database.ID, database.ProjectID, database.Name, database.Host, database.Port, database.Username, database.Password, database.Database, database.SSLMode, database.CreatedAt, database.UpdatedAt); err != nil {
-			logger.Error("Failed to insert database configuration", err)
-			return nil, errors.NewDatabaseError(err).WithDetails("failed to create database configuration")
+	err := utils.WithTransaction(ctx, s.coreDB, func(ctx context.Context, tx pgx.Tx) error {
+		if err := s.projectRepo.CreateTx(ctx, tx, project); err != nil {
+			logger.Error("Failed to create project", err)
+			return errors.NewDatabaseError(err).WithDetails("failed to create project")
 		}
 
+		if err := s.projectMemberRepo.CreateTx(ctx, tx, member); err != nil {
+			logger.Error("Failed to assign creator as admin", err)
+			return errors.NewDatabaseError(err).WithDetails("failed to assign project role")
+		}
+
+		if database != nil {
+			if err := s.dbRepo.CreateTx(ctx, tx, database); err != nil {
+				logger.Error("Failed to insert database configuration", err)
+				return errors.NewDatabaseError(err).WithDetails("failed to create database configuration")
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if database != nil {
 		dbLogger := s.logger.WithContext(logging.LogContext{
 			ProjectID:  &project.ID,
 			DatabaseID: &database.ID,
@@ -151,11 +157,6 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 		dbLogger.Info("Successfully created physical database", map[string]interface{}{
 			"database_name": database.Database,
 		})
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		logger.Error("Failed to commit transaction for project creation", err)
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to commit transaction")
 	}
 
 	projectLogger := s.logger.WithContext(logging.LogContext{

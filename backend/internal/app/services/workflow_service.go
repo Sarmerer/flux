@@ -19,26 +19,26 @@ import (
 )
 
 type WorkflowService struct {
-	workflowRepo repositories.WorkflowRepository
-	projectRepo  repositories.ProjectRepository
-	dbRepo       repositories.DatabaseRepository
-	pgService    *database.PostgreSQLManagementService
-	httpClient   *http.Client
-	logger       *logging.Logger
+	workflowRepo       repositories.WorkflowRepository
+	projectRepo        repositories.ProjectRepository
+	dbRepo             repositories.DatabaseRepository
+	dataManipulationSvc *database.DataManipulationService
+	httpClient         *http.Client
+	logger             *logging.Logger
 }
 
 func NewWorkflowService(
 	workflowRepo repositories.WorkflowRepository,
 	projectRepo repositories.ProjectRepository,
 	dbRepo repositories.DatabaseRepository,
-	pgService *database.PostgreSQLManagementService,
+	dataManipulationSvc *database.DataManipulationService,
 	logger *logging.Logger,
 ) *WorkflowService {
 	return &WorkflowService{
-		workflowRepo: workflowRepo,
-		projectRepo:  projectRepo,
-		dbRepo:       dbRepo,
-		pgService:    pgService,
+		workflowRepo:       workflowRepo,
+		projectRepo:        projectRepo,
+		dbRepo:             dbRepo,
+		dataManipulationSvc: dataManipulationSvc,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -435,23 +435,7 @@ func (s *WorkflowService) executeUpdateRow(ctx context.Context, workflow *entiti
 
 	database := databases[0]
 
-	setClause := ""
-	args := []interface{}{}
-	argPos := 1
-
-	for key, value := range updates {
-		if setClause != "" {
-			setClause += ", "
-		}
-		setClause += fmt.Sprintf("%s = $%d", key, argPos)
-		args = append(args, value)
-		argPos++
-	}
-
-	args = append(args, rowID)
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d", tableName, setClause, argPos)
-
-	return s.pgService.ExecuteQuery(ctx, database, query, args...)
+	return s.dataManipulationSvc.UpdateRow(ctx, database, tableName, rowID, updates)
 }
 
 func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
@@ -472,25 +456,7 @@ func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entiti
 
 	database := databases[0]
 
-	columns := ""
-	placeholders := ""
-	args := []interface{}{}
-	argPos := 1
-
-	for key, value := range data {
-		if columns != "" {
-			columns += ", "
-			placeholders += ", "
-		}
-		columns += key
-		placeholders += fmt.Sprintf("$%d", argPos)
-		args = append(args, value)
-		argPos++
-	}
-
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, placeholders)
-
-	return s.pgService.ExecuteQuery(ctx, database, query, args...)
+	return s.dataManipulationSvc.CreateRow(ctx, database, tableName, data)
 }
 
 func (s *WorkflowService) executeDeleteRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
@@ -511,7 +477,5 @@ func (s *WorkflowService) executeDeleteRow(ctx context.Context, workflow *entiti
 
 	database := databases[0]
 
-	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", tableName)
-
-	return s.pgService.ExecuteQuery(ctx, database, query, rowID)
+	return s.dataManipulationSvc.DeleteRow(ctx, database, tableName, rowID)
 }

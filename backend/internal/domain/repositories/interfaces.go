@@ -6,6 +6,7 @@ import (
 	"github.com/flow/internal/domain/entities"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type UserRepository interface {
@@ -19,19 +20,25 @@ type UserRepository interface {
 
 type ProjectRepository interface {
 	Create(ctx context.Context, project *entities.Project) error
+	CreateTx(ctx context.Context, tx pgx.Tx, project *entities.Project) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Project, error)
 	GetByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*entities.Project, error)
 	Update(ctx context.Context, project *entities.Project) error
+	UpdateTx(ctx context.Context, tx pgx.Tx, project *entities.Project) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
 	List(ctx context.Context, limit, offset int) ([]*entities.Project, error)
 }
 
 type DatabaseRepository interface {
 	Create(ctx context.Context, database *entities.Database) error
+	CreateTx(ctx context.Context, tx pgx.Tx, database *entities.Database) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Database, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Database, error)
 	Update(ctx context.Context, database *entities.Database) error
+	UpdateTx(ctx context.Context, tx pgx.Tx, database *entities.Database) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
 	List(ctx context.Context, limit, offset int) ([]*entities.Database, error)
 }
 
@@ -56,10 +63,13 @@ type WorkflowRepository interface {
 
 type ProjectMemberRepository interface {
 	Create(ctx context.Context, member *entities.ProjectMember) error
+	CreateTx(ctx context.Context, tx pgx.Tx, member *entities.ProjectMember) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.ProjectMember, error)
 	GetByProjectAndUser(ctx context.Context, projectID, userID uuid.UUID) (*entities.ProjectMember, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.ProjectMember, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*entities.ProjectMember, error)
 	Update(ctx context.Context, member *entities.ProjectMember) error
+	UpdateTx(ctx context.Context, tx pgx.Tx, member *entities.ProjectMember) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
 }

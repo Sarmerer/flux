@@ -29,6 +29,15 @@ func (r *ProjectMemberRepository) Create(ctx context.Context, member *entities.P
 	return err
 }
 
+func (r *ProjectMemberRepository) CreateTx(ctx context.Context, tx pgx.Tx, member *entities.ProjectMember) error {
+	query := `
+		INSERT INTO project_members (id, project_id, user_id, role, permissions, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+	_, err := tx.Exec(ctx, query, member.ID, member.ProjectID, member.UserID, member.Role, member.Permissions, member.CreatedAt, member.UpdatedAt)
+	return err
+}
+
 func (r *ProjectMemberRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.ProjectMember, error) {
 	query := `
 		SELECT id, project_id, user_id, role, permissions, created_at, updated_at
@@ -125,8 +134,24 @@ func (r *ProjectMemberRepository) Update(ctx context.Context, member *entities.P
 	return err
 }
 
+func (r *ProjectMemberRepository) UpdateTx(ctx context.Context, tx pgx.Tx, member *entities.ProjectMember) error {
+	query := `
+		UPDATE project_members
+		SET role = $2, permissions = $3, updated_at = $4
+		WHERE id = $1
+	`
+	_, err := tx.Exec(ctx, query, member.ID, member.Role, member.Permissions, member.UpdatedAt)
+	return err
+}
+
 func (r *ProjectMemberRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM project_members WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
+func (r *ProjectMemberRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+	query := `DELETE FROM project_members WHERE id = $1`
+	_, err := tx.Exec(ctx, query, id)
 	return err
 }

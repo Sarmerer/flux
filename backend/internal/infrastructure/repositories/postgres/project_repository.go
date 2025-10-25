@@ -29,6 +29,15 @@ func (r *ProjectRepository) Create(ctx context.Context, project *entities.Projec
 	return err
 }
 
+func (r *ProjectRepository) CreateTx(ctx context.Context, tx pgx.Tx, project *entities.Project) error {
+	query := `
+		INSERT INTO projects (id, name, description, owner_id, database_url, api_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+	_, err := tx.Exec(ctx, query, project.ID, project.Name, project.Description, project.OwnerID, project.DatabaseURL, project.APIKey, project.CreatedAt, project.UpdatedAt)
+	return err
+}
+
 func (r *ProjectRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Project, error) {
 	query := `
 		SELECT id, name, description, owner_id, database_url, api_key, created_at, updated_at
@@ -74,7 +83,7 @@ func (r *ProjectRepository) GetByOwnerID(ctx context.Context, ownerID uuid.UUID)
 
 func (r *ProjectRepository) Update(ctx context.Context, project *entities.Project) error {
 	query := `
-		UPDATE projects 
+		UPDATE projects
 		SET name = $2, description = $3, database_url = $4, api_key = $5, updated_at = $6
 		WHERE id = $1
 	`
@@ -82,9 +91,25 @@ func (r *ProjectRepository) Update(ctx context.Context, project *entities.Projec
 	return err
 }
 
+func (r *ProjectRepository) UpdateTx(ctx context.Context, tx pgx.Tx, project *entities.Project) error {
+	query := `
+		UPDATE projects
+		SET name = $2, description = $3, database_url = $4, api_key = $5, updated_at = $6
+		WHERE id = $1
+	`
+	_, err := tx.Exec(ctx, query, project.ID, project.Name, project.Description, project.DatabaseURL, project.APIKey, project.UpdatedAt)
+	return err
+}
+
 func (r *ProjectRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM projects WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
+	return err
+}
+
+func (r *ProjectRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+	query := `DELETE FROM projects WHERE id = $1`
+	_, err := tx.Exec(ctx, query, id)
 	return err
 }
 
