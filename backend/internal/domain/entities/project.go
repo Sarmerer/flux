@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Project represents a project in the system
 type Project struct {
 	ID          uuid.UUID `json:"id" db:"id"`
 	Name        string    `json:"name" db:"name"`
@@ -18,13 +17,11 @@ type Project struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// ProjectCreateRequest represents the data needed to create a new project
 type ProjectCreateRequest struct {
 	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
 }
 
-// ProjectResponse represents the project data returned in API responses
 type ProjectResponse struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
@@ -36,7 +33,6 @@ type ProjectResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// ToResponse converts a Project entity to ProjectResponse
 func (p *Project) ToResponse() ProjectResponse {
 	return ProjectResponse{
 		ID:          p.ID,

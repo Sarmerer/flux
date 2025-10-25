@@ -14,19 +14,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserHandler handles user-related HTTP requests
 type UserHandler struct {
 	userService services.UserServiceInterface
 }
 
-// NewUserHandler creates a new UserHandler
 func NewUserHandler(userService services.UserServiceInterface) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 	}
 }
 
-// Register handles user registration
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req entities.UserCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -35,7 +32,6 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields at handler level
 	if strings.TrimSpace(req.Email) == "" {
 		errors.WriteError(w, errors.NewValidationError("Email is required").WithField("email"))
 		return
@@ -51,7 +47,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.Register(r.Context(), &req)
 	if err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
@@ -65,7 +61,6 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// Login handles user login
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req entities.UserLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -74,7 +69,6 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields at handler level
 	if strings.TrimSpace(req.Email) == "" {
 		errors.WriteError(w, errors.NewValidationError("Email is required").WithField("email"))
 		return
@@ -86,7 +80,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.userService.Login(r.Context(), &req)
 	if err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {

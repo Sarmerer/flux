@@ -9,7 +9,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config holds all configuration for the application
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
@@ -17,14 +16,12 @@ type Config struct {
 	CORS     CORSConfig
 }
 
-// ServerConfig holds server-related configuration
 type ServerConfig struct {
 	Host string
 	Port int
-	Env  string // development, staging, production
+	Env  string
 }
 
-// DatabaseConfig holds database-related configuration
 type DatabaseConfig struct {
 	Host     string
 	Port     int
@@ -34,25 +31,21 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
-// JWTConfig holds JWT-related configuration
 type JWTConfig struct {
 	Secret string
 }
 
-// CORSConfig holds CORS-related configuration
 type CORSConfig struct {
 	AllowedOrigins []string
 }
 
-// Load loads configuration from environment variables
 func Load() (*Config, error) {
-	// Load .env file if it exists
+
 	if err := godotenv.Load(); err != nil {
-		// .env file is optional, so we don't return error if it doesn't exist
+
 		fmt.Println("No .env file found, using environment variables")
 	}
 
-	// Parse CORS origins
 	corsOrigins := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
 	allowedOrigins := strings.Split(corsOrigins, ",")
 	for i, origin := range allowedOrigins {
@@ -84,7 +77,6 @@ func Load() (*Config, error) {
 	return config, nil
 }
 
-// getEnv gets an environment variable with a fallback value
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -92,7 +84,6 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// getEnvAsInt gets an environment variable as integer with a fallback value
 func getEnvAsInt(key string, fallback int) int {
 	if value := os.Getenv(key); value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {

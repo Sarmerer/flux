@@ -8,14 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserServiceInterface defines the interface for user service operations
 type UserServiceInterface interface {
 	Register(ctx context.Context, req *entities.UserCreateRequest) (*entities.UserResponse, error)
 	Login(ctx context.Context, req *entities.UserLoginRequest) (string, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*entities.UserResponse, error)
 }
 
-// ProjectServiceInterface defines the interface for project service operations
 type ProjectServiceInterface interface {
 	CreateProject(ctx context.Context, req *entities.ProjectCreateRequest, ownerID uuid.UUID) (*entities.ProjectResponse, error)
 	GetProjectByID(ctx context.Context, id uuid.UUID) (*entities.ProjectResponse, error)
@@ -24,7 +22,6 @@ type ProjectServiceInterface interface {
 	DeleteProject(ctx context.Context, id uuid.UUID) error
 }
 
-// TableServiceInterface defines the interface for table service operations
 type TableServiceInterface interface {
 	CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error)
 	GetTableByID(ctx context.Context, id uuid.UUID) (*entities.TableResponse, error)
@@ -33,7 +30,6 @@ type TableServiceInterface interface {
 	DeleteTable(ctx context.Context, id uuid.UUID) error
 }
 
-// WorkflowServiceInterface defines the interface for workflow service operations
 type WorkflowServiceInterface interface {
 	CreateWorkflow(ctx context.Context, req *entities.WorkflowCreateRequest, projectID uuid.UUID) (*entities.WorkflowResponse, error)
 	GetWorkflowByID(ctx context.Context, id uuid.UUID) (*entities.WorkflowResponse, error)

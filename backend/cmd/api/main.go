@@ -22,13 +22,12 @@ import (
 )
 
 func main() {
-	// Load configuration
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Create database connection
 	dbConfig := database.Config{
 		Host:     cfg.Database.Host,
 		Port:     cfg.Database.Port,
@@ -45,12 +44,10 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize basic logger for migrations (no WebSocket streaming yet)
 	logStorage := logging.NewPostgresLogStorage(db)
-	// Use nil streamer during migrations since hub isn't ready yet
+
 	migrationLogger := logging.NewDevelopmentLogger(logStorage, nil)
 
-	// Run migrations automatically on startup using SQL files and structured logging
 	log.Println("Running database migrations...")
 	if err := database.AutoMigrate(ctx, db, migrationLogger); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
@@ -63,7 +60,6 @@ func main() {
 	workflowRepo := postgresRepo.NewWorkflowRepository(db)
 	projectMemberRepo := postgresRepo.NewProjectMemberRepository(db)
 
-	// Initialize Realtime Service
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		cfg.Database.User,
 		cfg.Database.Password,
@@ -81,36 +77,29 @@ func main() {
 		log.Fatalf("Failed to create realtime service: %v", err)
 	}
 
-	// Start realtime service
 	if err := realtimeService.Start(ctx); err != nil {
 		log.Fatalf("Failed to start realtime service: %v", err)
 	}
 	defer realtimeService.Stop()
 
-	// Get hub and create progress tracker
 	wsHub := realtimeService.GetHub()
 	progressTracker := progress.NewTracker(wsHub)
 
-	// Start progress tracker cleanup routine
 	progressTracker.StartCleanupRoutine(ctx, 5*time.Minute, 1*time.Hour)
 
-	// Update log streamer with WebSocket hub (was initialized earlier without hub)
 	logStreamer := logging.NewWebSocketLogStreamer(wsHub)
 	appLogger := logging.NewDevelopmentLogger(logStorage, logStreamer)
 
 	log.Println("Structured logging system initialized")
 
-	// Log application startup
 	appLogger.Info("Application starting", map[string]interface{}{
 		"server_host": cfg.Server.Host,
 		"server_port": cfg.Server.Port,
 	})
 
-	// Initialize infrastructure services (connection management, PostgreSQL operations)
 	connService := database.NewConnectionService(db)
 	pgManagementService := database.NewPostgreSQLManagementService(connService)
 
-	// Initialize mutation services
 	dbService := services.NewDatabaseService(databaseRepo, projectRepo, pgManagementService, connService, progressTracker, wsHub)
 	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo)
 
@@ -119,7 +108,6 @@ func main() {
 	tableService := services.NewTableService(tableRepo)
 	workflowService := services.NewWorkflowService(workflowRepo, projectRepo, databaseRepo, pgManagementService, appLogger)
 
-	// Services wired with database handlers
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	projectMemberHandler := handlers.NewProjectMemberHandler(projectMemberRepo, userRepo, projectRepo)
@@ -129,13 +117,10 @@ func main() {
 	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
 	workflowHandler := handlers.NewWorkflowHandler(workflowService)
 
-	// Initialize log handler
 	logHandler := handlers.NewLogHandler(logStorage, logStreamer)
 
-	// Setup routes
 	router := routes.SetupRoutes(userHandler, projectHandler, projectMemberHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, projectMemberRepo, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
 
-	// Create HTTP server
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
 		Handler:      router,
@@ -144,7 +129,6 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in a goroutine
 	go func() {
 		log.Printf("Server starting on %s:%d", cfg.Server.Host, cfg.Server.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -152,13 +136,11 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Server shutting down...")
 
-	// Graceful shutdown with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

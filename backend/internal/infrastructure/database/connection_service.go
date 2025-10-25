@@ -9,25 +9,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ConnectionService manages database connections with proper resource management
 type ConnectionService struct {
 	coreDB *pgxpool.Pool
 }
 
-// NewConnectionService creates a new connection service
 func NewConnectionService(coreDB *pgxpool.Pool) *ConnectionService {
 	return &ConnectionService{
 		coreDB: coreDB,
 	}
 }
 
-// GetCoreDB returns the core database connection
 func (s *ConnectionService) GetCoreDB() *pgxpool.Pool {
 	return s.coreDB
 }
 
-// ExecuteWithProjectDB executes a function with a connection to a project database
-// Handles connection creation, cleanup, and error wrapping
 func (s *ConnectionService) ExecuteWithProjectDB(ctx context.Context, database *entities.Database, fn func(*pgxpool.Pool) error) error {
 	pool, err := s.createPool(ctx, database.GetConnectionString())
 	if err != nil {
@@ -42,8 +37,6 @@ func (s *ConnectionService) ExecuteWithProjectDB(ctx context.Context, database *
 	return nil
 }
 
-// ExecuteWithPostgreSQLServer executes a function with a connection to the PostgreSQL server (postgres database)
-// Used for CREATE DATABASE, DROP DATABASE, etc.
 func (s *ConnectionService) ExecuteWithPostgreSQLServer(ctx context.Context, database *entities.Database, fn func(*pgxpool.Pool) error) error {
 	serverDSN := fmt.Sprintf("postgres://%s:%s@%s:%d/postgres?sslmode=%s",
 		database.Username, database.Password, database.Host, database.Port, database.SSLMode)
@@ -61,7 +54,6 @@ func (s *ConnectionService) ExecuteWithPostgreSQLServer(ctx context.Context, dat
 	return nil
 }
 
-// TestConnection tests if a database connection is valid
 func (s *ConnectionService) TestConnection(ctx context.Context, database *entities.Database) error {
 	return s.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if err := pool.Ping(ctx); err != nil {
@@ -71,12 +63,10 @@ func (s *ConnectionService) TestConnection(ctx context.Context, database *entiti
 	})
 }
 
-// CreatePool creates a new database connection pool
 func (s *ConnectionService) CreatePool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return s.createPool(ctx, dsn)
 }
 
-// createPool is the internal pool creation logic
 func (s *ConnectionService) createPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {

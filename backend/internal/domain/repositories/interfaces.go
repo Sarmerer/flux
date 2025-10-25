@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserRepository defines the interface for user data operations
 type UserRepository interface {
 	Create(ctx context.Context, user *entities.User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.User, error)
@@ -18,7 +17,6 @@ type UserRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*entities.User, error)
 }
 
-// ProjectRepository defines the interface for project data operations
 type ProjectRepository interface {
 	Create(ctx context.Context, project *entities.Project) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Project, error)
@@ -28,7 +26,6 @@ type ProjectRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*entities.Project, error)
 }
 
-// DatabaseRepository defines the interface for database data operations
 type DatabaseRepository interface {
 	Create(ctx context.Context, database *entities.Database) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Database, error)
@@ -38,7 +35,6 @@ type DatabaseRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*entities.Database, error)
 }
 
-// TableRepository defines the interface for table data operations
 type TableRepository interface {
 	Create(ctx context.Context, table *entities.Table) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Table, error)
@@ -48,7 +44,6 @@ type TableRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*entities.Table, error)
 }
 
-// WorkflowRepository defines the interface for workflow data operations
 type WorkflowRepository interface {
 	Create(ctx context.Context, workflow *entities.Workflow) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Workflow, error)

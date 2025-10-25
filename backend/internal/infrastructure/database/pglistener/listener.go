@@ -12,7 +12,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// EventType represents the type of database event
 type EventType string
 
 const (
@@ -21,7 +20,6 @@ const (
 	EventTypeDelete EventType = "DELETE"
 )
 
-// Event represents a database change event
 type Event struct {
 	Type      EventType              `json:"type"`
 	Table     string                 `json:"table"`
@@ -32,29 +30,25 @@ type Event struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// EventHandler is a function that processes database events
 type EventHandler func(event Event)
 
-// Listener manages PostgreSQL LISTEN/NOTIFY subscriptions
 type Listener struct {
-	db              *sql.DB
-	listener        *pq.Listener
-	handlers        map[string][]EventHandler // channel -> handlers
-	mu              sync.RWMutex
-	ctx             context.Context
-	cancel          context.CancelFunc
-	reconnectDelay  time.Duration
+	db                *sql.DB
+	listener          *pq.Listener
+	handlers          map[string][]EventHandler
+	mu                sync.RWMutex
+	ctx               context.Context
+	cancel            context.CancelFunc
+	reconnectDelay    time.Duration
 	maxReconnectDelay time.Duration
 }
 
-// Config holds configuration for the listener
 type Config struct {
 	DatabaseURL       string
 	MinReconnectDelay time.Duration
 	MaxReconnectDelay time.Duration
 }
 
-// NewListener creates a new PostgreSQL listener
 func NewListener(db *sql.DB, config Config) (*Listener, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -104,15 +98,12 @@ func NewListener(db *sql.DB, config Config) (*Listener, error) {
 	return l, nil
 }
 
-// Subscribe adds a handler for a specific channel
 func (l *Listener) Subscribe(channel string, handler EventHandler) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	// Add handler to the list
 	l.handlers[channel] = append(l.handlers[channel], handler)
 
-	// Listen on the channel if this is the first handler
 	if len(l.handlers[channel]) == 1 {
 		err := l.listener.Listen(channel)
 		if err != nil {
@@ -124,8 +115,6 @@ func (l *Listener) Subscribe(channel string, handler EventHandler) error {
 	return nil
 }
 
-// Unsubscribe removes a specific handler from a channel
-// Note: This is a simplified version. For production, you'd want to track handler identity
 func (l *Listener) Unsubscribe(channel string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -141,7 +130,6 @@ func (l *Listener) Unsubscribe(channel string) error {
 	return nil
 }
 
-// Start begins listening for notifications
 func (l *Listener) Start() error {
 	log.Println("[pglistener] Starting listener...")
 
@@ -150,7 +138,6 @@ func (l *Listener) Start() error {
 	return nil
 }
 
-// listen is the main event loop
 func (l *Listener) listen() {
 	for {
 		select {
@@ -160,14 +147,14 @@ func (l *Listener) listen() {
 
 		case notification := <-l.listener.Notify:
 			if notification == nil {
-				// Nil notification can occur during reconnection
+
 				continue
 			}
 
 			l.handleNotification(notification)
 
 		case <-time.After(90 * time.Second):
-			// Send a ping to check connection health
+
 			go func() {
 				err := l.listener.Ping()
 				if err != nil {
@@ -178,7 +165,6 @@ func (l *Listener) listen() {
 	}
 }
 
-// handleNotification processes an incoming notification
 func (l *Listener) handleNotification(n *pq.Notification) {
 	l.mu.RLock()
 	handlers, exists := l.handlers[n.Channel]
@@ -189,7 +175,6 @@ func (l *Listener) handleNotification(n *pq.Notification) {
 		return
 	}
 
-	// Parse the notification payload
 	var event Event
 	err := json.Unmarshal([]byte(n.Extra), &event)
 	if err != nil {
@@ -197,18 +182,15 @@ func (l *Listener) handleNotification(n *pq.Notification) {
 		return
 	}
 
-	// Set timestamp if not provided
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now()
 	}
 
-	// Call all handlers for this channel
 	for _, handler := range handlers {
 		go handler(event)
 	}
 }
 
-// Stop gracefully shuts down the listener
 func (l *Listener) Stop() error {
 	log.Println("[pglistener] Stopping listener...")
 
@@ -223,8 +205,6 @@ func (l *Listener) Stop() error {
 	return nil
 }
 
-// Notify sends a notification to a channel
-// This is a helper method for sending notifications from application code
 func (l *Listener) Notify(channel string, event Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
@@ -240,7 +220,6 @@ func (l *Listener) Notify(channel string, event Event) error {
 	return nil
 }
 
-// GetActiveChannels returns a list of channels currently being listened to
 func (l *Listener) GetActiveChannels() []string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()

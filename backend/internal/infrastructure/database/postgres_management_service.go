@@ -11,20 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgreSQLManagementService handles physical PostgreSQL database operations
-// Responsible for CREATE DATABASE, DROP DATABASE, table creation, etc.
 type PostgreSQLManagementService struct {
 	connService *ConnectionService
 }
 
-// NewPostgreSQLManagementService creates a new PostgreSQL management service
 func NewPostgreSQLManagementService(connService *ConnectionService) *PostgreSQLManagementService {
 	return &PostgreSQLManagementService{
 		connService: connService,
 	}
 }
 
-// CreateDatabase creates a new PostgreSQL database
 func (s *PostgreSQLManagementService) CreateDatabase(ctx context.Context, database *entities.Database) error {
 	return s.connService.ExecuteWithPostgreSQLServer(ctx, database, func(pool *pgxpool.Pool) error {
 		createQuery := fmt.Sprintf("CREATE DATABASE %s", database.Database)
@@ -36,10 +32,9 @@ func (s *PostgreSQLManagementService) CreateDatabase(ctx context.Context, databa
 	})
 }
 
-// DropDatabase drops a PostgreSQL database
 func (s *PostgreSQLManagementService) DropDatabase(ctx context.Context, database *entities.Database) error {
 	return s.connService.ExecuteWithPostgreSQLServer(ctx, database, func(pool *pgxpool.Pool) error {
-		// Terminate existing connections to the database
+
 		terminateQuery := fmt.Sprintf(`
 			SELECT pg_terminate_backend(pid)
 			FROM pg_stat_activity
@@ -47,14 +42,13 @@ func (s *PostgreSQLManagementService) DropDatabase(ctx context.Context, database
 		`, database.Database)
 
 		if _, err := pool.Exec(ctx, terminateQuery); err != nil {
-			// Log but don't fail - database might not exist or connections might already be closed
+
 			log.Printf("Warning: Failed to terminate connections for database %s: %v", database.Database, err)
 		}
 
-		// Drop database
 		dropQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", database.Database)
 		if _, err := pool.Exec(ctx, dropQuery); err != nil {
-			// Check if error is due to database not existing
+
 			if strings.Contains(err.Error(), "does not exist") {
 				log.Printf("Database %s does not exist, skipping drop", database.Database)
 				return nil
@@ -67,12 +61,10 @@ func (s *PostgreSQLManagementService) DropDatabase(ctx context.Context, database
 	})
 }
 
-// TestConnection tests if a database connection works
 func (s *PostgreSQLManagementService) TestConnection(ctx context.Context, database *entities.Database) error {
 	return s.connService.TestConnection(ctx, database)
 }
 
-// CreateTable creates a table in a database
 func (s *PostgreSQLManagementService) CreateTable(ctx context.Context, database *entities.Database, tableName string, schema string) error {
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, schema); err != nil {
@@ -83,7 +75,6 @@ func (s *PostgreSQLManagementService) CreateTable(ctx context.Context, database 
 	})
 }
 
-// TableExists checks if a table exists in a database
 func (s *PostgreSQLManagementService) TableExists(ctx context.Context, database *entities.Database, tableName string) (bool, error) {
 	var exists bool
 	err := s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
@@ -97,7 +88,6 @@ func (s *PostgreSQLManagementService) TableExists(ctx context.Context, database 
 	return exists, err
 }
 
-// DropTable drops a table from a database
 func (s *PostgreSQLManagementService) DropTable(ctx context.Context, database *entities.Database, tableName string) error {
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", tableName)
@@ -109,7 +99,6 @@ func (s *PostgreSQLManagementService) DropTable(ctx context.Context, database *e
 	})
 }
 
-// ExecuteQuery executes a raw SQL query (use with caution)
 func (s *PostgreSQLManagementService) ExecuteQuery(ctx context.Context, database *entities.Database, query string, args ...interface{}) error {
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, args...); err != nil {

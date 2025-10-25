@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Role represents a user role
 type Role string
 
 const (
@@ -18,14 +17,13 @@ const (
 	RoleViewer    Role = "viewer"
 )
 
-// Permission represents a user permission
 type Permission string
 
 const (
-	PermProjectsCreate Permission = "projects.create"
-	PermProjectsEdit   Permission = "projects.edit"
-	PermProjectsDelete Permission = "projects.delete"
-	PermProjectsView   Permission = "projects.view"
+	PermProjectsCreate  Permission = "projects.create"
+	PermProjectsEdit    Permission = "projects.edit"
+	PermProjectsDelete  Permission = "projects.delete"
+	PermProjectsView    Permission = "projects.view"
 	PermWorkflowsCreate Permission = "workflows.create"
 	PermWorkflowsEdit   Permission = "workflows.edit"
 	PermWorkflowsDelete Permission = "workflows.delete"
@@ -36,15 +34,12 @@ const (
 	PermUsersManage     Permission = "users.manage"
 )
 
-// Permissions is a slice of Permission that can be stored in JSONB
 type Permissions []Permission
 
-// Value implements the driver.Valuer interface for database storage
 func (p Permissions) Value() (driver.Value, error) {
 	return json.Marshal(p)
 }
 
-// Scan implements the sql.Scanner interface for database retrieval
 func (p *Permissions) Scan(value interface{}) error {
 	if value == nil {
 		*p = []Permission{}
@@ -59,7 +54,6 @@ func (p *Permissions) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, p)
 }
 
-// User represents a user in the system
 type User struct {
 	ID        uuid.UUID `json:"id" db:"id"`
 	Email     string    `json:"email" db:"email"`
@@ -69,20 +63,17 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// UserCreateRequest represents the data needed to create a new user
 type UserCreateRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8"`
 	Name     string `json:"name" validate:"required"`
 }
 
-// UserLoginRequest represents the data needed for user login
 type UserLoginRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
 }
 
-// UserResponse represents the user data returned in API responses
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
@@ -91,7 +82,6 @@ type UserResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// ToResponse converts a User entity to UserResponse
 func (u *User) ToResponse() UserResponse {
 	return UserResponse{
 		ID:        u.ID,
@@ -101,4 +91,3 @@ func (u *User) ToResponse() UserResponse {
 		UpdatedAt: u.UpdatedAt,
 	}
 }
-

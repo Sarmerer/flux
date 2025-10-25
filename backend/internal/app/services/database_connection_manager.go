@@ -13,14 +13,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DatabaseConnectionManager manages connections to project databases
 type DatabaseConnectionManager struct {
 	dbRepo      repositories.DatabaseRepository
 	connections map[uuid.UUID]*pgxpool.Pool
 	mutex       sync.RWMutex
 }
 
-// NewDatabaseConnectionManager creates a new DatabaseConnectionManager
 func NewDatabaseConnectionManager(dbRepo repositories.DatabaseRepository) *DatabaseConnectionManager {
 	return &DatabaseConnectionManager{
 		dbRepo:      dbRepo,
@@ -28,16 +26,15 @@ func NewDatabaseConnectionManager(dbRepo repositories.DatabaseRepository) *Datab
 	}
 }
 
-// GetConnection gets or creates a connection to a project database
 func (m *DatabaseConnectionManager) GetConnection(ctx context.Context, projectID uuid.UUID) (*pgxpool.Pool, error) {
 	m.mutex.RLock()
 	if pool, exists := m.connections[projectID]; exists {
 		m.mutex.RUnlock()
-		// Test connection
+
 		if err := pool.Ping(ctx); err == nil {
 			return pool, nil
 		}
-		// Connection is stale, remove it
+
 		m.mutex.Lock()
 		delete(m.connections, projectID)
 		m.mutex.Unlock()
@@ -45,28 +42,24 @@ func (m *DatabaseConnectionManager) GetConnection(ctx context.Context, projectID
 		m.mutex.RUnlock()
 	}
 
-	// Create new connection
 	return m.createConnection(ctx, projectID)
 }
 
-// createConnection creates a new connection to a project database
 func (m *DatabaseConnectionManager) createConnection(ctx context.Context, projectID uuid.UUID) (*pgxpool.Pool, error) {
-	// Get project database configuration
+
 	databases, err := m.dbRepo.GetByProjectID(ctx, projectID)
 	if err != nil || len(databases) == 0 {
 		return nil, fmt.Errorf("no database found for project: %w", err)
 	}
 
-	database := databases[0] // Use first database for now
+	database := databases[0]
 
-	// Create connection
 	dsn := database.GetConnectionString()
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("invalid database configuration: %w", err)
 	}
 
-	// Configure connection pool
 	config.MaxConns = 10
 	config.MinConns = 2
 	config.MaxConnLifetime = time.Hour
@@ -77,13 +70,11 @@ func (m *DatabaseConnectionManager) createConnection(ctx context.Context, projec
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
-	// Test connection
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Store connection
 	m.mutex.Lock()
 	m.connections[projectID] = pool
 	m.mutex.Unlock()
@@ -91,7 +82,6 @@ func (m *DatabaseConnectionManager) createConnection(ctx context.Context, projec
 	return pool, nil
 }
 
-// CloseConnection closes a specific project database connection
 func (m *DatabaseConnectionManager) CloseConnection(projectID uuid.UUID) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -104,7 +94,6 @@ func (m *DatabaseConnectionManager) CloseConnection(projectID uuid.UUID) error {
 	return nil
 }
 
-// CloseAllConnections closes all project database connections
 func (m *DatabaseConnectionManager) CloseAllConnections() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -115,7 +104,6 @@ func (m *DatabaseConnectionManager) CloseAllConnections() {
 	}
 }
 
-// GetConnectionStats returns statistics about active connections
 func (m *DatabaseConnectionManager) GetConnectionStats() map[uuid.UUID]ConnectionStats {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
@@ -133,7 +121,6 @@ func (m *DatabaseConnectionManager) GetConnectionStats() map[uuid.UUID]Connectio
 	return stats
 }
 
-// ConnectionStats represents connection pool statistics
 type ConnectionStats struct {
 	TotalConns        int32 `json:"total_conns"`
 	AcquiredConns     int32 `json:"acquired_conns"`
@@ -141,7 +128,6 @@ type ConnectionStats struct {
 	IdleConns         int32 `json:"idle_conns"`
 }
 
-// ExecuteInProjectDatabase executes a function with a project database connection
 func (m *DatabaseConnectionManager) ExecuteInProjectDatabase(ctx context.Context, projectID uuid.UUID, fn func(*pgxpool.Pool) error) error {
 	pool, err := m.GetConnection(ctx, projectID)
 	if err != nil {
@@ -151,7 +137,6 @@ func (m *DatabaseConnectionManager) ExecuteInProjectDatabase(ctx context.Context
 	return fn(pool)
 }
 
-// ExecuteTransactionInProjectDatabase executes a function within a transaction
 func (m *DatabaseConnectionManager) ExecuteTransactionInProjectDatabase(ctx context.Context, projectID uuid.UUID, fn func(pgx.Tx) error) error {
 	return m.ExecuteInProjectDatabase(ctx, projectID, func(pool *pgxpool.Pool) error {
 		tx, err := pool.Begin(ctx)
@@ -172,7 +157,6 @@ func (m *DatabaseConnectionManager) ExecuteTransactionInProjectDatabase(ctx cont
 	})
 }
 
-// HealthCheck checks the health of all project database connections
 func (m *DatabaseConnectionManager) HealthCheck(ctx context.Context) map[uuid.UUID]error {
 	m.mutex.RLock()
 	connections := make(map[uuid.UUID]*pgxpool.Pool)
@@ -185,7 +169,7 @@ func (m *DatabaseConnectionManager) HealthCheck(ctx context.Context) map[uuid.UU
 	for projectID, pool := range connections {
 		if err := pool.Ping(ctx); err != nil {
 			results[projectID] = err
-			// Remove stale connection
+
 			m.CloseConnection(projectID)
 		} else {
 			results[projectID] = nil

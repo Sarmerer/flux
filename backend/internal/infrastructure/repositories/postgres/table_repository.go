@@ -12,17 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TableRepository implements the TableRepository interface using PostgreSQL
 type TableRepository struct {
 	db *pgxpool.Pool
 }
 
-// NewTableRepository creates a new TableRepository
 func NewTableRepository(db *pgxpool.Pool) repositories.TableRepository {
 	return &TableRepository{db: db}
 }
 
-// Create creates a new table
 func (r *TableRepository) Create(ctx context.Context, table *entities.Table) error {
 	query := `
 		INSERT INTO tables (id, project_id, name, schema, created_at, updated_at)
@@ -32,7 +29,6 @@ func (r *TableRepository) Create(ctx context.Context, table *entities.Table) err
 	return err
 }
 
-// GetByID retrieves a table by ID
 func (r *TableRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Table, error) {
 	query := `
 		SELECT id, project_id, name, schema, created_at, updated_at
@@ -51,7 +47,6 @@ func (r *TableRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.
 	return &table, nil
 }
 
-// GetByProjectID retrieves tables by project ID
 func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Table, error) {
 	query := `
 		SELECT id, project_id, name, schema, created_at, updated_at
@@ -77,7 +72,6 @@ func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUI
 	return tables, nil
 }
 
-// Update updates a table
 func (r *TableRepository) Update(ctx context.Context, table *entities.Table) error {
 	query := `
 		UPDATE tables 
@@ -88,14 +82,12 @@ func (r *TableRepository) Update(ctx context.Context, table *entities.Table) err
 	return err
 }
 
-// Delete deletes a table
 func (r *TableRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM tables WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
 
-// List retrieves tables with pagination
 func (r *TableRepository) List(ctx context.Context, limit, offset int) ([]*entities.Table, error) {
 	query := `
 		SELECT id, project_id, name, schema, created_at, updated_at

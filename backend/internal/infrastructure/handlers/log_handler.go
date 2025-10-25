@@ -13,13 +13,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// LogHandler handles log-related HTTP requests
 type LogHandler struct {
 	storage  logging.LogStorage
 	streamer logging.LogStreamer
 }
 
-// NewLogHandler creates a new LogHandler
 func NewLogHandler(storage logging.LogStorage, streamer logging.LogStreamer) *LogHandler {
 	return &LogHandler{
 		storage:  storage,
@@ -27,11 +25,9 @@ func NewLogHandler(storage logging.LogStorage, streamer logging.LogStreamer) *Lo
 	}
 }
 
-// GetLogs retrieves logs with filtering
 func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	filter := logging.DefaultFilter()
 
-	// Parse query parameters
 	if projectIDStr := r.URL.Query().Get("project_id"); projectIDStr != "" {
 		projectID, err := uuid.Parse(projectIDStr)
 		if err != nil {
@@ -130,21 +126,18 @@ func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 		filter.OrderBy = orderBy
 	}
 
-	// Query logs
 	logs, err := h.storage.Query(r.Context(), filter)
 	if err != nil {
 		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to query logs"))
 		return
 	}
 
-	// Get total count
 	count, err := h.storage.Count(r.Context(), filter)
 	if err != nil {
 		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to count logs"))
 		return
 	}
 
-	// Return response with pagination metadata
 	response := map[string]interface{}{
 		"logs":   logs,
 		"total":  count,
@@ -157,7 +150,6 @@ func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetProjectLogs retrieves logs for a specific project
 func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -169,17 +161,14 @@ func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 	filter := logging.DefaultFilter()
 	filter.ProjectID = &projectID
 
-	// Parse additional query parameters
 	h.applyCommonFilters(r, filter)
 
-	// Query logs
 	logs, err := h.storage.Query(r.Context(), filter)
 	if err != nil {
 		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to query project logs"))
 		return
 	}
 
-	// Get total count
 	count, err := h.storage.Count(r.Context(), filter)
 	if err != nil {
 		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to count project logs"))
@@ -199,7 +188,6 @@ func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// DeleteOldLogs deletes logs older than specified days
 func (h *LogHandler) DeleteOldLogs(w http.ResponseWriter, r *http.Request) {
 	daysStr := r.URL.Query().Get("days")
 	if daysStr == "" {
@@ -230,7 +218,6 @@ func (h *LogHandler) DeleteOldLogs(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// applyCommonFilters applies common query parameters to a filter
 func (h *LogHandler) applyCommonFilters(r *http.Request, filter *logging.LogFilter) {
 	if levelStr := r.URL.Query().Get("level"); levelStr != "" {
 		level := logging.LogLevel(levelStr)

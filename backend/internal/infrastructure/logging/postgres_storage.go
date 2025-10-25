@@ -9,21 +9,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresLogStorage implements LogStorage using PostgreSQL
 type PostgresLogStorage struct {
 	db *pgxpool.Pool
 }
 
-// NewPostgresLogStorage creates a new PostgreSQL log storage
 func NewPostgresLogStorage(db *pgxpool.Pool) *PostgresLogStorage {
 	return &PostgresLogStorage{
 		db: db,
 	}
 }
 
-// Store stores a log entry in PostgreSQL
 func (s *PostgresLogStorage) Store(ctx context.Context, entry *LogEntry) error {
-	// Convert fields map to JSON
+
 	fieldsJSON, err := json.Marshal(entry.Fields)
 	if err != nil {
 		return fmt.Errorf("failed to marshal fields: %w", err)
@@ -61,18 +58,15 @@ func (s *PostgresLogStorage) Store(ctx context.Context, entry *LogEntry) error {
 	return nil
 }
 
-// Query retrieves log entries based on filters
 func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*LogEntry, error) {
 	if filter == nil {
 		filter = DefaultFilter()
 	}
 
-	// Build query
 	query := `SELECT id, level, message, timestamp, project_id, database_id, table_id, workflow_id, user_id, request_id, operation, fields FROM logs WHERE 1=1`
 	args := []interface{}{}
 	argPos := 1
 
-	// Add filters
 	if filter.ProjectID != nil {
 		query += fmt.Sprintf(" AND project_id = $%d", argPos)
 		args = append(args, filter.ProjectID)
@@ -127,14 +121,12 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 		argPos++
 	}
 
-	// Add ordering
 	if filter.OrderBy == "timestamp_asc" {
 		query += " ORDER BY timestamp ASC"
 	} else {
 		query += " ORDER BY timestamp DESC"
 	}
 
-	// Add limit and offset
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", argPos)
 		args = append(args, filter.Limit)
@@ -147,14 +139,12 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 		argPos++
 	}
 
-	// Execute query
 	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query logs: %w", err)
 	}
 	defer rows.Close()
 
-	// Parse results
 	entries := make([]*LogEntry, 0)
 	for rows.Next() {
 		entry := &LogEntry{}
@@ -179,7 +169,6 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 			return nil, fmt.Errorf("failed to scan log entry: %w", err)
 		}
 
-		// Parse fields JSON
 		if len(fieldsJSON) > 0 {
 			if err := json.Unmarshal(fieldsJSON, &entry.Fields); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal fields: %w", err)
@@ -196,18 +185,15 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 	return entries, nil
 }
 
-// Count returns the number of log entries matching the filter
 func (s *PostgresLogStorage) Count(ctx context.Context, filter *LogFilter) (int64, error) {
 	if filter == nil {
 		filter = DefaultFilter()
 	}
 
-	// Build count query
 	query := `SELECT COUNT(*) FROM logs WHERE 1=1`
 	args := []interface{}{}
 	argPos := 1
 
-	// Add filters (same as Query)
 	if filter.ProjectID != nil {
 		query += fmt.Sprintf(" AND project_id = $%d", argPos)
 		args = append(args, filter.ProjectID)
@@ -262,7 +248,6 @@ func (s *PostgresLogStorage) Count(ctx context.Context, filter *LogFilter) (int6
 		argPos++
 	}
 
-	// Execute count query
 	var count int64
 	err := s.db.QueryRow(ctx, query, args...).Scan(&count)
 	if err != nil {
@@ -272,7 +257,6 @@ func (s *PostgresLogStorage) Count(ctx context.Context, filter *LogFilter) (int6
 	return count, nil
 }
 
-// DeleteOlderThan deletes log entries older than the specified duration
 func (s *PostgresLogStorage) DeleteOlderThan(ctx context.Context, duration time.Duration) (int64, error) {
 	cutoffTime := time.Now().Add(-duration)
 
@@ -286,7 +270,6 @@ func (s *PostgresLogStorage) DeleteOlderThan(ctx context.Context, duration time.
 	return result.RowsAffected(), nil
 }
 
-// MigrateLogsTable creates the logs table if it doesn't exist
 func MigrateLogsTable(ctx context.Context, db *pgxpool.Pool) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS logs (

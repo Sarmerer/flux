@@ -5,16 +5,15 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
+	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/handlers"
 	authMiddleware "github.com/flow/internal/infrastructure/middleware"
-	"github.com/flow/internal/errors"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
-// SetupRoutes configures all routes for the application
 func SetupRoutes(
 	userHandler *handlers.UserHandler,
 	projectHandler *handlers.ProjectHandler,
@@ -30,14 +29,12 @@ func SetupRoutes(
 ) http.Handler {
 	r := chi.NewRouter()
 
-	// Middleware
 	r.Use(middleware.Logger)
-	r.Use(errors.ErrorHandler) // Custom error handler
+	r.Use(errors.ErrorHandler)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	// CORS configuration - use configured origins instead of wildcard
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   corsAllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -47,15 +44,13 @@ func SetupRoutes(
 		MaxAge:           300,
 	}))
 
-	// Health check
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
 
-	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public routes (no authentication required)
+
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", userHandler.Register)
 			r.Post("/login", userHandler.Login)
@@ -70,32 +65,26 @@ func SetupRoutes(
 				r.Get("/{id}", userHandler.GetProfile)
 			})
 
-			// Operation management routes
 			r.Route("/operations", func(r chi.Router) {
 				r.Get("/", dbMutationProgressHandler.GetUserOperations)
 				r.Get("/{operationId}", dbMutationProgressHandler.GetOperationStatus)
 				r.Delete("/{operationId}", dbMutationProgressHandler.CancelOperation)
 			})
 
-			// Log routes
 			r.Route("/logs", func(r chi.Router) {
 				r.Get("/", logHandler.GetLogs)
 				r.Delete("/cleanup", logHandler.DeleteOldLogs)
 			})
 
-			// Project routes
 			r.Route("/projects", func(r chi.Router) {
-				// List all projects user is a member of
+
 				r.Get("/", projectHandler.GetProjects)
 
-				// Create project - no permission check needed, anyone can create projects
 				r.Post("/", projectHandler.CreateProject)
 
-				// Project-specific routes require project membership
 				r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 					Get("/{id}", projectHandler.GetProject)
 
-				// Update and delete require project admin
 				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectsEdit)).
 					Put("/{id}", projectHandler.UpdateProject)
 
@@ -119,19 +108,16 @@ func SetupRoutes(
 						Delete("/{memberId}", projectMemberHandler.RemoveProjectMember)
 				})
 
-				// Project-specific log routes - require membership to view
 				r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 					Get("/{projectId}/logs", logHandler.GetProjectLogs)
 
-				// Table routes under projects
 				r.Route("/{projectId}/tables", func(r chi.Router) {
-					// View tables - require project membership
+
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/", tableHandler.GetTables)
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/{id}", tableHandler.GetTable)
 
-					// Require project-level permissions for create/update/delete
 					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesCreate)).
 						Post("/", tableHandler.CreateTable)
 
@@ -144,7 +130,6 @@ func SetupRoutes(
 					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesDelete)).
 						Delete("/{id}", tableHandler.DeleteTable)
 
-					// Table schema mutation routes - require project-level edit permission
 					r.Route("/{tableName}/schema", func(r chi.Router) {
 						r.Use(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesEdit))
 
@@ -158,15 +143,13 @@ func SetupRoutes(
 					})
 				})
 
-				// Workflow routes under projects
 				r.Route("/{projectId}/workflows", func(r chi.Router) {
-					// View workflows - require project membership
+
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/", workflowHandler.GetWorkflows)
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/{id}", workflowHandler.GetWorkflow)
 
-					// Require project-level permissions for create/update/delete
 					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsCreate)).
 						Post("/", workflowHandler.CreateWorkflow)
 
@@ -183,7 +166,6 @@ func SetupRoutes(
 						Delete("/{id}", workflowHandler.DeleteWorkflow)
 				})
 
-				// Public WebSocket endpoint (auth via WS handshake)
 				r.Get("/ws", dbMutationProgressHandler.WebSocketHandler)
 			})
 		})

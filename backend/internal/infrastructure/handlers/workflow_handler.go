@@ -11,19 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// WorkflowHandler handles workflow-related HTTP requests
 type WorkflowHandler struct {
 	workflowService services.WorkflowServiceInterface
 }
 
-// NewWorkflowHandler creates a new WorkflowHandler
 func NewWorkflowHandler(workflowService services.WorkflowServiceInterface) *WorkflowHandler {
 	return &WorkflowHandler{
 		workflowService: workflowService,
 	}
 }
 
-// CreateWorkflow handles workflow creation
 func (h *WorkflowHandler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -49,7 +46,6 @@ func (h *WorkflowHandler) CreateWorkflow(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(workflow)
 }
 
-// GetWorkflow handles getting a workflow by ID
 func (h *WorkflowHandler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 	workflowIDStr := chi.URLParam(r, "id")
 	workflowID, err := uuid.Parse(workflowIDStr)
@@ -68,7 +64,6 @@ func (h *WorkflowHandler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(workflow)
 }
 
-// GetWorkflows handles getting all workflows for a project
 func (h *WorkflowHandler) GetWorkflows(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -87,7 +82,6 @@ func (h *WorkflowHandler) GetWorkflows(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(workflows)
 }
 
-// UpdateWorkflow handles updating a workflow
 func (h *WorkflowHandler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	workflowIDStr := chi.URLParam(r, "id")
 	workflowID, err := uuid.Parse(workflowIDStr)
@@ -112,7 +106,6 @@ func (h *WorkflowHandler) UpdateWorkflow(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(workflow)
 }
 
-// DeleteWorkflow handles deleting a workflow
 func (h *WorkflowHandler) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {
 	workflowIDStr := chi.URLParam(r, "id")
 	workflowID, err := uuid.Parse(workflowIDStr)
@@ -129,7 +122,6 @@ func (h *WorkflowHandler) DeleteWorkflow(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ToggleWorkflowActive handles toggling the active state of a workflow
 func (h *WorkflowHandler) ToggleWorkflowActive(w http.ResponseWriter, r *http.Request) {
 	workflowIDStr := chi.URLParam(r, "id")
 	workflowID, err := uuid.Parse(workflowIDStr)
@@ -156,7 +148,6 @@ func (h *WorkflowHandler) ToggleWorkflowActive(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(workflow)
 }
 
-// ExecuteWorkflow handles manually executing a workflow
 func (h *WorkflowHandler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	workflowIDStr := chi.URLParam(r, "id")
 	workflowID, err := uuid.Parse(workflowIDStr)

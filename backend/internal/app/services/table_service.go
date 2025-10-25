@@ -12,27 +12,23 @@ import (
 	"github.com/google/uuid"
 )
 
-// TableService handles table-related business logic
 type TableService struct {
 	tableRepo repositories.TableRepository
 }
 
-// NewTableService creates a new TableService
 func NewTableService(tableRepo repositories.TableRepository) *TableService {
 	return &TableService{
 		tableRepo: tableRepo,
 	}
 }
 
-// CreateTable creates a new table
 func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
-	// Convert schema to JSON string
+
 	schemaJSON, err := json.Marshal(req.Schema)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema format: %w", err)
 	}
 
-	// Create table
 	table := &entities.Table{
 		ID:        uuid.New(),
 		ProjectID: projectID,
@@ -50,7 +46,6 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 	return &response, nil
 }
 
-// GetTableByID retrieves a table by ID
 func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entities.TableResponse, error) {
 	table, err := s.tableRepo.GetByID(ctx, id)
 	if err != nil {
@@ -61,7 +56,6 @@ func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entitie
 	return &response, nil
 }
 
-// GetTablesByProjectID retrieves all tables for a project
 func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.TableResponse, error) {
 	tables, err := s.tableRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
@@ -77,14 +71,12 @@ func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.
 	return responses, nil
 }
 
-// UpdateTable updates a table
 func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest) (*entities.TableResponse, error) {
 	table, err := s.tableRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("table not found: %w", err)
 	}
 
-	// Update fields if provided
 	if req.Name != "" {
 		table.Name = req.Name
 	}
@@ -106,9 +98,8 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 	return &response, nil
 }
 
-// DeleteTable deletes a table
 func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID) error {
-	// Check if table exists
+
 	_, err := s.tableRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("table not found: %w", err)

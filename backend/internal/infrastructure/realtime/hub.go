@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// MessageType represents the type of WebSocket message
 type MessageType string
 
 const (
@@ -23,10 +22,9 @@ const (
 	MessageTypeAuth         MessageType = "auth"
 	MessageTypePing         MessageType = "ping"
 	MessageTypePong         MessageType = "pong"
-	MessageTypeRealtimeData MessageType = "realtime_data" // For database change events
+	MessageTypeRealtimeData MessageType = "realtime_data"
 )
 
-// Message represents a WebSocket message
 type Message struct {
 	Type      MessageType            `json:"type"`
 	ID        string                 `json:"id,omitempty"`
@@ -35,16 +33,14 @@ type Message struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// ProgressData represents progress information for long-running operations
 type ProgressData struct {
 	OperationID string  `json:"operation_id"`
 	Step        string  `json:"step"`
-	Progress    float64 `json:"progress"` // 0.0 to 1.0
+	Progress    float64 `json:"progress"`
 	Message     string  `json:"message"`
-	ETA         *int64  `json:"eta,omitempty"` // seconds until completion
+	ETA         *int64  `json:"eta,omitempty"`
 }
 
-// Client represents a WebSocket client connection
 type Client struct {
 	ID            string
 	UserID        uuid.UUID
@@ -55,92 +51,71 @@ type Client struct {
 	Cancel        context.CancelFunc
 	Authenticated bool
 	LastPong      time.Time
-	Subscriptions map[string]bool // channels the client is subscribed to (e.g., "table:projects", "user:123")
+	Subscriptions map[string]bool
 	mu            sync.RWMutex
 }
 
-// WebSocketConnection wraps the gorilla websocket connection
 type WebSocketConnection struct {
 	*websocket.Conn
 }
 
-// Close closes the WebSocket connection
 func (w *WebSocketConnection) Close() error {
 	return w.Conn.Close()
 }
 
-// SetReadDeadline sets the read deadline
 func (w *WebSocketConnection) SetReadDeadline(t time.Time) error {
 	return w.Conn.SetReadDeadline(t)
 }
 
-// SetWriteDeadline sets the write deadline
 func (w *WebSocketConnection) SetWriteDeadline(t time.Time) error {
 	return w.Conn.SetWriteDeadline(t)
 }
 
-// ReadMessage reads a message from the connection
 func (w *WebSocketConnection) ReadMessage() (messageType int, p []byte, err error) {
 	return w.Conn.ReadMessage()
 }
 
-// WriteMessage writes a message to the connection
 func (w *WebSocketConnection) WriteMessage(messageType int, data []byte) error {
 	return w.Conn.WriteMessage(messageType, data)
 }
 
-// Hub maintains the set of active clients and broadcasts messages
 type Hub struct {
-	// Registered clients
 	clients map[*Client]bool
 
-	// Clients by user ID
 	clientsByUser map[uuid.UUID]map[*Client]bool
 
-	// Clients by subscription channel
 	clientsByChannel map[string]map[*Client]bool
 
-	// Register requests from clients
 	register chan *Client
 
-	// Unregister requests from clients
 	unregister chan *Client
 
-	// Broadcast messages to all clients
 	broadcast chan Message
 
-	// Send message to specific user
 	sendToUser chan UserMessage
 
-	// Send message to specific client
 	sendToClient chan ClientMessage
 
-	// Send message to specific channel
 	sendToChannel chan ChannelMessage
 
-	// Mutex for thread-safe operations
 	mutex sync.RWMutex
 }
 
-// UserMessage represents a message to be sent to a specific user
 type UserMessage struct {
 	UserID  uuid.UUID
 	Message Message
 }
 
-// ClientMessage represents a message to be sent to a specific client
 type ClientMessage struct {
 	ClientID string
 	Message  Message
 }
 
-// ChannelMessage represents a message to be sent to all clients subscribed to a channel
 type ChannelMessage struct {
 	Channel string
 	Message Message
 }
 
-// NewHub creates a new WebSocket hub
 func NewHub() *Hub {
 	return &Hub{
 		clients:          make(map[*Client]bool),
@@ -155,7 +130,6 @@ func NewHub() *Hub {
 	}
 }
 
-// Run starts the hub
 func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
@@ -182,37 +156,30 @@ func (h *Hub) Run(ctx context.Context) {
 	}
 }
 
-// RegisterClient registers a new client
 func (h *Hub) RegisterClient(client *Client) {
 	h.register <- client
 }
 
-// UnregisterClient unregisters a client
 func (h *Hub) UnregisterClient(client *Client) {
 	h.unregister <- client
 }
 
-// BroadcastMessage broadcasts a message to all clients
 func (h *Hub) BroadcastMessage(message Message) {
 	h.broadcast <- message
 }
 
-// SendToUser sends a message to all clients of a specific user
 func (h *Hub) SendToUser(userID uuid.UUID, message Message) {
 	h.sendToUser <- UserMessage{UserID: userID, Message: message}
 }
 
-// SendToClient sends a message to a specific client
 func (h *Hub) SendToClient(clientID string, message Message) {
 	h.sendToClient <- ClientMessage{ClientID: clientID, Message: message}
 }
 
-// SendToChannel sends a message to all clients subscribed to a channel
 func (h *Hub) SendToChannel(channel string, message Message) {
 	h.sendToChannel <- ChannelMessage{Channel: channel, Message: message}
 }
 
-// SubscribeClient subscribes a client to a channel
 func (h *Hub) SubscribeClient(clientID, channel string) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -237,7 +204,6 @@ func (h *Hub) SubscribeClient(clientID, channel string) {
 	}
 }
 
-// UnsubscribeClient unsubscribes a client from a channel
 func (h *Hub) UnsubscribeClient(clientID, channel string) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -261,7 +227,6 @@ func (h *Hub) UnsubscribeClient(clientID, channel string) {
 	}
 }
 
-// registerClient handles client registration
 func (h *Hub) registerClient(client *Client) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -276,7 +241,6 @@ func (h *Hub) registerClient(client *Client) {
 	log.Printf("Client %s registered for user %s", client.ID, client.UserID)
 }
 
-// unregisterClient handles client unregistration
 func (h *Hub) unregisterClient(client *Client) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -285,7 +249,6 @@ func (h *Hub) unregisterClient(client *Client) {
 		delete(h.clients, client)
 		close(client.Send)
 
-		// Remove from user clients
 		if userClients, exists := h.clientsByUser[client.UserID]; exists {
 			delete(userClients, client)
 			if len(userClients) == 0 {
@@ -293,7 +256,6 @@ func (h *Hub) unregisterClient(client *Client) {
 			}
 		}
 
-		// Remove from all channel subscriptions
 		client.mu.RLock()
 		for channel := range client.Subscriptions {
 			if channelClients, exists := h.clientsByChannel[channel]; exists {
@@ -309,7 +271,6 @@ func (h *Hub) unregisterClient(client *Client) {
 	}
 }
 
-// broadcastMessage broadcasts a message to all clients
 func (h *Hub) broadcastMessage(message Message) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -318,12 +279,11 @@ func (h *Hub) broadcastMessage(message Message) {
 		select {
 		case client.Send <- message:
 		default:
-			// Client buffer full, skip
+
 		}
 	}
 }
 
-// sendToUserClients sends a message to all clients of a specific user
 func (h *Hub) sendToUserClients(userID uuid.UUID, message Message) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -333,13 +293,12 @@ func (h *Hub) sendToUserClients(userID uuid.UUID, message Message) {
 			select {
 			case client.Send <- message:
 			default:
-				// Client buffer full, skip
+
 			}
 		}
 	}
 }
 
-// sendToSpecificClient sends a message to a specific client
 func (h *Hub) sendToSpecificClient(clientID string, message Message) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -349,14 +308,13 @@ func (h *Hub) sendToSpecificClient(clientID string, message Message) {
 			select {
 			case client.Send <- message:
 			default:
-				// Client buffer full, skip
+
 			}
 			break
 		}
 	}
 }
 
-// sendToChannelClients sends a message to all clients subscribed to a channel
 func (h *Hub) sendToChannelClients(channel string, message Message) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -366,20 +324,18 @@ func (h *Hub) sendToChannelClients(channel string, message Message) {
 			select {
 			case client.Send <- message:
 			default:
-				// Client buffer full, skip
+
 			}
 		}
 	}
 }
 
-// GetClientCount returns the number of connected clients
 func (h *Hub) GetClientCount() int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
 	return len(h.clients)
 }
 
-// GetUserClientCount returns the number of clients for a specific user
 func (h *Hub) GetUserClientCount(userID uuid.UUID) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -389,7 +345,6 @@ func (h *Hub) GetUserClientCount(userID uuid.UUID) int {
 	return 0
 }
 
-// GetChannelClientCount returns the number of clients subscribed to a channel
 func (h *Hub) GetChannelClientCount(channel string) int {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -399,9 +354,6 @@ func (h *Hub) GetChannelClientCount(channel string) int {
 	return 0
 }
 
-// Client methods
-
-// ReadPump pumps messages from the websocket connection to the hub
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Hub.UnregisterClient(c)
@@ -423,7 +375,6 @@ func (c *Client) ReadPump() {
 				return
 			}
 
-			// Handle incoming message (ping/pong, etc.)
 			var msg Message
 			if err := json.Unmarshal(message, &msg); err == nil {
 				if msg.Type == MessageTypePong {
@@ -434,7 +385,6 @@ func (c *Client) ReadPump() {
 	}
 }
 
-// WritePump pumps messages from the hub to the websocket connection
 func (c *Client) WritePump() {
 	pingTicker := time.NewTicker(30 * time.Second)
 	healthTicker := time.NewTicker(5 * time.Second)
@@ -472,7 +422,7 @@ func (c *Client) WritePump() {
 			}
 
 		case <-healthTicker.C:
-			// Close the connection if no pong received within 60 seconds
+
 			if time.Since(c.LastPong) > 60*time.Second {
 				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -484,17 +434,15 @@ func (c *Client) WritePump() {
 	}
 }
 
-// mustJSON marshals a message or panics; used only for periodic pings where failure should drop the connection
 func mustJSON(m Message) []byte {
 	b, err := json.Marshal(m)
 	if err != nil {
-		// In this context, failing to marshal a ping is unrecoverable
+
 		return []byte(`{"type":"ping"}`)
 	}
 	return b
 }
 
-// SendProgress sends a progress update to the client
 func (c *Client) SendProgress(operationID, step string, progress float64, message string) {
 	progressData := ProgressData{
 		OperationID: operationID,
@@ -513,11 +461,10 @@ func (c *Client) SendProgress(operationID, step string, progress float64, messag
 	select {
 	case c.Send <- msg:
 	default:
-		// Client is not ready to receive messages
+
 	}
 }
 
-// SendError sends an error message to the client
 func (c *Client) SendError(operationID, message string, err error) {
 	errorData := map[string]interface{}{
 		"operation_id": operationID,
@@ -535,11 +482,10 @@ func (c *Client) SendError(operationID, message string, err error) {
 	select {
 	case c.Send <- msg:
 	default:
-		// Client is not ready to receive messages
+
 	}
 }
 
-// SendSuccess sends a success message to the client
 func (c *Client) SendSuccess(operationID, message string, data interface{}) {
 	successData := map[string]interface{}{
 		"operation_id": operationID,
@@ -557,6 +503,6 @@ func (c *Client) SendSuccess(operationID, message string, data interface{}) {
 	select {
 	case c.Send <- msg:
 	default:
-		// Client is not ready to receive messages
+
 	}
 }

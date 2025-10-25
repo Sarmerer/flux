@@ -7,25 +7,21 @@ import (
 	"strings"
 )
 
-// TriggerManager handles creation and management of database triggers
 type TriggerManager struct {
 	db *sql.DB
 }
 
-// NewTriggerManager creates a new trigger manager
 func NewTriggerManager(db *sql.DB) *TriggerManager {
 	return &TriggerManager{db: db}
 }
 
-// CreateNotifyTrigger creates a trigger function and trigger for table changes
 func (tm *TriggerManager) CreateNotifyTrigger(ctx context.Context, schema, table, channel string) error {
-	// Create the trigger function if it doesn't exist
+
 	err := tm.createTriggerFunction(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create trigger function: %w", err)
 	}
 
-	// Create the trigger on the specific table
 	err = tm.createTableTrigger(ctx, schema, table, channel)
 	if err != nil {
 		return fmt.Errorf("failed to create table trigger: %w", err)
@@ -34,7 +30,6 @@ func (tm *TriggerManager) CreateNotifyTrigger(ctx context.Context, schema, table
 	return nil
 }
 
-// createTriggerFunction creates the generic notify trigger function
 func (tm *TriggerManager) createTriggerFunction(ctx context.Context) error {
 	query := `
 CREATE OR REPLACE FUNCTION notify_table_change()
@@ -81,7 +76,6 @@ $$ LANGUAGE plpgsql;
 	return err
 }
 
-// createTableTrigger creates a trigger on a specific table
 func (tm *TriggerManager) createTableTrigger(ctx context.Context, schema, table, channel string) error {
 	triggerName := fmt.Sprintf("%s_%s_notify", schema, table)
 
@@ -106,7 +100,6 @@ EXECUTE FUNCTION notify_table_change('%s');
 	return nil
 }
 
-// DropTrigger removes a trigger from a table
 func (tm *TriggerManager) DropTrigger(ctx context.Context, schema, table string) error {
 	triggerName := fmt.Sprintf("%s_%s_notify", schema, table)
 
@@ -120,7 +113,6 @@ DROP TRIGGER IF EXISTS %s ON %s.%s;
 	return err
 }
 
-// EnableTriggersForTable enables realtime for a specific table
 func (tm *TriggerManager) EnableTriggersForTable(ctx context.Context, schema, table string, channels ...string) error {
 	channel := fmt.Sprintf("table_changes:%s.%s", schema, table)
 	if len(channels) > 0 {
@@ -130,12 +122,10 @@ func (tm *TriggerManager) EnableTriggersForTable(ctx context.Context, schema, ta
 	return tm.CreateNotifyTrigger(ctx, schema, table, channel)
 }
 
-// DisableTriggersForTable disables realtime for a specific table
 func (tm *TriggerManager) DisableTriggersForTable(ctx context.Context, schema, table string) error {
 	return tm.DropTrigger(ctx, schema, table)
 }
 
-// ListTriggers returns all notify triggers in the database
 func (tm *TriggerManager) ListTriggers(ctx context.Context) ([]TriggerInfo, error) {
 	query := `
 SELECT
@@ -174,7 +164,6 @@ ORDER BY t.trigger_schema, t.event_object_table;
 	return triggers, rows.Err()
 }
 
-// TriggerInfo holds information about a database trigger
 type TriggerInfo struct {
 	Schema      string
 	Table       string
@@ -183,18 +172,15 @@ type TriggerInfo struct {
 	Event       string
 }
 
-// String formats trigger info as a string
 func (ti TriggerInfo) String() string {
 	return fmt.Sprintf("%s.%s: %s %s %s",
 		ti.Schema, ti.Table, ti.Timing, ti.Event, ti.TriggerName)
 }
 
-// CreateRealtimeChannel creates a standardized channel name for table changes
 func CreateRealtimeChannel(schema, table string) string {
 	return fmt.Sprintf("realtime:%s:%s", schema, table)
 }
 
-// ParseRealtimeChannel parses a realtime channel name into schema and table
 func ParseRealtimeChannel(channel string) (schema, table string, ok bool) {
 	parts := strings.Split(channel, ":")
 	if len(parts) != 3 || parts[0] != "realtime" {

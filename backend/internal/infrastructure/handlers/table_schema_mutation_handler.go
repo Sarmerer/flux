@@ -10,19 +10,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// TableSchemaMutationHandler handles table schema mutation HTTP requests
 type TableSchemaMutationHandler struct {
 	schemaMutationService *services.TableSchemaMutationService
 }
 
-// NewTableSchemaMutationHandler creates a new TableSchemaMutationHandler
 func NewTableSchemaMutationHandler(schemaMutationService *services.TableSchemaMutationService) *TableSchemaMutationHandler {
 	return &TableSchemaMutationHandler{
 		schemaMutationService: schemaMutationService,
 	}
 }
 
-// CreateTableInDatabase handles creating a table in the project database
 func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -50,7 +47,6 @@ func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter
 	json.NewEncoder(w).Encode(map[string]string{"status": "table created"})
 }
 
-// DropTableFromDatabase handles dropping a table from the project database
 func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -73,7 +69,6 @@ func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// AddColumnToTable handles adding a column to a table
 func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -103,7 +98,6 @@ func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *
 	json.NewEncoder(w).Encode(map[string]string{"status": "column added"})
 }
 
-// RemoveColumnFromTable handles removing a column from a table
 func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -132,7 +126,6 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ModifyColumnInTable handles modifying a column in a table
 func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -162,7 +155,6 @@ func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, 
 	json.NewEncoder(w).Encode(map[string]string{"status": "column modified"})
 }
 
-// AddForeignKeyToTable handles adding a foreign key to a table
 func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -192,7 +184,6 @@ func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter,
 	json.NewEncoder(w).Encode(map[string]string{"status": "foreign key added"})
 }
 
-// RemoveForeignKeyFromTable handles removing a foreign key from a table
 func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)

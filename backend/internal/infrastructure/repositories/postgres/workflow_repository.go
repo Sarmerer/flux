@@ -13,17 +13,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// WorkflowRepository implements the WorkflowRepository interface using PostgreSQL
 type WorkflowRepository struct {
 	db *pgxpool.Pool
 }
 
-// NewWorkflowRepository creates a new WorkflowRepository
 func NewWorkflowRepository(db *pgxpool.Pool) repositories.WorkflowRepository {
 	return &WorkflowRepository{db: db}
 }
 
-// Create creates a new workflow
 func (r *WorkflowRepository) Create(ctx context.Context, workflow *entities.Workflow) error {
 	query := `
 		INSERT INTO workflows (id, project_id, name, description, trigger, actions, is_active, created_at, updated_at)
@@ -43,7 +40,6 @@ func (r *WorkflowRepository) Create(ctx context.Context, workflow *entities.Work
 	return err
 }
 
-// GetByID retrieves a workflow by ID
 func (r *WorkflowRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Workflow, error) {
 	query := `
 		SELECT id, project_id, name, description, trigger, actions, is_active, created_at, updated_at
@@ -70,7 +66,6 @@ func (r *WorkflowRepository) GetByID(ctx context.Context, id uuid.UUID) (*entiti
 	return &workflow, nil
 }
 
-// GetByProjectID retrieves workflows by project ID
 func (r *WorkflowRepository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Workflow, error) {
 	query := `
 		SELECT id, project_id, name, description, trigger, actions, is_active, created_at, updated_at
@@ -106,7 +101,6 @@ func (r *WorkflowRepository) GetByProjectID(ctx context.Context, projectID uuid.
 	return workflows, nil
 }
 
-// Update updates a workflow
 func (r *WorkflowRepository) Update(ctx context.Context, workflow *entities.Workflow) error {
 	query := `
 		UPDATE workflows
@@ -134,7 +128,6 @@ func (r *WorkflowRepository) Update(ctx context.Context, workflow *entities.Work
 	return nil
 }
 
-// Delete deletes a workflow
 func (r *WorkflowRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM workflows WHERE id = $1`
 	result, err := r.db.Exec(ctx, query, id)
@@ -150,7 +143,6 @@ func (r *WorkflowRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// List retrieves workflows with pagination
 func (r *WorkflowRepository) List(ctx context.Context, limit, offset int) ([]*entities.Workflow, error) {
 	query := `
 		SELECT id, project_id, name, description, trigger, actions, is_active, created_at, updated_at
@@ -187,7 +179,6 @@ func (r *WorkflowRepository) List(ctx context.Context, limit, offset int) ([]*en
 	return workflows, nil
 }
 
-// ToggleActive toggles the active state of a workflow
 func (r *WorkflowRepository) ToggleActive(ctx context.Context, id uuid.UUID, isActive bool) error {
 	query := `
 		UPDATE workflows

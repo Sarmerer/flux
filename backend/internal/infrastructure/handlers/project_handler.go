@@ -7,26 +7,23 @@ import (
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
-	"github.com/flow/internal/infrastructure/middleware"
 	"github.com/flow/internal/errors"
+	"github.com/flow/internal/infrastructure/middleware"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
-// ProjectHandler handles project-related HTTP requests
 type ProjectHandler struct {
 	projectService services.ProjectServiceInterface
 }
 
-// NewProjectHandler creates a new ProjectHandler
 func NewProjectHandler(projectService services.ProjectServiceInterface) *ProjectHandler {
 	return &ProjectHandler{
 		projectService: projectService,
 	}
 }
 
-// CreateProject handles project creation
 func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var req entities.ProjectCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -35,13 +32,11 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields at handler level
 	if strings.TrimSpace(req.Name) == "" {
 		errors.WriteError(w, errors.NewValidationError("Project name is required").WithField("name"))
 		return
 	}
 
-	// Get user ID from context (set by auth middleware)
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		errors.WriteError(w, errors.NewUnauthorizedError())
@@ -50,7 +45,7 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.projectService.CreateProject(r.Context(), &req, userID)
 	if err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
@@ -64,7 +59,6 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
-// GetProject handles getting a project by ID
 func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "id")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -76,7 +70,7 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.projectService.GetProjectByID(r.Context(), projectID)
 	if err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
@@ -89,9 +83,8 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
-// GetProjects handles getting all projects for a user
 func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context (set by auth middleware)
+
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
 		errors.WriteError(w, errors.NewUnauthorizedError())
@@ -100,7 +93,7 @@ func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 
 	projects, err := h.projectService.GetProjectsByOwnerID(r.Context(), userID)
 	if err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
@@ -113,7 +106,6 @@ func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(projects)
 }
 
-// UpdateProject handles updating a project
 func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "id")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -130,7 +122,6 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate required fields at handler level
 	if strings.TrimSpace(req.Name) == "" {
 		errors.WriteError(w, errors.NewValidationError("Project name is required").WithField("name"))
 		return
@@ -138,7 +129,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.projectService.UpdateProject(r.Context(), projectID, &req)
 	if err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
@@ -151,7 +142,6 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(project)
 }
 
-// DeleteProject handles deleting a project
 func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "id")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -162,7 +152,7 @@ func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.projectService.DeleteProject(r.Context(), projectID); err != nil {
-		// Check if error is already an APIError
+
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {

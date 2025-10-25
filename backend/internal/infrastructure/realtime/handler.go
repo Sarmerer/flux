@@ -14,30 +14,27 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// In production, implement proper origin checking
+
 		return true
 	},
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-// HandleWebSocket handles WebSocket connections
 func HandleWebSocket(hub *Hub, jwtSecret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Upgrade HTTP connection to WebSocket
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			http.Error(w, "Failed to upgrade connection", http.StatusBadRequest)
 			return
 		}
 
-		// Create client context
 		ctx, cancel := context.WithCancel(r.Context())
 
-		// Create client
 		client := &Client{
 			ID: uuid.New().String(),
-			// UserID will be set after successful auth
+
 			Conn:          WebSocketConnection{Conn: conn},
 			Send:          make(chan Message, 256),
 			Hub:           hub,
@@ -48,14 +45,11 @@ func HandleWebSocket(hub *Hub, jwtSecret string) http.HandlerFunc {
 			Subscriptions: make(map[string]bool),
 		}
 
-		// Register client with hub
 		hub.RegisterClient(client)
 
-		// Start goroutines for reading and writing
 		go client.WritePump()
 		go client.ReadPump()
 
-		// Perform authentication handshake: expect {"type":"auth","token":"Bearer <jwt>"} within 5s
 		authTimer := time.NewTimer(5 * time.Second)
 		defer authTimer.Stop()
 
@@ -86,7 +80,6 @@ func HandleWebSocket(hub *Hub, jwtSecret string) http.HandlerFunc {
 			}
 			tokenString := strings.TrimPrefix(tokenRaw, "Bearer ")
 
-			// Validate JWT
 			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, jwt.ErrSignatureInvalid
@@ -116,7 +109,7 @@ func HandleWebSocket(hub *Hub, jwtSecret string) http.HandlerFunc {
 
 		select {
 		case <-authenticated:
-			// Authenticated; continue
+
 			welcomeMsg := Message{
 				Type:      MessageTypeNotification,
 				Data:      map[string]interface{}{"message": "Authenticated WebSocket connected", "client_id": client.ID},
@@ -124,7 +117,7 @@ func HandleWebSocket(hub *Hub, jwtSecret string) http.HandlerFunc {
 			}
 			client.Send <- welcomeMsg
 		case <-authTimer.C:
-			// No auth message in time
+
 			conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "auth required"), time.Now().Add(1*time.Second))
 			conn.Close()
 			return
@@ -132,7 +125,6 @@ func HandleWebSocket(hub *Hub, jwtSecret string) http.HandlerFunc {
 	}
 }
 
-// SendProgressToUser sends progress updates to a specific user
 func SendProgressToUser(hub *Hub, userID uuid.UUID, operationID, step string, progress float64, message string) {
 	progressData := ProgressData{
 		OperationID: operationID,
@@ -151,7 +143,6 @@ func SendProgressToUser(hub *Hub, userID uuid.UUID, operationID, step string, pr
 	hub.SendToUser(userID, msg)
 }
 
-// SendErrorToUser sends error messages to a specific user
 func SendErrorToUser(hub *Hub, userID uuid.UUID, operationID, message string, err error) {
 	errorData := map[string]interface{}{
 		"operation_id": operationID,
@@ -169,7 +160,6 @@ func SendErrorToUser(hub *Hub, userID uuid.UUID, operationID, message string, er
 	hub.SendToUser(userID, msg)
 }
 
-// SendSuccessToUser sends success messages to a specific user
 func SendSuccessToUser(hub *Hub, userID uuid.UUID, operationID, message string, data interface{}) {
 	successData := map[string]interface{}{
 		"operation_id": operationID,
@@ -187,7 +177,6 @@ func SendSuccessToUser(hub *Hub, userID uuid.UUID, operationID, message string, 
 	hub.SendToUser(userID, msg)
 }
 
-// SendNotificationToUser sends notification messages to a specific user
 func SendNotificationToUser(hub *Hub, userID uuid.UUID, message string, data interface{}) {
 	notificationData := map[string]interface{}{
 		"message": message,

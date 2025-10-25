@@ -8,10 +8,8 @@ import (
 	"github.com/flow/internal/errors"
 )
 
-// Email regex pattern (RFC 5322 simplified)
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
-// ValidateEmail validates email format
 func ValidateEmail(email string) error {
 	if email == "" {
 		return errors.NewValidationError("Email is required").WithField("email")
@@ -25,14 +23,12 @@ func ValidateEmail(email string) error {
 	return nil
 }
 
-// PasswordValidationResult contains details about password validation
 type PasswordValidationResult struct {
 	Valid   bool
 	Errors  []string
 	Details map[string]bool
 }
 
-// ValidatePassword validates password strength
 func ValidatePassword(password string) error {
 	if password == "" {
 		return errors.NewValidationError("Password is required").WithField("password")
@@ -40,12 +36,10 @@ func ValidatePassword(password string) error {
 
 	var validationErrors []string
 
-	// Check minimum length
 	if len(password) < 8 {
 		validationErrors = append(validationErrors, "must be at least 8 characters long")
 	}
 
-	// Check for uppercase letter
 	hasUpper := false
 	for _, char := range password {
 		if char >= 'A' && char <= 'Z' {
@@ -57,7 +51,6 @@ func ValidatePassword(password string) error {
 		validationErrors = append(validationErrors, "must contain at least one uppercase letter")
 	}
 
-	// Check for lowercase letter
 	hasLower := false
 	for _, char := range password {
 		if char >= 'a' && char <= 'z' {
@@ -69,7 +62,6 @@ func ValidatePassword(password string) error {
 		validationErrors = append(validationErrors, "must contain at least one lowercase letter")
 	}
 
-	// Check for number
 	hasNumber := false
 	for _, char := range password {
 		if char >= '0' && char <= '9' {
@@ -89,7 +81,6 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
-// ValidateRequired checks if a required field is present
 func ValidateRequired(value string, fieldName string) error {
 	if strings.TrimSpace(value) == "" {
 		return errors.NewValidationError(fmt.Sprintf("%s is required", fieldName)).WithField(fieldName)
@@ -97,7 +88,6 @@ func ValidateRequired(value string, fieldName string) error {
 	return nil
 }
 
-// ValidateMinLength checks if a string meets minimum length requirement
 func ValidateMinLength(value string, minLength int, fieldName string) error {
 	if len(value) < minLength {
 		return errors.NewValidationError(
@@ -107,7 +97,6 @@ func ValidateMinLength(value string, minLength int, fieldName string) error {
 	return nil
 }
 
-// ValidateMaxLength checks if a string doesn't exceed maximum length
 func ValidateMaxLength(value string, maxLength int, fieldName string) error {
 	if len(value) > maxLength {
 		return errors.NewValidationError(

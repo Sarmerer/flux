@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// OperationStatus represents the status of an operation
 type OperationStatus string
 
 const (
@@ -20,13 +19,12 @@ const (
 	StatusCancelled OperationStatus = "cancelled"
 )
 
-// Operation represents a tracked operation
 type Operation struct {
 	ID          string                 `json:"id"`
 	UserID      uuid.UUID              `json:"user_id"`
 	Type        string                 `json:"type"`
 	Status      OperationStatus        `json:"status"`
-	Progress    float64                `json:"progress"` // 0.0 to 1.0
+	Progress    float64                `json:"progress"`
 	CurrentStep string                 `json:"current_step"`
 	Message     string                 `json:"message"`
 	StartTime   time.Time              `json:"start_time"`
@@ -37,7 +35,6 @@ type Operation struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// Step represents a step in an operation
 type Step struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
@@ -48,14 +45,12 @@ type Step struct {
 	Error       string          `json:"error,omitempty"`
 }
 
-// Tracker manages operation progress tracking
 type Tracker struct {
 	operations map[string]*Operation
 	mutex      sync.RWMutex
 	hub        *realtime.Hub
 }
 
-// NewTracker creates a new progress tracker
 func NewTracker(hub *realtime.Hub) *Tracker {
 	return &Tracker{
 		operations: make(map[string]*Operation),
@@ -63,14 +58,12 @@ func NewTracker(hub *realtime.Hub) *Tracker {
 	}
 }
 
-// StartOperation starts tracking a new operation
 func (t *Tracker) StartOperation(userID uuid.UUID, operationType, message string, steps []string) *Operation {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
 	operationID := uuid.New().String()
 
-	// Create step objects
 	operationSteps := make([]Step, len(steps))
 	for i, stepName := range steps {
 		operationSteps[i] = Step{
@@ -96,7 +89,6 @@ func (t *Tracker) StartOperation(userID uuid.UUID, operationType, message string
 
 	t.operations[operationID] = operation
 
-	// Send initial notification
 	realtime.SendNotificationToUser(t.hub, userID, "Operation started", map[string]interface{}{
 		"operation_id": operationID,
 		"type":         operationType,
@@ -106,7 +98,6 @@ func (t *Tracker) StartOperation(userID uuid.UUID, operationType, message string
 	return operation
 }
 
-// UpdateProgress updates the progress of an operation
 func (t *Tracker) UpdateProgress(operationID, stepName, message string, progress float64) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -116,13 +107,11 @@ func (t *Tracker) UpdateProgress(operationID, stepName, message string, progress
 		return ErrOperationNotFound
 	}
 
-	// Update operation progress
 	operation.Progress = progress
 	operation.CurrentStep = stepName
 	operation.Message = message
 	operation.Status = StatusRunning
 
-	// Update step progress
 	for i, step := range operation.Steps {
 		if step.Name == stepName {
 			operation.Steps[i].Status = StatusRunning
@@ -134,13 +123,11 @@ func (t *Tracker) UpdateProgress(operationID, stepName, message string, progress
 		}
 	}
 
-	// Send progress update via WebSocket
 	realtime.SendProgressToUser(t.hub, operation.UserID, operationID, stepName, progress, message)
 
 	return nil
 }
 
-// CompleteStep marks a step as completed
 func (t *Tracker) CompleteStep(operationID, stepName string) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -150,7 +137,6 @@ func (t *Tracker) CompleteStep(operationID, stepName string) error {
 		return ErrOperationNotFound
 	}
 
-	// Mark step as completed
 	for i, step := range operation.Steps {
 		if step.Name == stepName {
 			operation.Steps[i].Status = StatusCompleted
@@ -164,7 +150,6 @@ func (t *Tracker) CompleteStep(operationID, stepName string) error {
 	return nil
 }
 
-// CompleteOperation marks an operation as completed
 func (t *Tracker) CompleteOperation(operationID string, result interface{}) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -180,13 +165,11 @@ func (t *Tracker) CompleteOperation(operationID string, result interface{}) erro
 	now := time.Now()
 	operation.EndTime = &now
 
-	// Send success notification
 	realtime.SendSuccessToUser(t.hub, operation.UserID, operationID, "Operation completed successfully", result)
 
 	return nil
 }
 
-// FailOperation marks an operation as failed
 func (t *Tracker) FailOperation(operationID string, err error) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -201,13 +184,11 @@ func (t *Tracker) FailOperation(operationID string, err error) error {
 	now := time.Now()
 	operation.EndTime = &now
 
-	// Send error notification
 	realtime.SendErrorToUser(t.hub, operation.UserID, operationID, "Operation failed", err)
 
 	return nil
 }
 
-// CancelOperation cancels an operation
 func (t *Tracker) CancelOperation(operationID string) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -221,7 +202,6 @@ func (t *Tracker) CancelOperation(operationID string) error {
 	now := time.Now()
 	operation.EndTime = &now
 
-	// Send cancellation notification
 	realtime.SendNotificationToUser(t.hub, operation.UserID, "Operation cancelled", map[string]interface{}{
 		"operation_id": operationID,
 		"status":       StatusCancelled,
@@ -230,7 +210,6 @@ func (t *Tracker) CancelOperation(operationID string) error {
 	return nil
 }
 
-// GetOperation retrieves an operation by ID
 func (t *Tracker) GetOperation(operationID string) (*Operation, error) {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
@@ -243,7 +222,6 @@ func (t *Tracker) GetOperation(operationID string) (*Operation, error) {
 	return operation, nil
 }
 
-// GetUserOperations retrieves all operations for a user
 func (t *Tracker) GetUserOperations(userID uuid.UUID) []*Operation {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
@@ -258,7 +236,6 @@ func (t *Tracker) GetUserOperations(userID uuid.UUID) []*Operation {
 	return userOperations
 }
 
-// CleanupCompletedOperations removes completed operations older than the specified duration
 func (t *Tracker) CleanupCompletedOperations(olderThan time.Duration) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -272,7 +249,6 @@ func (t *Tracker) CleanupCompletedOperations(olderThan time.Duration) {
 	}
 }
 
-// StartCleanupRoutine starts a background routine to clean up old operations
 func (t *Tracker) StartCleanupRoutine(ctx context.Context, interval, olderThan time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
@@ -288,7 +264,6 @@ func (t *Tracker) StartCleanupRoutine(ctx context.Context, interval, olderThan t
 	}()
 }
 
-// Operation context for tracking operations
 type OperationContext struct {
 	OperationID string
 	UserID      uuid.UUID
@@ -297,7 +272,6 @@ type OperationContext struct {
 	cancel      context.CancelFunc
 }
 
-// NewOperationContext creates a new operation context
 func (t *Tracker) NewOperationContext(userID uuid.UUID, operationType, message string, steps []string) *OperationContext {
 	operation := t.StartOperation(userID, operationType, message, steps)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -311,40 +285,33 @@ func (t *Tracker) NewOperationContext(userID uuid.UUID, operationType, message s
 	}
 }
 
-// UpdateProgress updates progress for this operation context
 func (oc *OperationContext) UpdateProgress(stepName, message string, progress float64) error {
 	return oc.Tracker.UpdateProgress(oc.OperationID, stepName, message, progress)
 }
 
-// CompleteStep completes a step for this operation context
 func (oc *OperationContext) CompleteStep(stepName string) error {
 	return oc.Tracker.CompleteStep(oc.OperationID, stepName)
 }
 
-// Complete completes the operation with a result
 func (oc *OperationContext) Complete(result interface{}) error {
 	oc.cancel()
 	return oc.Tracker.CompleteOperation(oc.OperationID, result)
 }
 
-// Fail fails the operation with an error
 func (oc *OperationContext) Fail(err error) error {
 	oc.cancel()
 	return oc.Tracker.FailOperation(oc.OperationID, err)
 }
 
-// Cancel cancels the operation
 func (oc *OperationContext) Cancel() error {
 	oc.cancel()
 	return oc.Tracker.CancelOperation(oc.OperationID)
 }
 
-// Context returns the operation's context
 func (oc *OperationContext) Context() context.Context {
 	return oc.ctx
 }
 
-// Done returns a channel that's closed when the operation is done
 func (oc *OperationContext) Done() <-chan struct{} {
 	return oc.ctx.Done()
 }

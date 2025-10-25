@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Migration represents a database migration
 type Migration struct {
 	Version     int64
 	Name        string
@@ -17,7 +16,6 @@ type Migration struct {
 	Description string
 }
 
-// MigrationRecord represents a migration record in the database
 type MigrationRecord struct {
 	ID        int64     `db:"id"`
 	Version   int64     `db:"version"`
@@ -25,29 +23,24 @@ type MigrationRecord struct {
 	AppliedAt time.Time `db:"applied_at"`
 }
 
-// Registry holds all registered migrations
 type Registry struct {
 	migrations []*Migration
 }
 
-// NewRegistry creates a new migration registry
 func NewRegistry() *Registry {
 	return &Registry{
 		migrations: make([]*Migration, 0),
 	}
 }
 
-// Register adds a migration to the registry
 func (r *Registry) Register(m *Migration) {
 	r.migrations = append(r.migrations, m)
 }
 
-// GetMigrations returns all registered migrations sorted by version
 func (r *Registry) GetMigrations() []*Migration {
 	return r.migrations
 }
 
-// CreateMigrationsTable creates the schema_migrations table if it doesn't exist
 func CreateMigrationsTable(ctx context.Context, db *pgxpool.Pool) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -62,7 +55,6 @@ func CreateMigrationsTable(ctx context.Context, db *pgxpool.Pool) error {
 	return err
 }
 
-// GetAppliedMigrations returns all applied migrations
 func GetAppliedMigrations(ctx context.Context, db *pgxpool.Pool) (map[int64]bool, error) {
 	query := "SELECT version FROM schema_migrations ORDER BY version"
 	rows, err := db.Query(ctx, query)
@@ -83,7 +75,6 @@ func GetAppliedMigrations(ctx context.Context, db *pgxpool.Pool) (map[int64]bool
 	return applied, nil
 }
 
-// RecordMigration records a migration as applied
 func RecordMigration(ctx context.Context, db *pgxpool.Pool, version int64, name string) error {
 	query := `
 		INSERT INTO schema_migrations (version, name, applied_at)
@@ -93,14 +84,12 @@ func RecordMigration(ctx context.Context, db *pgxpool.Pool, version int64, name 
 	return err
 }
 
-// RemoveMigration removes a migration record
 func RemoveMigration(ctx context.Context, db *pgxpool.Pool, version int64) error {
 	query := "DELETE FROM schema_migrations WHERE version = $1"
 	_, err := db.Exec(ctx, query, version)
 	return err
 }
 
-// GetLatestVersion returns the latest applied migration version
 func GetLatestVersion(ctx context.Context, db *pgxpool.Pool) (int64, error) {
 	query := "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"
 	var version int64

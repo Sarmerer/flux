@@ -12,17 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DatabaseRepository implements the DatabaseRepository interface using PostgreSQL
 type DatabaseRepository struct {
 	db *pgxpool.Pool
 }
 
-// NewDatabaseRepository creates a new DatabaseRepository
 func NewDatabaseRepository(db *pgxpool.Pool) repositories.DatabaseRepository {
 	return &DatabaseRepository{db: db}
 }
 
-// Create creates a new database
 func (r *DatabaseRepository) Create(ctx context.Context, database *entities.Database) error {
 	query := `
 		INSERT INTO databases (id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at)
@@ -32,7 +29,6 @@ func (r *DatabaseRepository) Create(ctx context.Context, database *entities.Data
 	return err
 }
 
-// GetByID retrieves a database by ID
 func (r *DatabaseRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Database, error) {
 	query := `
 		SELECT id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at
@@ -51,7 +47,6 @@ func (r *DatabaseRepository) GetByID(ctx context.Context, id uuid.UUID) (*entiti
 	return &database, nil
 }
 
-// GetByProjectID retrieves databases by project ID
 func (r *DatabaseRepository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Database, error) {
 	query := `
 		SELECT id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at
@@ -77,7 +72,6 @@ func (r *DatabaseRepository) GetByProjectID(ctx context.Context, projectID uuid.
 	return databases, nil
 }
 
-// Update updates a database
 func (r *DatabaseRepository) Update(ctx context.Context, database *entities.Database) error {
 	query := `
 		UPDATE databases 
@@ -88,14 +82,12 @@ func (r *DatabaseRepository) Update(ctx context.Context, database *entities.Data
 	return err
 }
 
-// Delete deletes a database
 func (r *DatabaseRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM databases WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
 }
 
-// List retrieves databases with pagination
 func (r *DatabaseRepository) List(ctx context.Context, limit, offset int) ([]*entities.Database, error) {
 	query := `
 		SELECT id, project_id, name, host, port, username, password, database, ssl_mode, created_at, updated_at

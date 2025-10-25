@@ -42,9 +42,8 @@ func (pm *ProjectMember) ToResponse() ProjectMemberResponse {
 	}
 }
 
-// HasPermission checks if project member has a specific permission
 func (pm *ProjectMember) HasPermission(perm Permission) bool {
-	// Admins have all permissions
+
 	if pm.Role == RoleAdmin {
 		return true
 	}
@@ -57,7 +56,6 @@ func (pm *ProjectMember) HasPermission(perm Permission) bool {
 	return false
 }
 
-// HasAnyPermission checks if project member has any of the specified permissions
 func (pm *ProjectMember) HasAnyPermission(perms ...Permission) bool {
 	for _, perm := range perms {
 		if pm.HasPermission(perm) {
@@ -67,7 +65,6 @@ func (pm *ProjectMember) HasAnyPermission(perms ...Permission) bool {
 	return false
 }
 
-// HasAllPermissions checks if project member has all of the specified permissions
 func (pm *ProjectMember) HasAllPermissions(perms ...Permission) bool {
 	for _, perm := range perms {
 		if !pm.HasPermission(perm) {
@@ -77,7 +74,6 @@ func (pm *ProjectMember) HasAllPermissions(perms ...Permission) bool {
 	return true
 }
 
-// HasRole checks if project member has one of the specified roles
 func (pm *ProjectMember) HasRole(roles ...Role) bool {
 	for _, role := range roles {
 		if pm.Role == role {
@@ -87,7 +83,6 @@ func (pm *ProjectMember) HasRole(roles ...Role) bool {
 	return false
 }
 
-// IsAdmin checks if project member is an admin
 func (pm *ProjectMember) IsAdmin() bool {
 	return pm.Role == RoleAdmin
 }

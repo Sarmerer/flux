@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockUserService for testing
 type MockUserService struct {
 	mock.Mock
 }
@@ -35,7 +34,6 @@ func (m *MockUserService) GetUserByID(ctx context.Context, id uuid.UUID) (*entit
 	return args.Get(0).(*entities.UserResponse), args.Error(1)
 }
 
-// MockProjectService for testing
 type MockProjectService struct {
 	mock.Mock
 }
@@ -65,7 +63,6 @@ func (m *MockProjectService) DeleteProject(ctx context.Context, id uuid.UUID) er
 	return args.Error(0)
 }
 
-// MockTableService for testing
 type MockTableService struct {
 	mock.Mock
 }
@@ -99,7 +96,6 @@ func TestUserHandler_Register(t *testing.T) {
 	mockUserService := new(MockUserService)
 	handler := NewUserHandler(mockUserService)
 
-	// Test data
 	userReq := &entities.UserCreateRequest{
 		Email:    "test@example.com",
 		Password: "password123",
@@ -112,21 +108,16 @@ func TestUserHandler_Register(t *testing.T) {
 		Name:  userReq.Name,
 	}
 
-	// Setup mock expectations
 	mockUserService.On("Register", mock.Anything, userReq).Return(expectedUser, nil)
 
-	// Create request
 	jsonData, _ := json.Marshal(userReq)
 	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 
-	// Create response recorder
 	rr := httptest.NewRecorder()
 
-	// Call handler
 	handler.Register(rr, req)
 
-	// Assertions
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 	var response entities.User
@@ -142,7 +133,6 @@ func TestUserHandler_Login(t *testing.T) {
 	mockUserService := new(MockUserService)
 	handler := NewUserHandler(mockUserService)
 
-	// Test data
 	loginReq := &entities.UserLoginRequest{
 		Email:    "test@example.com",
 		Password: "password123",
@@ -150,21 +140,16 @@ func TestUserHandler_Login(t *testing.T) {
 
 	expectedToken := "jwt-token-here"
 
-	// Setup mock expectations
 	mockUserService.On("Login", mock.Anything, loginReq).Return(expectedToken, nil)
 
-	// Create request
 	jsonData, _ := json.Marshal(loginReq)
 	req, _ := http.NewRequest("POST", "/api/v1/auth/login", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 
-	// Create response recorder
 	rr := httptest.NewRecorder()
 
-	// Call handler
 	handler.Login(rr, req)
 
-	// Assertions
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var response map[string]string
@@ -179,7 +164,6 @@ func TestProjectHandler_CreateProject(t *testing.T) {
 	mockProjectService := new(MockProjectService)
 	handler := NewProjectHandler(mockProjectService)
 
-	// Test data
 	projectReq := &entities.ProjectCreateRequest{
 		Name:        "Test Project",
 		Description: "A test project",
@@ -192,25 +176,19 @@ func TestProjectHandler_CreateProject(t *testing.T) {
 		OwnerID:     uuid.New(),
 	}
 
-	// Setup mock expectations
 	mockProjectService.On("CreateProject", mock.Anything, projectReq, mock.AnythingOfType("uuid.UUID")).Return(expectedProject, nil)
 
-	// Create request with user context
 	jsonData, _ := json.Marshal(projectReq)
 	req, _ := http.NewRequest("POST", "/api/v1/projects", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 
-	// Add user ID to context (simulating auth middleware)
 	ctx := context.WithValue(req.Context(), "user_id", uuid.New())
 	req = req.WithContext(ctx)
 
-	// Create response recorder
 	rr := httptest.NewRecorder()
 
-	// Call handler
 	handler.CreateProject(rr, req)
 
-	// Assertions
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 	var response entities.Project
@@ -226,7 +204,6 @@ func TestTableHandler_CreateTable(t *testing.T) {
 	mockTableService := new(MockTableService)
 	handler := NewTableHandler(mockTableService)
 
-	// Test data
 	tableReq := &entities.TableCreateRequest{
 		Name: "test_table",
 		Schema: map[string]interface{}{
@@ -244,26 +221,20 @@ func TestTableHandler_CreateTable(t *testing.T) {
 		ProjectID: projectID,
 	}
 
-	// Setup mock expectations
 	mockTableService.On("CreateTable", mock.Anything, mock.AnythingOfType("*entities.TableCreateRequest"), projectID).Return(expectedTable, nil)
 
-	// Create request
 	jsonData, _ := json.Marshal(tableReq)
 
-	// Create a chi router to properly handle URL parameters
 	r := chi.NewRouter()
 	r.Post("/api/v1/projects/{projectId}/tables", handler.CreateTable)
 
 	req, _ := http.NewRequest("POST", "/api/v1/projects/"+projectID.String()+"/tables", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
 
-	// Create response recorder
 	rr := httptest.NewRecorder()
 
-	// Call handler through router
 	r.ServeHTTP(rr, req)
 
-	// Assertions
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
 	var response entities.TableResponse
@@ -275,12 +246,10 @@ func TestTableHandler_CreateTable(t *testing.T) {
 	mockTableService.AssertExpectations(t)
 }
 
-// Test error cases
 func TestUserHandler_Register_InvalidJSON(t *testing.T) {
 	mockUserService := new(MockUserService)
 	handler := NewUserHandler(mockUserService)
 
-	// Create request with invalid JSON
 	req, _ := http.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -294,7 +263,6 @@ func TestProjectHandler_CreateProject_Unauthorized(t *testing.T) {
 	mockProjectService := new(MockProjectService)
 	handler := NewProjectHandler(mockProjectService)
 
-	// Create request without user context
 	projectReq := &entities.ProjectCreateRequest{
 		Name: "Test Project",
 	}

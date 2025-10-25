@@ -11,7 +11,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// LogLevel represents the severity of a log entry
 type LogLevel string
 
 const (
@@ -22,7 +21,6 @@ const (
 	LevelFatal LogLevel = "fatal"
 )
 
-// LogContext provides context for structured logging
 type LogContext struct {
 	ProjectID  *uuid.UUID
 	DatabaseID *uuid.UUID
@@ -33,7 +31,6 @@ type LogContext struct {
 	Operation  string
 }
 
-// Logger wraps zerolog with application-specific context
 type Logger struct {
 	logger     zerolog.Logger
 	storage    LogStorage
@@ -41,7 +38,6 @@ type Logger struct {
 	bufferSize int
 }
 
-// NewLogger creates a new structured logger
 func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer) *Logger {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
@@ -59,12 +55,10 @@ func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer) *Logg
 	}
 }
 
-// NewProductionLogger creates a logger configured for production
 func NewProductionLogger(storage LogStorage, streamer LogStreamer) *Logger {
 	return NewLogger(os.Stdout, storage, streamer)
 }
 
-// NewDevelopmentLogger creates a logger configured for development with pretty output
 func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer) *Logger {
 	consoleWriter := zerolog.ConsoleWriter{
 		Out:        os.Stdout,
@@ -73,7 +67,6 @@ func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer) *Logger {
 	return NewLogger(consoleWriter, storage, streamer)
 }
 
-// WithContext creates a new logger with context information
 func (l *Logger) WithContext(ctx LogContext) *ContextLogger {
 	event := l.logger.With()
 
@@ -107,24 +100,20 @@ func (l *Logger) WithContext(ctx LogContext) *ContextLogger {
 	}
 }
 
-// Debug logs a debug message
 func (l *Logger) Debug(msg string, fields ...map[string]interface{}) {
 	event := l.logger.Debug()
 	l.addFields(event, fields...)
 	event.Msg(msg)
 }
 
-// Info logs an info message
 func (l *Logger) Info(msg string, fields ...map[string]interface{}) {
 	event := l.logger.Info()
 	l.addFields(event, fields...)
 	event.Msg(msg)
 
-	// Store and stream
 	l.storeAndStream(LevelInfo, msg, nil, fields...)
 }
 
-// Warn logs a warning message
 func (l *Logger) Warn(msg string, fields ...map[string]interface{}) {
 	event := l.logger.Warn()
 	l.addFields(event, fields...)
@@ -133,7 +122,6 @@ func (l *Logger) Warn(msg string, fields ...map[string]interface{}) {
 	l.storeAndStream(LevelWarn, msg, nil, fields...)
 }
 
-// Error logs an error message
 func (l *Logger) Error(msg string, err error, fields ...map[string]interface{}) {
 	event := l.logger.Error()
 	if err != nil {
@@ -145,7 +133,6 @@ func (l *Logger) Error(msg string, err error, fields ...map[string]interface{}) 
 	l.storeAndStream(LevelError, msg, nil, fields...)
 }
 
-// Fatal logs a fatal message and exits
 func (l *Logger) Fatal(msg string, err error, fields ...map[string]interface{}) {
 	event := l.logger.Fatal()
 	if err != nil {
@@ -155,7 +142,6 @@ func (l *Logger) Fatal(msg string, err error, fields ...map[string]interface{}) 
 	event.Msg(msg)
 }
 
-// addFields adds structured fields to a log event
 func (l *Logger) addFields(event *zerolog.Event, fields ...map[string]interface{}) {
 	for _, fieldMap := range fields {
 		for key, value := range fieldMap {
@@ -164,7 +150,6 @@ func (l *Logger) addFields(event *zerolog.Event, fields ...map[string]interface{
 	}
 }
 
-// storeAndStream stores the log entry and streams it to connected clients
 func (l *Logger) storeAndStream(level LogLevel, msg string, ctx *LogContext, fields ...map[string]interface{}) {
 	entry := &LogEntry{
 		ID:        uuid.New(),
@@ -174,7 +159,6 @@ func (l *Logger) storeAndStream(level LogLevel, msg string, ctx *LogContext, fie
 		Fields:    make(map[string]interface{}),
 	}
 
-	// Add context if provided
 	if ctx != nil {
 		entry.ProjectID = ctx.ProjectID
 		entry.DatabaseID = ctx.DatabaseID
@@ -185,35 +169,31 @@ func (l *Logger) storeAndStream(level LogLevel, msg string, ctx *LogContext, fie
 		entry.Operation = ctx.Operation
 	}
 
-	// Add fields
 	for _, fieldMap := range fields {
 		for key, value := range fieldMap {
 			entry.Fields[key] = value
 		}
 	}
 
-	// Store in database (async)
 	if l.storage != nil {
 		go func() {
 			if err := l.storage.Store(context.Background(), entry); err != nil {
-				// Use basic logger to avoid recursion
+
 				fmt.Printf("Failed to store log entry: %v\n", err)
 			}
 		}()
 	}
 
-	// Stream to WebSocket clients (async)
 	if l.streamer != nil {
 		go func() {
 			if err := l.streamer.Stream(entry); err != nil {
-				// Use basic logger to avoid recursion
+
 				fmt.Printf("Failed to stream log entry: %v\n", err)
 			}
 		}()
 	}
 }
 
-// ContextLogger is a logger with context information
 type ContextLogger struct {
 	logger   zerolog.Logger
 	context  LogContext
@@ -221,14 +201,12 @@ type ContextLogger struct {
 	streamer LogStreamer
 }
 
-// Debug logs a debug message with context
 func (cl *ContextLogger) Debug(msg string, fields ...map[string]interface{}) {
 	event := cl.logger.Debug()
 	cl.addFields(event, fields...)
 	event.Msg(msg)
 }
 
-// Info logs an info message with context
 func (cl *ContextLogger) Info(msg string, fields ...map[string]interface{}) {
 	event := cl.logger.Info()
 	cl.addFields(event, fields...)
@@ -237,7 +215,6 @@ func (cl *ContextLogger) Info(msg string, fields ...map[string]interface{}) {
 	cl.storeAndStream(LevelInfo, msg, fields...)
 }
 
-// Warn logs a warning message with context
 func (cl *ContextLogger) Warn(msg string, fields ...map[string]interface{}) {
 	event := cl.logger.Warn()
 	cl.addFields(event, fields...)
@@ -246,7 +223,6 @@ func (cl *ContextLogger) Warn(msg string, fields ...map[string]interface{}) {
 	cl.storeAndStream(LevelWarn, msg, fields...)
 }
 
-// Error logs an error message with context
 func (cl *ContextLogger) Error(msg string, err error, fields ...map[string]interface{}) {
 	event := cl.logger.Error()
 	if err != nil {
@@ -258,7 +234,6 @@ func (cl *ContextLogger) Error(msg string, err error, fields ...map[string]inter
 	cl.storeAndStream(LevelError, msg, fields...)
 }
 
-// Fatal logs a fatal message with context and exits
 func (cl *ContextLogger) Fatal(msg string, err error, fields ...map[string]interface{}) {
 	event := cl.logger.Fatal()
 	if err != nil {
@@ -268,7 +243,6 @@ func (cl *ContextLogger) Fatal(msg string, err error, fields ...map[string]inter
 	event.Msg(msg)
 }
 
-// addFields adds structured fields to a log event
 func (cl *ContextLogger) addFields(event *zerolog.Event, fields ...map[string]interface{}) {
 	for _, fieldMap := range fields {
 		for key, value := range fieldMap {
@@ -277,7 +251,6 @@ func (cl *ContextLogger) addFields(event *zerolog.Event, fields ...map[string]in
 	}
 }
 
-// storeAndStream stores the log entry with context and streams it
 func (cl *ContextLogger) storeAndStream(level LogLevel, msg string, fields ...map[string]interface{}) {
 	entry := &LogEntry{
 		ID:         uuid.New(),
@@ -294,14 +267,12 @@ func (cl *ContextLogger) storeAndStream(level LogLevel, msg string, fields ...ma
 		Fields:     make(map[string]interface{}),
 	}
 
-	// Add fields
 	for _, fieldMap := range fields {
 		for key, value := range fieldMap {
 			entry.Fields[key] = value
 		}
 	}
 
-	// Store in database (async)
 	if cl.storage != nil {
 		go func() {
 			if err := cl.storage.Store(context.Background(), entry); err != nil {
@@ -310,7 +281,6 @@ func (cl *ContextLogger) storeAndStream(level LogLevel, msg string, fields ...ma
 		}()
 	}
 
-	// Stream to WebSocket clients (async)
 	if cl.streamer != nil {
 		go func() {
 			if err := cl.streamer.Stream(entry); err != nil {

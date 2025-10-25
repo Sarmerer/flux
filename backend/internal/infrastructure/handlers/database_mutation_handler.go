@@ -12,19 +12,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// DatabaseMutationHandler handles database mutation HTTP requests
 type DatabaseMutationHandler struct {
 	dbService *services.DatabaseService
 }
 
-// NewDatabaseMutationHandler creates a new DatabaseMutationHandler
 func NewDatabaseMutationHandler(dbService *services.DatabaseService) *DatabaseMutationHandler {
 	return &DatabaseMutationHandler{
 		dbService: dbService,
 	}
 }
 
-// CreateProjectDatabase handles project database creation
 func (h *DatabaseMutationHandler) CreateProjectDatabase(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)
@@ -53,7 +50,6 @@ func (h *DatabaseMutationHandler) CreateProjectDatabase(w http.ResponseWriter, r
 	json.NewEncoder(w).Encode(database)
 }
 
-// UpdateProjectDatabase handles project database updates
 func (h *DatabaseMutationHandler) UpdateProjectDatabase(w http.ResponseWriter, r *http.Request) {
 	databaseIDStr := chi.URLParam(r, "id")
 	databaseID, err := uuid.Parse(databaseIDStr)
@@ -81,7 +77,6 @@ func (h *DatabaseMutationHandler) UpdateProjectDatabase(w http.ResponseWriter, r
 	json.NewEncoder(w).Encode(database)
 }
 
-// DeleteProjectDatabase handles project database deletion
 func (h *DatabaseMutationHandler) DeleteProjectDatabase(w http.ResponseWriter, r *http.Request) {
 	databaseIDStr := chi.URLParam(r, "id")
 	databaseID, err := uuid.Parse(databaseIDStr)
@@ -100,7 +95,6 @@ func (h *DatabaseMutationHandler) DeleteProjectDatabase(w http.ResponseWriter, r
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// TestDatabaseConnection handles database connection testing
 func (h *DatabaseMutationHandler) TestDatabaseConnection(w http.ResponseWriter, r *http.Request) {
 	databaseIDStr := chi.URLParam(r, "id")
 	databaseID, err := uuid.Parse(databaseIDStr)
@@ -120,7 +114,6 @@ func (h *DatabaseMutationHandler) TestDatabaseConnection(w http.ResponseWriter, 
 	json.NewEncoder(w).Encode(map[string]string{"status": "connected"})
 }
 
-// GetProjectDatabases handles getting all databases for a project
 func (h *DatabaseMutationHandler) GetProjectDatabases(w http.ResponseWriter, r *http.Request) {
 	projectIDStr := chi.URLParam(r, "projectId")
 	projectID, err := uuid.Parse(projectIDStr)

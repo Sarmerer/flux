@@ -11,10 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:embed *.sql
 var migrationFiles embed.FS
 
-// SQLMigration represents a SQL-based migration
 type SQLMigration struct {
 	Version int64
 	Name    string
@@ -22,14 +20,12 @@ type SQLMigration struct {
 	DownSQL string
 }
 
-// LoadMigrationsFromSQL loads all migrations from embedded SQL files
 func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 	entries, err := migrationFiles.ReadDir(".")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read migrations directory: %w", err)
 	}
 
-	// Parse migration files
 	migrationMap := make(map[int64]*SQLMigration)
 	filePattern := regexp.MustCompile(`^(\d+)_(.+)\.(up|down)\.sql$`)
 
@@ -41,7 +37,7 @@ func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 		filename := entry.Name()
 		matches := filePattern.FindStringSubmatch(filename)
 		if matches == nil {
-			continue // Skip non-migration files
+			continue
 		}
 
 		version, err := strconv.ParseInt(matches[1], 10, 64)
@@ -50,15 +46,13 @@ func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 		}
 
 		name := matches[2]
-		direction := matches[3] // "up" or "down"
+		direction := matches[3]
 
-		// Read SQL content
 		content, err := migrationFiles.ReadFile(filename)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read migration file %s: %w", filename, err)
 		}
 
-		// Get or create migration entry
 		migration, exists := migrationMap[version]
 		if !exists {
 			migration = &SQLMigration{
@@ -68,7 +62,6 @@ func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 			migrationMap[version] = migration
 		}
 
-		// Set SQL based on direction
 		if direction == "up" {
 			migration.UpSQL = string(content)
 		} else {
@@ -76,7 +69,6 @@ func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 		}
 	}
 
-	// Convert map to sorted slice
 	migrations := make([]*SQLMigration, 0, len(migrationMap))
 	for _, m := range migrationMap {
 		migrations = append(migrations, m)
@@ -89,7 +81,6 @@ func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 	return migrations, nil
 }
 
-// ToMigration converts SQLMigration to Migration with executable functions
 func (sm *SQLMigration) ToMigration() *Migration {
 	return &Migration{
 		Version:     sm.Version,
