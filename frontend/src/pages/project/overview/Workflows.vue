@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import ErrorState from '@/components/ui/ErrorState.vue'
 import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
-import { ExternalLink, Plus, Workflow } from 'lucide-vue-next'
+import ResourceListItem from '@/components/project/ResourceListItem.vue'
+import { Plus, Workflow } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 import { useWorkflowStore } from '@/stores/workflows'
@@ -43,27 +44,18 @@ const onWorkflowCreateClick = () => {
           :on-retry="() => workflowsStore.loadByProjectId(props.activeProject.id)"
         />
         <div v-else class="space-y-4">
-          <div
+          <ResourceListItem
             v-for="workflow in workflowsStore.workflows"
             :key="workflow.id"
-            class="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+            :name="workflow.name"
+            :description="workflow.description"
+            :icon="Workflow"
+            icon-bg-color="bg-purple-100"
+            icon-color="text-purple-600"
             @click="
               router.push(`/projects/${props.activeProject.id}/workflows/${workflow.id}/builder`)
             "
-          >
-            <div class="flex items-center space-x-3">
-              <div class="p-2 bg-purple-100 rounded-lg">
-                <Workflow class="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <h4 class="font-medium">{{ workflow.name }}</h4>
-                <p class="text-sm text-muted-foreground">
-                  {{ workflow.description || 'No description' }}
-                </p>
-              </div>
-            </div>
-            <ExternalLink class="h-4 w-4 text-muted-foreground" />
-          </div>
+          />
         </div>
       </LoadingWrapper>
     </CardContent>

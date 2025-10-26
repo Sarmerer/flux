@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import ErrorState from '@/components/ui/ErrorState.vue'
 import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
-import { ExternalLink, Plus, Table } from 'lucide-vue-next'
+import ResourceListItem from '@/components/project/ResourceListItem.vue'
+import { Plus, Table } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
 import { useTableStore } from '@/stores/tables'
@@ -43,25 +44,16 @@ const onTableCreateClick = () => {
           :on-retry="() => tablesStore.loadByProjectId(props.activeProject.id)"
         />
         <div v-else class="space-y-4">
-          <div
+          <ResourceListItem
             v-for="table in tablesStore.tables"
             :key="table.id"
-            class="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer"
+            :name="table.name"
+            :description="table.description"
+            :icon="Table"
+            icon-bg-color="bg-blue-100"
+            icon-color="text-blue-600"
             @click="router.push(`/projects/${props.activeProject.id}/tables/${table.id}/data`)"
-          >
-            <div class="flex items-center space-x-3">
-              <div class="p-2 bg-blue-100 rounded-lg">
-                <Table class="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h4 class="font-medium">{{ table.name }}</h4>
-                <p class="text-sm text-muted-foreground">
-                  {{ table.description || 'No description' }}
-                </p>
-              </div>
-            </div>
-            <ExternalLink class="h-4 w-4 text-muted-foreground" />
-          </div>
+          />
         </div>
       </LoadingWrapper>
     </CardContent>
