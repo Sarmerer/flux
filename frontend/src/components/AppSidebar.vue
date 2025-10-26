@@ -59,7 +59,7 @@ const isActive = (itemUrl: string) => {
 }
 
 const onTableCreateClick = () => {
-  if (!activeProjectId) {
+  if (!activeProjectId.value) {
     toast.warning('No Project Selected', 'Please select a project first')
     return
   }
@@ -67,11 +67,11 @@ const onTableCreateClick = () => {
 }
 
 const handleViewTable = (tableId: string) => {
-  router.push(`/projects/${activeProjectId}/tables/${tableId}/data`)
+  router.push(`/projects/${activeProjectId.value}/tables/${tableId}/data`)
 }
 
 const onTableEditClick = (tableId: string) => {
-  router.push(`/projects/${activeProjectId}/tables/${tableId}/builder`)
+  router.push(`/projects/${activeProjectId.value}/tables/${tableId}/builder`)
 }
 
 const onLogoutClick = async () => {

@@ -186,8 +186,8 @@ export interface ApiError {
 export interface WorkflowCreateRequest {
   name: string
   description?: string
-  trigger?: WorkflowTrigger
-  actions?: WorkflowAction[]
+  trigger: WorkflowTrigger
+  actions: WorkflowAction[]
   is_active?: boolean
 }
 

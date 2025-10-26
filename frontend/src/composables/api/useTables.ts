@@ -38,7 +38,7 @@ export function useTables(projectId: string) {
   }
 
   const updateTable = async (tableId: string, data: { name?: string; description?: string }) => {
-    const updated = await tableService.update(tableId, data)
+    const updated = await tableService.update(projectId, tableId, data)
     refresh()
 
     cacheStore.invalidate(`table:${tableId}`)
@@ -47,7 +47,7 @@ export function useTables(projectId: string) {
   }
 
   const deleteTable = async (tableId: string) => {
-    await tableService.delete(tableId)
+    await tableService.delete(projectId, tableId)
     refresh()
 
     cacheStore.invalidate(`table:${tableId}`)
@@ -55,7 +55,7 @@ export function useTables(projectId: string) {
   }
 
   const getTableById = async (tableId: string) => {
-    return await tableService.getById(tableId)
+    return await tableService.getById(projectId, tableId)
   }
 
   return {

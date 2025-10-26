@@ -23,8 +23,8 @@ export const workflowService = {
     return http.delete<void>(`/projects/${projectId}/workflows/${id}`)
   },
 
-  toggle(projectId: string, id: string) {
-    return http.post<Workflow>(`/projects/${projectId}/workflows/${id}/toggle`, {})
+  toggle(projectId: string, id: string, isActive: boolean) {
+    return http.post<Workflow>(`/projects/${projectId}/workflows/${id}/toggle`, { is_active: isActive })
   },
 
   execute(projectId: string, id: string) {

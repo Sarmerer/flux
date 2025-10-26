@@ -11,14 +11,10 @@ import { Input } from '@/components/ui/input'
 
 import { useProjects } from '@/composables/api'
 import { useFormatting } from '@/composables/formatting'
-import { usePermissions } from '@/composables/usePermissions'
 
 const router = useRouter()
 const { formatDate } = useFormatting()
-
 const { projects, loading, error, refresh, deleteProject } = useProjects()
-const { can } = usePermissions()
-
 const searchQuery = ref('')
 
 const filteredProjects = computed(() => {
@@ -57,11 +53,7 @@ const onProjectDelete = async (projectId: string, event: Event) => {
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Projects</h1>
         <p class="text-gray-600 dark:text-gray-400">Manage your database projects</p>
       </div>
-      <Button
-        v-if="can('projects.create')"
-        class="flex items-center space-x-2"
-        @click="router.push('/projects/new')"
-      >
+      <Button class="flex items-center space-x-2" @click="router.push('/projects/new')">
         <Plus class="w-4 h-4" />
         <span>New Project</span>
       </Button>
@@ -116,15 +108,10 @@ const onProjectDelete = async (projectId: string, event: Event) => {
               </div>
             </div>
             <div class="flex items-center space-x-1">
-              <Button v-if="can('projects.edit')" variant="ghost" size="sm">
+              <Button variant="ghost" size="sm">
                 <Settings class="h-4 w-4 mr-1" />
               </Button>
-              <Button
-                v-if="can('projects.delete')"
-                variant="ghost"
-                size="sm"
-                @click="onProjectDelete(project.id, $event)"
-              >
+              <Button variant="ghost" size="sm" @click="onProjectDelete(project.id, $event)">
                 <Trash2 class="h-4 w-4" />
               </Button>
             </div>

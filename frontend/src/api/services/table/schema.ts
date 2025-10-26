@@ -4,27 +4,36 @@ import { http } from '../../http-client'
 
 export const tableSchemaService = {
   createTable(projectId: string, tableName: string, schema: TableSchema) {
-    return http.post<{ status: string }>(`/projects/${projectId}/tables/${tableName}/create`, {
-      table_name: tableName,
-      schema,
-    })
+    return http.post<{ status: string }>(
+      `/projects/${projectId}/tables/${tableName}/schema/create`,
+      {
+        table_name: tableName,
+        schema,
+      }
+    )
   },
 
   dropTable(projectId: string, tableName: string) {
-    return http.delete<void>(`/projects/${projectId}/tables/${tableName}/drop`)
+    return http.delete<void>(`/projects/${projectId}/tables/${tableName}/schema/drop`)
   },
 
   addColumn(projectId: string, tableName: string, data: any) {
-    return http.post<{ status: string }>(`/projects/${projectId}/tables/${tableName}/columns`, data)
+    return http.post<{ status: string }>(
+      `/projects/${projectId}/tables/${tableName}/schema/columns/add`,
+      data
+    )
   },
 
   removeColumn(projectId: string, tableName: string, columnName: string) {
-    return http.delete<void>(`/projects/${projectId}/tables/${tableName}/columns/${columnName}`)
+    return http.delete<void>(
+      `/projects/${projectId}/tables/${tableName}/schema/columns/remove`,
+      { column_name: columnName }
+    )
   },
 
   modifyColumn(projectId: string, tableName: string, data: any) {
     return http.put<{ status: string }>(
-      `/projects/${projectId}/tables/${tableName}/columns/${data.column_name}`,
+      `/projects/${projectId}/tables/${tableName}/schema/columns/modify`,
       data
     )
   },

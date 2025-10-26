@@ -17,17 +17,20 @@ declare module 'vue-router' {
 const Login = () => import('@/pages/auth/Login.vue')
 const Register = () => import('@/pages/auth/Register.vue')
 const Dashboard = () => import('@/pages/Dashboard.vue')
-const NewProject = () => import('@/pages/NewProject.vue')
-const Projects = () => import('@/pages/Projects.vue')
-const ProjectDetail = () => import('@/pages/ProjectDetail.vue')
-const ProjectMembers = () => import('@/pages/ProjectMembers.vue')
-const Tables = () => import('@/pages/Tables.vue')
-const TableBuilder = () => import('@/pages/TableBuilder.vue')
-const DataGrid = () => import('@/pages/DataGrid.vue')
-const Workflows = () => import('@/pages/Workflows.vue')
-const WorkflowBuilder = () => import('@/pages/WorkflowBuilder.vue')
 const Activity = () => import('@/pages/Activity.vue')
 const Settings = () => import('@/pages/Settings.vue')
+
+const NewProject = () => import('@/pages/project/New.vue')
+const ProjectList = () => import('@/pages/project/List.vue')
+const ProjectOverview = () => import('@/pages/project/Overview.vue')
+const Members = () => import('@/pages/project/Members.vue')
+
+const Tables = () => import('@/pages/project/Tables.vue')
+const TableBuilder = () => import('@/pages/table/Builder.vue')
+const TableData = () => import('@/pages/table/Data.vue')
+
+const Workflows = () => import('@/pages/workflow/List.vue')
+const WorkflowBuilder = () => import('@/pages/workflow/Builder.vue')
 
 const routes = [
   {
@@ -61,7 +64,7 @@ const routes = [
   {
     path: '/projects',
     name: 'Projects',
-    component: Projects,
+    component: ProjectList,
     meta: { requiresAuth: true },
   },
   {
@@ -78,25 +81,25 @@ const routes = [
   {
     path: '/projects/:projectId/overview',
     name: 'ProjectOverview',
-    component: ProjectDetail,
+    component: ProjectOverview,
     meta: { requiresAuth: true, tab: 'overview' },
   },
   {
     path: '/projects/:projectId/overview/tables',
     name: 'ProjectTablesView',
-    component: ProjectDetail,
+    component: ProjectOverview,
     meta: { requiresAuth: true, tab: 'tables' },
   },
   {
     path: '/projects/:projectId/overview/workflows',
     name: 'ProjectWorkflowsView',
-    component: ProjectDetail,
+    component: ProjectOverview,
     meta: { requiresAuth: true, tab: 'workflows' },
   },
   {
     path: '/projects/:projectId/overview/activity',
     name: 'ProjectActivityView',
-    component: ProjectDetail,
+    component: ProjectOverview,
     meta: { requiresAuth: true, tab: 'activity' },
   },
   {
@@ -114,7 +117,7 @@ const routes = [
   {
     path: '/projects/:projectId/tables/:tableId/data',
     name: 'DataGrid',
-    component: DataGrid,
+    component: TableData,
     meta: { requiresAuth: true },
   },
   {
@@ -138,7 +141,7 @@ const routes = [
   {
     path: '/projects/:projectId/members',
     name: 'ProjectMembers',
-    component: ProjectMembers,
+    component: Members,
     meta: { requiresAuth: true },
   },
 ]
@@ -160,7 +163,6 @@ router.beforeEach(async (to, _from, next) => {
       })
       return
     }
-
 
     const projectIdFromRoute = to.params.projectId as string
     if (projectIdFromRoute && activeProjectStore.activeProject?.id !== projectIdFromRoute) {

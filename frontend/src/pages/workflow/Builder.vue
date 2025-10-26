@@ -12,9 +12,10 @@ import {
   Trash2,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { workflowService } from '@/api/services/workflow'
 import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +37,8 @@ const route = useRoute()
 const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
+const workflowId = computed(() => route.params.workflowId as string | undefined)
+const isEditMode = computed(() => !!workflowId.value)
 
 interface WorkflowState {
   name: string
@@ -46,25 +49,14 @@ interface WorkflowState {
 }
 
 const workflow = ref<WorkflowState>({
-  name: 'New User Welcome',
-  description: 'Send welcome email when a new user is created',
+  name: '',
+  description: '',
   trigger: {
     type: 'on_row_created',
-    table_name: 'users',
+    table_name: '',
     conditions: {},
   },
-  actions: [
-    {
-      id: '1',
-      type: 'send_email',
-      config: {
-        template: 'welcome',
-        to: '{{user.email}}',
-        subject: 'Welcome to our platform!',
-      },
-      order: 1,
-    },
-  ],
+  actions: [],
   is_active: false,
 })
 
@@ -126,36 +118,91 @@ const moveAction = (fromIndex: number, toIndex: number) => {
   }
 }
 
+const loadWorkflowForEdit = async () => {
+  if (!isEditMode.value || !workflowId.value) return
+
+  try {
+    const existingWorkflow = await workflowService.getById(projectId.value, workflowId.value)
+    workflow.value = {
+      name: existingWorkflow.name,
+      description: existingWorkflow.description || '',
+      trigger: existingWorkflow.trigger,
+      actions: existingWorkflow.actions,
+      is_active: existingWorkflow.is_active,
+    }
+  } catch (error) {
+    console.error('Failed to load workflow:', error)
+    alert('Failed to load workflow for editing')
+    router.push(`/projects/${projectId.value}/workflows`)
+  }
+}
+
 const saveWorkflow = async () => {
+  if (!workflow.value.name.trim()) {
+    alert('Please enter a workflow name')
+    return
+  }
+
+  if (workflow.value.actions.length === 0) {
+    alert('Please add at least one action')
+    return
+  }
+
+  if (workflow.value.trigger.type.startsWith('on_row_') && !workflow.value.trigger.table_name) {
+    alert('Please specify a table name for the trigger')
+    return
+  }
+
   isSaving.value = true
   try {
-    console.log('Saving workflow:', workflow.value)
-
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    if (isEditMode.value && workflowId.value) {
+      await workflowService.update(projectId.value, workflowId.value, {
+        name: workflow.value.name,
+        description: workflow.value.description,
+        trigger: workflow.value.trigger,
+        actions: workflow.value.actions,
+        is_active: workflow.value.is_active,
+      })
+    } else {
+      await workflowService.create(projectId.value, {
+        name: workflow.value.name,
+        description: workflow.value.description,
+        trigger: workflow.value.trigger,
+        actions: workflow.value.actions,
+        is_active: workflow.value.is_active,
+      })
+    }
 
     router.push(`/projects/${projectId.value}/workflows`)
   } catch (error) {
     console.error('Failed to save workflow:', error)
+    alert('Failed to save workflow. Please check the console for details.')
   } finally {
     isSaving.value = false
   }
 }
 
 const runWorkflow = async () => {
+  if (!workflowId.value) {
+    alert('Please save the workflow before running it')
+    return
+  }
+
   isRunning.value = true
   try {
-    console.log('Running workflow:', workflow.value)
-
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    alert('Workflow executed successfully!')
+    const result = await workflowService.execute(projectId.value, workflowId.value)
+    alert(`Workflow executed successfully!\n\n${result.message}`)
   } catch (error) {
     console.error('Failed to run workflow:', error)
-    alert('Failed to run workflow')
+    alert('Failed to run workflow. Please check the console for details.')
   } finally {
     isRunning.value = false
   }
 }
+
+onMounted(() => {
+  loadWorkflowForEdit()
+})
 
 const getActionIcon = (actionType: string): Component => {
   const action = actionTypes.find((a) => a.value === actionType)
@@ -165,48 +212,6 @@ const getActionIcon = (actionType: string): Component => {
 const getTriggerIcon = (triggerType: string): Component => {
   const trigger = triggerTypes.find((t) => t.value === triggerType)
   return trigger?.icon || Database
-}
-
-const isTriggerWithTable = (
-  trigger: WorkflowTrigger
-): trigger is Extract<WorkflowTrigger, { table_name: string }> => {
-  return trigger.type.startsWith('on_row_')
-}
-
-const isScheduledTrigger = (
-  trigger: WorkflowTrigger
-): trigger is Extract<WorkflowTrigger, { type: 'scheduled' }> => {
-  return trigger.type === 'scheduled'
-}
-
-const isWebhookTrigger = (
-  trigger: WorkflowTrigger
-): trigger is Extract<WorkflowTrigger, { type: 'webhook' }> => {
-  return trigger.type === 'webhook'
-}
-
-const isWebhookAction = (
-  action: WorkflowAction
-): action is Extract<WorkflowAction, { type: 'send_webhook' }> => {
-  return action.type === 'send_webhook'
-}
-
-const isEmailAction = (
-  action: WorkflowAction
-): action is Extract<WorkflowAction, { type: 'send_email' }> => {
-  return action.type === 'send_email'
-}
-
-const isUpdateAction = (
-  action: WorkflowAction
-): action is Extract<WorkflowAction, { type: 'update_row' }> => {
-  return action.type === 'update_row'
-}
-
-const isCreateAction = (
-  action: WorkflowAction
-): action is Extract<WorkflowAction, { type: 'create_row' }> => {
-  return action.type === 'create_row'
 }
 </script>
 

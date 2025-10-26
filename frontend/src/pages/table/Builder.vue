@@ -10,8 +10,12 @@ import {
   Save,
   Trash2,
 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+import { tableService } from '@/api/services/table'
+import { tableSchemaService } from '@/api/services/table/schema'
+import type { TableColumn } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,55 +35,22 @@ const route = useRoute()
 const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
+const tableId = computed(() => route.params.tableId as string | undefined)
+const isEditMode = computed(() => !!tableId.value)
 
-const tableName = ref('users')
-const tableDescription = ref('User accounts and profiles')
-const columns = ref([
-  {
-    id: '1',
-    name: 'id',
-    type: 'UUID',
-    nullable: false,
-    primary_key: true,
-    unique: false,
-    default_value: '',
-    foreign_key: null,
-    order: 1,
-  },
-  {
-    id: '2',
-    name: 'email',
-    type: 'VARCHAR',
-    nullable: false,
-    primary_key: false,
-    unique: true,
-    default_value: '',
-    foreign_key: null,
-    order: 2,
-  },
-  {
-    id: '3',
-    name: 'name',
-    type: 'VARCHAR',
-    nullable: false,
-    primary_key: false,
-    unique: false,
-    default_value: '',
-    foreign_key: null,
-    order: 3,
-  },
-  {
-    id: '4',
-    name: 'created_at',
-    type: 'TIMESTAMP',
-    nullable: false,
-    primary_key: false,
-    unique: false,
-    default_value: 'CURRENT_TIMESTAMP',
-    foreign_key: null,
-    order: 4,
-  },
-])
+const tableName = ref('')
+const tableDescription = ref('')
+const columns = ref<Array<{
+  id: string
+  name: string
+  type: string
+  nullable: boolean
+  primary_key: boolean
+  unique: boolean
+  default_value: string
+  foreign_key: { table: string; column: string } | null
+  order: number
+}>>([])
 
 const columnTypes = [
   'VARCHAR',
@@ -129,31 +100,93 @@ const moveColumn = (fromIndex: number, toIndex: number) => {
   })
 }
 
+const loadTableForEdit = async () => {
+  if (!isEditMode.value || !tableId.value) return
+
+  try {
+    const table = await tableService.getById(projectId.value, tableId.value)
+    tableName.value = table.name
+    tableDescription.value = table.description || ''
+  } catch (error) {
+    console.error('Failed to load table:', error)
+    alert('Failed to load table for editing')
+    router.push(`/projects/${projectId.value}/tables`)
+  }
+}
+
 const saveTable = async () => {
+  if (!tableName.value.trim()) {
+    alert('Please enter a table name')
+    return
+  }
+
+  if (columns.value.length === 0) {
+    alert('Please add at least one column')
+    return
+  }
+
   isSaving.value = true
   try {
-    console.log('Saving table:', {
-      name: tableName.value,
-      description: tableDescription.value,
-      columns: columns.value,
-    })
+    if (isEditMode.value && tableId.value) {
+      await tableService.update(projectId.value, tableId.value, {
+        name: tableName.value,
+        description: tableDescription.value,
+      })
+    } else {
+      const tableColumns: TableColumn[] = columns.value.map((col) => ({
+        name: col.name,
+        type: col.type,
+        is_nullable: col.nullable,
+        default_value: col.default_value || undefined,
+        is_primary_key: col.primary_key,
+        is_foreign_key: !!col.foreign_key,
+        foreign_table: col.foreign_key?.table,
+        foreign_column: col.foreign_key?.column,
+      }))
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+      const primaryKeys = columns.value
+        .filter((col) => col.primary_key)
+        .map((col) => col.name)
+
+      const foreignKeys = columns.value
+        .filter((col) => col.foreign_key)
+        .map((col) => ({
+          column: col.name,
+          referenced_table: col.foreign_key!.table,
+          referenced_column: col.foreign_key!.column,
+        }))
+
+      const newTable = await tableService.create(projectId.value, {
+        name: tableName.value,
+        description: tableDescription.value,
+      })
+
+      await tableSchemaService.createTable(projectId.value, tableName.value, {
+        columns: tableColumns,
+        primary_keys: primaryKeys,
+        foreign_keys: foreignKeys,
+      })
+    }
 
     router.push(`/projects/${projectId.value}/tables`)
   } catch (error) {
     console.error('Failed to save table:', error)
+    alert('Failed to save table. Please check the console for details.')
   } finally {
     isSaving.value = false
   }
 }
+
+onMounted(() => {
+  loadTableForEdit()
+})
 
 const generateSQL = () => {
   const foreignKeys = columns.value
     .filter((col) => col.foreign_key)
     .map(
       (col) =>
-        `FOREIGN KEY (${col.name}) REFERENCES ${col.foreign_key.table}(${col.foreign_key.column})`
+        `FOREIGN KEY (${col.name}) REFERENCES ${col.foreign_key!.table}(${col.foreign_key!.column})`
     )
 
   let sql = `CREATE TABLE ${tableName.value} (\n`
@@ -167,7 +200,7 @@ const generateSQL = () => {
     if (col.primary_key) columnDef += ' PRIMARY KEY'
 
     sql += columnDef
-    if (index < columns.value.length - 1 || foreignKeys.length > 0) {
+    if (_index < columns.value.length - 1 || foreignKeys.length > 0) {
       sql += ','
     }
     sql += '\n'
