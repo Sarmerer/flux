@@ -11,13 +11,12 @@ import {
   User,
   Workflow,
 } from 'lucide-vue-next'
-import { type Ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
 import { useTableStore } from '@/stores/tables'
 import { useWorkflowStore } from '@/stores/workflows'
-import type { Project } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,8 +31,8 @@ const router = useRouter()
 const { formatDate } = useFormatting()
 
 const activeProjectStore = useActiveProjectStore()
-const activeProject = computed(() => activeProjectStore.activeProject) as Ref<Project>
-const activeProjectId = computed(() => activeProject.value.id)
+const activeProject = computed(() => activeProjectStore.activeProject)
+const activeProjectId = computed(() => activeProject.value?.id)
 
 const tablesStore = useTableStore()
 const workflowsStore = useWorkflowStore()
@@ -73,10 +72,10 @@ const onTabChange = (tab: string | number) => {
         title="Project not found"
         description="The project you're looking for doesn't exist."
       >
-        <Button @click="router.push('/projects')">Back to Projects</Button>
+        <Button size="sm" @click="router.push('/projects')">Back to Projects</Button>
       </ErrorState>
 
-      <template v-else>
+      <template v-else-if="activeProject">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-3xl font-bold text-foreground">{{ activeProject.name }}</h1>
@@ -216,7 +215,7 @@ const onTabChange = (tab: string | number) => {
                     v-if="tablesStore.error"
                     :error="tablesStore.error"
                     title="Failed to load tables"
-                    :on-retry="() => tablesStore.loadByProjectId(activeProjectId)"
+                    :on-retry="activeProjectId ? () => tablesStore.loadByProjectId(activeProjectId!) : undefined"
                   />
                   <div v-else class="space-y-4">
                     <div
@@ -267,7 +266,7 @@ const onTabChange = (tab: string | number) => {
                     v-if="workflowsStore.error"
                     :error="workflowsStore.error"
                     title="Failed to load workflows"
-                    :on-retry="() => workflowsStore.loadByProjectId(activeProjectId)"
+                    :on-retry="activeProjectId ? () => workflowsStore.loadByProjectId(activeProjectId!) : undefined"
                   />
                   <div v-else class="space-y-4">
                     <div
