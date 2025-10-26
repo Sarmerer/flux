@@ -86,10 +86,6 @@ const onTabChange = (tab: string | number) => {
               <Settings class="w-4 h-4 mr-2" />
               Settings
             </Button>
-            <Button>
-              <Plus class="w-4 h-4 mr-2" />
-              Add Resource
-            </Button>
           </div>
         </div>
 
@@ -215,7 +211,11 @@ const onTabChange = (tab: string | number) => {
                     v-if="tablesStore.error"
                     :error="tablesStore.error"
                     title="Failed to load tables"
-                    :on-retry="activeProjectId ? () => tablesStore.loadByProjectId(activeProjectId!) : undefined"
+                    :on-retry="
+                      activeProjectId
+                        ? () => tablesStore.loadByProjectId(activeProjectId!)
+                        : undefined
+                    "
                   />
                   <div v-else class="space-y-4">
                     <div
@@ -266,7 +266,11 @@ const onTabChange = (tab: string | number) => {
                     v-if="workflowsStore.error"
                     :error="workflowsStore.error"
                     title="Failed to load workflows"
-                    :on-retry="activeProjectId ? () => workflowsStore.loadByProjectId(activeProjectId!) : undefined"
+                    :on-retry="
+                      activeProjectId
+                        ? () => workflowsStore.loadByProjectId(activeProjectId!)
+                        : undefined
+                    "
                   />
                   <div v-else class="space-y-4">
                     <div
