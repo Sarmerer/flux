@@ -40,17 +40,19 @@ const isEditMode = computed(() => !!tableId.value)
 
 const tableName = ref('')
 const tableDescription = ref('')
-const columns = ref<Array<{
-  id: string
-  name: string
-  type: string
-  nullable: boolean
-  primary_key: boolean
-  unique: boolean
-  default_value: string
-  foreign_key: { table: string; column: string } | null
-  order: number
-}>>([])
+const columns = ref<
+  Array<{
+    id: string
+    name: string
+    type: string
+    nullable: boolean
+    primary_key: boolean
+    unique: boolean
+    default_value: string
+    foreign_key: { table: string; column: string } | null
+    order: number
+  }>
+>([])
 
 const columnTypes = [
   'VARCHAR',
@@ -144,9 +146,7 @@ const saveTable = async () => {
         foreign_column: col.foreign_key?.column,
       }))
 
-      const primaryKeys = columns.value
-        .filter((col) => col.primary_key)
-        .map((col) => col.name)
+      const primaryKeys = columns.value.filter((col) => col.primary_key).map((col) => col.name)
 
       const foreignKeys = columns.value
         .filter((col) => col.foreign_key)
@@ -218,7 +218,6 @@ const generateSQL = () => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-4">
         <Button variant="ghost" size="sm" @click="router.push(`/projects/${projectId}/tables`)">
@@ -244,7 +243,6 @@ const generateSQL = () => {
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Table Configuration -->
       <Card>
         <CardHeader>
           <CardTitle>Table Configuration</CardTitle>
@@ -266,7 +264,6 @@ const generateSQL = () => {
         </CardContent>
       </Card>
 
-      <!-- Column Management -->
       <Card>
         <CardHeader>
           <div class="flex items-center justify-between">
@@ -342,7 +339,6 @@ const generateSQL = () => {
       </Card>
     </div>
 
-    <!-- SQL Preview -->
     <Card v-if="showPreview">
       <CardHeader>
         <CardTitle>SQL Preview</CardTitle>
@@ -355,7 +351,6 @@ const generateSQL = () => {
       </CardContent>
     </Card>
 
-    <!-- Table Preview -->
     <Card v-if="showPreview">
       <CardHeader>
         <CardTitle>Table Preview</CardTitle>

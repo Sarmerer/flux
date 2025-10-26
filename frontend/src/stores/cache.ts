@@ -84,7 +84,7 @@ export const useCacheStore = defineStore('cache', () => {
       key,
       timestamp: entry.timestamp,
       age: Date.now() - entry.timestamp,
-      hasError: !!entry.error,
+      error: entry.error,
       hasData: entry.data !== null,
       tags: entry.tags,
     })),

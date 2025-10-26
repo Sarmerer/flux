@@ -7,17 +7,20 @@ import { defineStore } from 'pinia'
 export const useTableStore = defineStore('tables', () => {
   const tables = ref<Table[]>([])
   const isLoading = ref(false)
+  const error = ref<Error | null>(null)
   const length = computed(() => tables.value.length)
 
   const loadByProjectId = async (projectId: string) => {
     isLoading.value = true
+    error.value = null
     try {
       tables.value = await tableService.getAll(projectId)
       return tables
-    } catch (error) {
-      console.error('Failed to load tables:', error)
+    } catch (_error) {
+      console.error('Failed to load tables:', _error)
+      error.value = new Error('Failed to load tables')
       tables.value = []
-      throw error
+      throw _error
     } finally {
       isLoading.value = false
     }
@@ -31,6 +34,7 @@ export const useTableStore = defineStore('tables', () => {
     tables,
     length,
     isLoading,
+    error,
     loadByProjectId,
     clear,
   }

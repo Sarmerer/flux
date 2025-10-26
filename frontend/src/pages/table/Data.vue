@@ -222,7 +222,6 @@ const getStatusBadgeVariant = (status: string) => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-4">
         <Button variant="ghost" size="sm" @click="router.push(`/projects/${projectId}/tables`)">
@@ -254,7 +253,6 @@ const getStatusBadgeVariant = (status: string) => {
       </div>
     </div>
 
-    <!-- Filters and Search -->
     <Card>
       <CardContent class="p-4">
         <div class="flex items-center space-x-4">
@@ -279,7 +277,6 @@ const getStatusBadgeVariant = (status: string) => {
       </CardContent>
     </Card>
 
-    <!-- Data Table -->
     <Card>
       <CardContent class="p-0">
         <div class="overflow-x-auto">
@@ -346,7 +343,6 @@ const getStatusBadgeVariant = (status: string) => {
       </CardContent>
     </Card>
 
-    <!-- Pagination -->
     <div class="flex items-center justify-between">
       <div class="text-sm text-muted-foreground">
         Showing {{ (currentPage - 1) * pageSize + 1 }} to
@@ -371,7 +367,6 @@ const getStatusBadgeVariant = (status: string) => {
       </div>
     </div>
 
-    <!-- Add Row Dialog -->
     <Dialog v-model:open="isAddDialogOpen">
       <DialogContent class="max-w-2xl">
         <DialogHeader>
@@ -398,7 +393,6 @@ const getStatusBadgeVariant = (status: string) => {
       </DialogContent>
     </Dialog>
 
-    <!-- Edit Row Dialog -->
     <Dialog v-model:open="isEditDialogOpen">
       <DialogContent class="max-w-2xl">
         <DialogHeader>

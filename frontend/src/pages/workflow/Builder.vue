@@ -217,7 +217,6 @@ const getTriggerIcon = (triggerType: string): Component => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-4">
         <Button variant="ghost" size="sm" @click="router.push(`/projects/${projectId}/workflows`)">
@@ -247,7 +246,6 @@ const getTriggerIcon = (triggerType: string): Component => {
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Workflow Configuration -->
       <Card>
         <CardHeader>
           <CardTitle>Workflow Configuration</CardTitle>
@@ -274,7 +272,6 @@ const getTriggerIcon = (triggerType: string): Component => {
         </CardContent>
       </Card>
 
-      <!-- Trigger Configuration -->
       <Card>
         <CardHeader>
           <CardTitle>Trigger Configuration</CardTitle>
@@ -332,7 +329,6 @@ const getTriggerIcon = (triggerType: string): Component => {
       </Card>
     </div>
 
-    <!-- Actions Configuration -->
     <Card>
       <CardHeader>
         <div class="flex items-center justify-between">
@@ -384,7 +380,6 @@ const getTriggerIcon = (triggerType: string): Component => {
                 }}</Badge>
               </div>
 
-              <!-- Action-specific configuration -->
               <div v-if="action.type === 'send_webhook'" class="space-y-2">
                 <div class="grid grid-cols-2 gap-2">
                   <div>
@@ -473,7 +468,6 @@ const getTriggerIcon = (triggerType: string): Component => {
       </CardContent>
     </Card>
 
-    <!-- Workflow Preview -->
     <Card v-if="showPreview">
       <CardHeader>
         <CardTitle>Workflow Preview</CardTitle>
@@ -481,7 +475,6 @@ const getTriggerIcon = (triggerType: string): Component => {
       </CardHeader>
       <CardContent>
         <div class="space-y-4">
-          <!-- Trigger -->
           <div class="flex items-center space-x-4">
             <div class="flex items-center space-x-2 p-3 bg-blue-100 rounded-lg">
               <component
@@ -495,7 +488,6 @@ const getTriggerIcon = (triggerType: string): Component => {
             <div class="text-gray-400">→</div>
           </div>
 
-          <!-- Actions -->
           <div class="space-y-2">
             <div
               v-for="(action, index) in workflow.actions"

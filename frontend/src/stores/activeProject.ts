@@ -10,9 +10,11 @@ import { useWorkflowStore } from './workflows'
 export const useActiveProjectStore = defineStore('project', () => {
   const activeProject = ref<Project | null>(null)
   const isLoading = ref(false)
+  const error = ref<Error | null>(null)
 
-  async function loadById(projectId: string): Promise<Project> {
+  async function loadById(projectId: string): Promise<Project | null> {
     isLoading.value = true
+    error.value = null
 
     const tableStore = useTableStore()
     const workflowStore = useWorkflowStore()
@@ -25,10 +27,11 @@ export const useActiveProjectStore = defineStore('project', () => {
       ])
       activeProject.value = project
       return project
-    } catch (error) {
-      console.error('Failed to load project by ID:', error)
+    } catch (_error) {
+      console.error('Failed to load project by ID:', _error)
+      error.value = new Error('Failed to load active project')
       clear()
-      throw error
+      return null
     } finally {
       isLoading.value = false
     }
@@ -47,6 +50,7 @@ export const useActiveProjectStore = defineStore('project', () => {
   return {
     activeProject,
     isLoading,
+    error,
     loadById,
     clear,
   }

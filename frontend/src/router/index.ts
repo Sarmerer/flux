@@ -166,13 +166,7 @@ router.beforeEach(async (to, _from, next) => {
 
     const projectIdFromRoute = to.params.projectId as string
     if (projectIdFromRoute && activeProjectStore.activeProject?.id !== projectIdFromRoute) {
-      try {
-        await activeProjectStore.loadById(projectIdFromRoute)
-      } catch (error) {
-        console.error('Failed to load project:', error)
-        next('/')
-        return
-      }
+      await activeProjectStore.loadById(projectIdFromRoute)
     } else if (!projectIdFromRoute) {
       activeProjectStore.clear()
     }

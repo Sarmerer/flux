@@ -94,7 +94,6 @@ const onLogoutClick = async () => {
     </SidebarHeader>
 
     <SidebarContent>
-      <!-- Main Navigation -->
       <SidebarGroup>
         <SidebarGroupLabel>Navigation</SidebarGroupLabel>
         <SidebarGroupContent>
@@ -144,7 +143,6 @@ const onLogoutClick = async () => {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <!-- Tables Section -->
       <SidebarGroup v-if="activeProjectId">
         <SidebarGroupLabel class="flex items-center justify-between">
           <span>Tables</span>
@@ -168,7 +166,6 @@ const onLogoutClick = async () => {
                   <span class="flex-1 truncate">{{ table.name }}</span>
                 </SidebarMenuButton>
 
-                <!-- Table Actions -->
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -200,7 +197,6 @@ const onLogoutClick = async () => {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <!-- Workflows Section -->
       <SidebarGroup v-if="activeProjectId">
         <SidebarGroupLabel class="flex items-center justify-between">
           <span>Workflows</span>
@@ -223,7 +219,6 @@ const onLogoutClick = async () => {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <!-- No Project Selected State -->
       <SidebarGroup v-if="!activeProjectId">
         <SidebarGroupContent>
           <div class="px-4 py-6 text-center">
@@ -237,7 +232,6 @@ const onLogoutClick = async () => {
       </SidebarGroup>
     </SidebarContent>
 
-    <!-- User Footer -->
     <SidebarFooter class="p-4 border-t">
       <div class="space-y-2">
         <div class="flex items-center space-x-2 text-sm text-muted-foreground px-2">

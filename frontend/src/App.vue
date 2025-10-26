@@ -19,7 +19,6 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
       </RouterView>
     </main>
 
-    <!-- Global Toast Notifications -->
     <Toaster />
   </SidebarProvider>
 </template>

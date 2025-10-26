@@ -245,7 +245,6 @@ const getStatusBadgeVariant = (status: string) => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-900">Activity Log</h1>
@@ -257,7 +256,6 @@ const getStatusBadgeVariant = (status: string) => {
       </Button>
     </div>
 
-    <!-- Filters -->
     <Card>
       <CardContent class="p-4">
         <div class="flex items-center space-x-4">
@@ -291,7 +289,6 @@ const getStatusBadgeVariant = (status: string) => {
       </CardContent>
     </Card>
 
-    <!-- Activity List -->
     <Card>
       <CardContent class="p-0">
         <div v-if="paginatedActivities.length === 0" class="text-center py-12">
@@ -372,7 +369,6 @@ const getStatusBadgeVariant = (status: string) => {
       </CardContent>
     </Card>
 
-    <!-- Pagination -->
     <div v-if="totalPages > 1" class="flex items-center justify-between">
       <div class="text-sm text-gray-700">
         Showing {{ (currentPage - 1) * pageSize + 1 }} to

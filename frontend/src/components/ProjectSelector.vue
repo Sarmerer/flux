@@ -51,7 +51,6 @@ const onViewAllProjectsClick = () => {
       <DropdownMenuLabel>Projects</DropdownMenuLabel>
       <DropdownMenuSeparator />
 
-      <!-- Project List -->
       <div class="max-h-64 overflow-y-auto">
         <DropdownMenuItem
           v-for="project in projects"
@@ -81,7 +80,6 @@ const onViewAllProjectsClick = () => {
 
       <DropdownMenuSeparator />
 
-      <!-- Actions -->
       <DropdownMenuItem @click="onViewAllProjectsClick" class="cursor-pointer">
         <FolderOpen class="w-4 h-4 mr-2" />
         View All Projects

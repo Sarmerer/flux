@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import EmptyState from '@/components/ui/EmptyState.vue'
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
 import { Calendar, Eye, Plus, Search, Settings, Table, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -167,7 +166,6 @@ const removeColumn = (index: number) => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-foreground">Tables</h1>
@@ -260,110 +258,95 @@ const removeColumn = (index: number) => {
       </Dialog>
     </div>
 
-    <!-- Search -->
     <div class="relative">
       <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
       <Input v-model="searchQuery" placeholder="Search tables..." class="pl-10" />
     </div>
 
-    <!-- Loading State -->
-    <LoadingSpinner v-if="isLoading" text="Loading tables..." />
-
-    <!-- Empty State -->
-    <EmptyState
-      v-else-if="filteredTables.length === 0 && !searchQuery"
-      :icon="Table"
-      title="No tables yet"
-      description="Get started by creating your first table"
-      actionLabel="Create Table"
-      :actionIcon="Plus"
-      @action="isCreateDialogOpen = true"
-    />
-
-    <!-- No Search Results -->
-    <div v-else-if="filteredTables.length === 0 && searchQuery" class="text-center py-12">
-      <Table class="mx-auto h-12 w-12 text-muted-foreground" />
-      <h3 class="mt-2 text-sm font-medium text-foreground">No tables found</h3>
-      <p class="mt-1 text-sm text-muted-foreground">Try adjusting your search terms.</p>
-    </div>
-
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <Card
-        v-for="table in filteredTables"
-        :key="table.id"
-        class="hover:shadow-lg transition-shadow duration-200"
-      >
-        <CardHeader class="pb-3">
-          <div class="flex items-start justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="p-2 bg-blue-100 rounded-lg">
-                <Table class="h-5 w-5 text-blue-600" />
+    <LoadingWrapper :is-loading="isLoading" loading-text="Loading tables...">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card
+          v-for="table in filteredTables"
+          :key="table.id"
+          class="hover:shadow-lg transition-shadow duration-200"
+        >
+          <CardHeader class="pb-3">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                  <Table class="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle class="text-lg">{{ table.name }}</CardTitle>
+                  <CardDescription class="mt-1">
+                    {{ table.description || 'No description' }}
+                  </CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle class="text-lg">{{ table.name }}</CardTitle>
-                <CardDescription class="mt-1">
-                  {{ table.description || 'No description' }}
-                </CardDescription>
-              </div>
-            </div>
-            <div class="flex items-center space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleViewTable(table.id)"
-                title="View Data"
-              >
-                <Eye class="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleEditSchema(table.id)"
-                title="Edit Schema"
-              >
-                <Settings class="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleDeleteTable(table.id, table.name)"
-                title="Delete Table"
-              >
-                <Trash2 class="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent class="pt-0">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-500">Columns</span>
-              <span class="font-medium">{{ table.columns ?? 0 }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-500">Rows</span>
-              <span class="font-medium">{{ (table.rows ?? 0).toLocaleString() }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm text-gray-500">
               <div class="flex items-center space-x-1">
-                <Calendar class="h-4 w-4" />
-                <span>Updated {{ formatDate(table.updated_at) }}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  @click="handleViewTable(table.id)"
+                  title="View Data"
+                >
+                  <Eye class="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  @click="handleEditSchema(table.id)"
+                  title="Edit Schema"
+                >
+                  <Settings class="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  @click="handleDeleteTable(table.id, table.name)"
+                  title="Delete Table"
+                >
+                  <Trash2 class="h-4 w-4" />
+                </Button>
               </div>
-              <Badge variant="secondary">Active</Badge>
             </div>
-          </div>
-          <div class="mt-4 flex space-x-2">
-            <Button variant="outline" size="sm" class="flex-1" @click="handleViewTable(table.id)">
-              <Eye class="w-4 h-4 mr-1" />
-              View Data
-            </Button>
-            <Button variant="outline" size="sm" class="flex-1" @click="handleEditSchema(table.id)">
-              <Settings class="w-4 h-4 mr-1" />
-              Edit Schema
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardHeader>
+          <CardContent class="pt-0">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500">Columns</span>
+                <span class="font-medium">{{ table.columns ?? 0 }}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500">Rows</span>
+                <span class="font-medium">{{ (table.rows ?? 0).toLocaleString() }}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm text-gray-500">
+                <div class="flex items-center space-x-1">
+                  <Calendar class="h-4 w-4" />
+                  <span>Updated {{ formatDate(table.updated_at) }}</span>
+                </div>
+                <Badge variant="secondary">Active</Badge>
+              </div>
+            </div>
+            <div class="mt-4 flex space-x-2">
+              <Button variant="outline" size="sm" class="flex-1" @click="handleViewTable(table.id)">
+                <Eye class="w-4 h-4 mr-1" />
+                View Data
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                class="flex-1"
+                @click="handleEditSchema(table.id)"
+              >
+                <Settings class="w-4 h-4 mr-1" />
+                Edit Schema
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </LoadingWrapper>
   </div>
 </template>

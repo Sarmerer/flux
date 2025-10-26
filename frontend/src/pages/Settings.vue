@@ -185,7 +185,6 @@ const toggleTwoFactor = async () => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div>
       <h1 class="text-3xl font-bold text-foreground">Settings</h1>
       <p class="text-muted-foreground">Manage your account settings and preferences</p>
@@ -199,7 +198,6 @@ const toggleTwoFactor = async () => {
         <TabsTrigger value="database">Database</TabsTrigger>
       </TabsList>
 
-      <!-- Profile Tab -->
       <TabsContent value="profile">
         <Card>
           <CardHeader>
@@ -245,7 +243,6 @@ const toggleTwoFactor = async () => {
         </Card>
       </TabsContent>
 
-      <!-- Preferences Tab -->
       <TabsContent value="preferences">
         <div class="space-y-6">
           <Card>
@@ -352,7 +349,6 @@ const toggleTwoFactor = async () => {
         </div>
       </TabsContent>
 
-      <!-- Security Tab -->
       <TabsContent value="security">
         <div class="space-y-6">
           <Card>
@@ -447,7 +443,6 @@ const toggleTwoFactor = async () => {
         </div>
       </TabsContent>
 
-      <!-- Database Tab -->
       <TabsContent value="database">
         <Card>
           <CardHeader>

@@ -3,6 +3,7 @@ import { computed, onUnmounted, ref } from 'vue'
 import { useCacheStore } from '@/stores/cache'
 
 import { useWebSocket } from '../external/useWebSocket'
+import { useToast } from '../ui/useToast'
 
 interface CacheOptions<T> {
   ttlMs?: number
@@ -16,14 +17,16 @@ interface CacheOptions<T> {
     events: string[]
     throttleMs?: number
   }
+  toastOnError?: boolean | { title: string; description?: string }
 }
 
 export function useResourceCache<T>(key: string, options: CacheOptions<T>) {
-  const { ttlMs = 60000, tags, fetch: fetchConfig, realtime: wsConfig } = options
+  const { ttlMs = 60000, tags, fetch: fetchConfig, realtime: wsConfig, toastOnError } = options
   const { fn: fetchFn, onMount: fetchOnMount = true } = fetchConfig
   const { resourceId, events, throttleMs = 500 } = wsConfig || {}
 
   const cacheStore = useCacheStore()
+  const toast = toastOnError ? useToast() : null
   const data = ref<T | null>(null)
   const loading = ref(false)
   const error = ref<Error | null>(null)
@@ -57,6 +60,17 @@ export function useResourceCache<T>(key: string, options: CacheOptions<T>) {
       data.value = null
       cacheStore.set<T>(key, null, err as Error, { tags })
       console.error(`[Cache] Failed to fetch ${key}:`, err)
+
+      if (toast && toastOnError) {
+        if (typeof toastOnError === 'object') {
+          toast.error(
+            toastOnError.title,
+            toastOnError.description || (err as Error).message,
+          )
+        } else {
+          toast.error('Failed to load data', (err as Error).message)
+        }
+      }
     } finally {
       loading.value = false
     }

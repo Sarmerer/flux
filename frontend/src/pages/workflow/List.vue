@@ -260,7 +260,6 @@ const getStatusColor = (workflow: any) => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-900">Workflows</h1>
@@ -327,13 +326,11 @@ const getStatusColor = (workflow: any) => {
       </Dialog>
     </div>
 
-    <!-- Search -->
     <div class="relative">
       <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
       <Input v-model="searchQuery" placeholder="Search workflows..." class="pl-10" />
     </div>
 
-    <!-- Workflows Grid -->
     <div v-if="filteredWorkflows.length === 0" class="text-center py-12">
       <Workflow class="mx-auto h-12 w-12 text-gray-400" />
       <h3 class="mt-2 text-sm font-medium text-gray-900">

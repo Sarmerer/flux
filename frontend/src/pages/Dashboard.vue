@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ErrorState from '@/components/ui/ErrorState.vue'
+import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
 import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
@@ -13,7 +15,7 @@ import { useProjects } from '@/composables/api/useProjects'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const { projects, loading, error } = useProjects()
+const { projects, loading, error, refresh } = useProjects()
 
 const recentActivity = [
   {
@@ -105,55 +107,41 @@ const onProjectClick = (projectId: string) => {
           <CardDescription>Your most recently accessed projects</CardDescription>
         </CardHeader>
         <CardContent>
-          <div v-if="loading" class="flex items-center justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-
-          <div v-else-if="error" class="text-center py-8">
-            <div class="text-red-600 dark:text-red-400">
-              <p class="text-sm font-medium">Failed to load projects</p>
-              <p class="text-xs mt-1">{{ error.message }}</p>
-            </div>
-          </div>
-
-          <div v-else-if="!projects || projects.length === 0" class="text-center py-8">
-            <FolderOpen class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No projects</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Get started by creating a new project.
-            </p>
-            <div class="mt-6">
-              <Button @click="onCreateProjectClick">Create Project</Button>
-            </div>
-          </div>
-
-          <div v-else class="space-y-3">
-            <div
-              v-for="project in projects.slice(0, 5)"
-              :key="project.id"
-              class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-              @click="onProjectClick(project.id)"
-            >
-              <div class="flex items-center space-x-3">
-                <FolderOpen class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {{ project.name }}
-                  </h4>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ project.description || 'No description' }}
-                  </p>
+          <LoadingWrapper :is-loading="loading" loading-text="Loading projects...">
+            <ErrorState
+              v-if="error"
+              :error="error"
+              title="Failed to load projects"
+              :on-retry="refresh"
+            />
+            <div v-else class="space-y-3">
+              <div
+                v-for="project in projects?.slice(0, 5)"
+                :key="project.id"
+                class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                @click="onProjectClick(project.id)"
+              >
+                <div class="flex items-center space-x-3">
+                  <FolderOpen class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {{ project.name }}
+                    </h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ project.description || 'No description' }}
+                    </p>
+                  </div>
                 </div>
+                <Badge variant="secondary">Active</Badge>
               </div>
-              <Badge variant="secondary">Active</Badge>
-            </div>
 
-            <div v-if="projects.length > 5" class="pt-2">
-              <Button variant="ghost" size="sm" class="w-full" @click="router.push('/projects')">
-                View All Projects ({{ projects.length }})
-              </Button>
+              <div v-if="projects && projects.length > 5" class="pt-2">
+                <Button variant="ghost" size="sm" class="w-full" @click="router.push('/projects')">
+                  View All Projects ({{ projects.length }})
+                </Button>
+              </div>
             </div>
-          </div>
+          </LoadingWrapper>
         </CardContent>
       </Card>
 
