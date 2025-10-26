@@ -12,6 +12,7 @@ import (
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/infrastructure/progress"
 	"github.com/flow/internal/infrastructure/realtime"
+	"github.com/flow/internal/validation"
 
 	"github.com/google/uuid"
 )
@@ -44,14 +45,37 @@ func NewDatabaseService(
 }
 
 func (s *DatabaseService) CreateProjectDatabase(ctx context.Context, projectID uuid.UUID, req *entities.DatabaseCreateRequest) (*entities.DatabaseResponse, error) {
+	if s.progressTracker == nil {
+		return s.createDatabase(ctx, projectID, req, nil)
+	}
+	return s.createDatabase(ctx, projectID, req, nil)
+}
 
-	if err := ValidateDatabaseCreateRequest(req); err != nil {
+func (s *DatabaseService) createDatabase(ctx context.Context, projectID uuid.UUID, req *entities.DatabaseCreateRequest, opCtx *progress.OperationContext) (*entities.DatabaseResponse, error) {
+	if opCtx != nil {
+		opCtx.UpdateProgress("Validating request", "Validating database creation request", 0.1)
+	}
+	if err := validation.ValidateDatabaseCreateRequest(req); err != nil {
+		if opCtx != nil {
+			opCtx.Fail(errors.NewValidationError("validation failed").WithDetails(err.Error()))
+		}
 		return nil, errors.NewValidationError("validation failed").WithDetails(err.Error())
+	}
+	if opCtx != nil {
+		opCtx.CompleteStep("Validating request")
+		opCtx.UpdateProgress("Verifying project exists", "Checking if project exists", 0.2)
 	}
 
 	_, err := s.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
+		if opCtx != nil {
+			opCtx.Fail(errors.NewNotFoundError("Project"))
+		}
 		return nil, errors.NewNotFoundError("Project")
+	}
+	if opCtx != nil {
+		opCtx.CompleteStep("Verifying project exists")
+		opCtx.UpdateProgress("Creating database configuration", "Saving database configuration", 0.3)
 	}
 
 	database := &entities.Database{
@@ -69,23 +93,37 @@ func (s *DatabaseService) CreateProjectDatabase(ctx context.Context, projectID u
 	}
 
 	if err := s.dbRepo.Create(ctx, database); err != nil {
+		if opCtx != nil {
+			opCtx.Fail(errors.NewDatabaseError(err).WithDetails("failed to save database configuration"))
+		}
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to save database configuration")
+	}
+	if opCtx != nil {
+		opCtx.CompleteStep("Creating database configuration")
+		opCtx.UpdateProgress("Creating PostgreSQL database", "Creating the actual PostgreSQL database", 0.5)
 	}
 
 	if err := s.pgService.CreateDatabase(ctx, database); err != nil {
-
 		s.dbRepo.Delete(ctx, database.ID)
+		if opCtx != nil {
+			opCtx.Fail(err)
+		}
 		return nil, err
+	}
+	if opCtx != nil {
+		opCtx.CompleteStep("Creating PostgreSQL database")
 	}
 
 	response := database.ToResponse()
+	if opCtx != nil {
+		opCtx.Complete(response)
+	}
 	return &response, nil
 }
 
 func (s *DatabaseService) CreateProjectDatabaseWithProgress(ctx context.Context, projectID uuid.UUID, req *entities.DatabaseCreateRequest, userID uuid.UUID) (*entities.DatabaseResponse, error) {
-
 	if s.progressTracker == nil {
-		return s.CreateProjectDatabase(ctx, projectID, req)
+		return s.createDatabase(ctx, projectID, req, nil)
 	}
 
 	steps := []string{
@@ -98,69 +136,11 @@ func (s *DatabaseService) CreateProjectDatabaseWithProgress(ctx context.Context,
 	}
 
 	opCtx := s.progressTracker.NewOperationContext(userID, "create_database", "Creating project database", steps)
-
-	opCtx.UpdateProgress("Validating request", "Validating database creation request", 0.1)
-	if err := ValidateDatabaseCreateRequest(req); err != nil {
-		opCtx.Fail(errors.NewValidationError("validation failed").WithDetails(err.Error()))
-		return nil, err
-	}
-	opCtx.CompleteStep("Validating request")
-
-	opCtx.UpdateProgress("Verifying project exists", "Checking if project exists", 0.2)
-	_, err := s.projectRepo.GetByID(ctx, projectID)
-	if err != nil {
-		opCtx.Fail(errors.NewNotFoundError("Project"))
-		return nil, err
-	}
-	opCtx.CompleteStep("Verifying project exists")
-
-	opCtx.UpdateProgress("Creating database configuration", "Saving database configuration to core database", 0.3)
-	database := &entities.Database{
-		ID:        uuid.New(),
-		ProjectID: projectID,
-		Name:      req.Name,
-		Host:      req.Host,
-		Port:      req.Port,
-		Username:  req.Username,
-		Password:  req.Password,
-		Database:  req.Database,
-		SSLMode:   req.SSLMode,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	if err := s.dbRepo.Create(ctx, database); err != nil {
-		opCtx.Fail(errors.NewDatabaseError(err).WithDetails("failed to save database configuration"))
-		return nil, err
-	}
-	opCtx.CompleteStep("Creating database configuration")
-
-	opCtx.UpdateProgress("Creating PostgreSQL database", "Creating the actual PostgreSQL database", 0.5)
-	if err := s.pgService.CreateDatabase(ctx, database); err != nil {
-
-		s.dbRepo.Delete(ctx, database.ID)
-		opCtx.Fail(err)
-		return nil, err
-	}
-	opCtx.CompleteStep("Creating PostgreSQL database")
-
-	opCtx.UpdateProgress("Testing connection", "Verifying database connection works", 0.8)
-	if err := s.pgService.TestConnection(ctx, database); err != nil {
-		opCtx.Fail(err)
-		return nil, err
-	}
-	opCtx.CompleteStep("Testing connection")
-
-	opCtx.UpdateProgress("Finalizing setup", "Completing database setup", 0.9)
-	response := database.ToResponse()
-	opCtx.Complete(response)
-
-	return &response, nil
+	return s.createDatabase(ctx, projectID, req, opCtx)
 }
 
 func (s *DatabaseService) UpdateProjectDatabase(ctx context.Context, databaseID uuid.UUID, req *entities.DatabaseCreateRequest) (*entities.DatabaseResponse, error) {
-
-	if err := ValidateDatabaseCreateRequest(req); err != nil {
+	if err := validation.ValidateDatabaseCreateRequest(req); err != nil {
 		return nil, errors.NewValidationError("validation failed").WithDetails(err.Error())
 	}
 
@@ -246,7 +226,7 @@ func (s *DatabaseService) CreateTableWithProgress(ctx context.Context, projectID
 	opCtx := s.progressTracker.NewOperationContext(userID, "create_table", "Creating table", steps)
 
 	opCtx.UpdateProgress("Validating table request", "Validating table creation request", 0.1)
-	if err := ValidateTableCreateRequest(tableReq); err != nil {
+	if err := validation.ValidateTableCreateRequest(tableReq); err != nil {
 		opCtx.Fail(errors.NewValidationError("validation failed").WithDetails(err.Error()))
 		return nil, err
 	}
@@ -320,12 +300,3 @@ func (s *DatabaseService) generateCreateTableSQL(tableReq *entities.TableCreateR
 	return fmt.Sprintf("CREATE TABLE %s (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), created_at TIMESTAMP DEFAULT NOW())", tableReq.Name), nil
 }
 
-func ValidateTableCreateRequest(req *entities.TableCreateRequest) error {
-	if req.Name == "" {
-		return fmt.Errorf("table name is required")
-	}
-	if req.Schema == nil {
-		return fmt.Errorf("table schema is required")
-	}
-	return nil
-}

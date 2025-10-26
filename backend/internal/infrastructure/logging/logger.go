@@ -60,9 +60,47 @@ func NewProductionLogger(storage LogStorage, streamer LogStreamer) *Logger {
 }
 
 func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer) *Logger {
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
 	consoleWriter := zerolog.ConsoleWriter{
 		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
+		TimeFormat: "15:04:05",
+		NoColor:    false,
+		FormatLevel: func(i interface{}) string {
+			var levelStr string
+			if level, ok := i.(string); ok {
+				switch level {
+				case "debug":
+					levelStr = "\033[90mDBG\033[0m"
+				case "info":
+					levelStr = "\033[36mINF\033[0m"
+				case "warn":
+					levelStr = "\033[33mWRN\033[0m"
+				case "error":
+					levelStr = "\033[31mERR\033[0m"
+				case "fatal":
+					levelStr = "\033[31;1mFTL\033[0m"
+				default:
+					levelStr = level
+				}
+			}
+			return levelStr
+		},
+		FormatMessage: func(i interface{}) string {
+			return fmt.Sprintf("\033[1m%s\033[0m", i)
+		},
+		FormatFieldName: func(i interface{}) string {
+			return fmt.Sprintf("%s:", i)
+		},
+		FormatFieldValue: func(i interface{}) string {
+			return fmt.Sprintf("\033[2m%s\033[0m", i)
+		},
+		PartsOrder: []string{
+			zerolog.TimestampFieldName,
+			zerolog.LevelFieldName,
+			zerolog.CallerFieldName,
+			zerolog.MessageFieldName,
+		},
 	}
 	return NewLogger(consoleWriter, storage, streamer)
 }
@@ -131,6 +169,29 @@ func (l *Logger) Error(msg string, err error, fields ...map[string]interface{}) 
 	event.Msg(msg)
 
 	l.storeAndStream(LevelError, msg, nil, fields...)
+}
+
+func (l *Logger) ErrorWithStack(msg string, err error, stackTrace string, fields ...map[string]interface{}) {
+	event := l.logger.Error()
+	if err != nil {
+		event = event.Err(err)
+	}
+	if stackTrace != "" {
+		event = event.Str("stack", stackTrace)
+	}
+	l.addFields(event, fields...)
+	event.Msg(msg)
+
+	allFields := make(map[string]interface{})
+	if stackTrace != "" {
+		allFields["stack"] = stackTrace
+	}
+	for _, fieldMap := range fields {
+		for key, value := range fieldMap {
+			allFields[key] = value
+		}
+	}
+	l.storeAndStream(LevelError, msg, nil, allFields)
 }
 
 func (l *Logger) Fatal(msg string, err error, fields ...map[string]interface{}) {
@@ -232,6 +293,29 @@ func (cl *ContextLogger) Error(msg string, err error, fields ...map[string]inter
 	event.Msg(msg)
 
 	cl.storeAndStream(LevelError, msg, fields...)
+}
+
+func (cl *ContextLogger) ErrorWithStack(msg string, err error, stackTrace string, fields ...map[string]interface{}) {
+	event := cl.logger.Error()
+	if err != nil {
+		event = event.Err(err)
+	}
+	if stackTrace != "" {
+		event = event.Str("stack", stackTrace)
+	}
+	cl.addFields(event, fields...)
+	event.Msg(msg)
+
+	allFields := make(map[string]interface{})
+	if stackTrace != "" {
+		allFields["stack"] = stackTrace
+	}
+	for _, fieldMap := range fields {
+		for key, value := range fieldMap {
+			allFields[key] = value
+		}
+	}
+	cl.storeAndStream(LevelError, msg, allFields)
 }
 
 func (cl *ContextLogger) Fatal(msg string, err error, fields ...map[string]interface{}) {

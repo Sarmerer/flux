@@ -6,6 +6,7 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
+	"github.com/flow/internal/domain/types"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -21,15 +22,10 @@ func NewProjectRepository(db *pgxpool.Pool) repositories.ProjectRepository {
 }
 
 func (r *ProjectRepository) Create(ctx context.Context, project *entities.Project) error {
-	query := `
-		INSERT INTO projects (id, name, description, owner_id, database_url, api_key, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`
-	_, err := r.db.Exec(ctx, query, project.ID, project.Name, project.Description, project.OwnerID, project.DatabaseURL, project.APIKey, project.CreatedAt, project.UpdatedAt)
-	return err
+	return r.CreateTx(ctx, r.db, project)
 }
 
-func (r *ProjectRepository) CreateTx(ctx context.Context, tx pgx.Tx, project *entities.Project) error {
+func (r *ProjectRepository) CreateTx(ctx context.Context, tx types.Executor, project *entities.Project) error {
 	query := `
 		INSERT INTO projects (id, name, description, owner_id, database_url, api_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -82,16 +78,10 @@ func (r *ProjectRepository) GetByOwnerID(ctx context.Context, ownerID uuid.UUID)
 }
 
 func (r *ProjectRepository) Update(ctx context.Context, project *entities.Project) error {
-	query := `
-		UPDATE projects
-		SET name = $2, description = $3, database_url = $4, api_key = $5, updated_at = $6
-		WHERE id = $1
-	`
-	_, err := r.db.Exec(ctx, query, project.ID, project.Name, project.Description, project.DatabaseURL, project.APIKey, project.UpdatedAt)
-	return err
+	return r.UpdateTx(ctx, r.db, project)
 }
 
-func (r *ProjectRepository) UpdateTx(ctx context.Context, tx pgx.Tx, project *entities.Project) error {
+func (r *ProjectRepository) UpdateTx(ctx context.Context, tx types.Executor, project *entities.Project) error {
 	query := `
 		UPDATE projects
 		SET name = $2, description = $3, database_url = $4, api_key = $5, updated_at = $6
@@ -102,12 +92,10 @@ func (r *ProjectRepository) UpdateTx(ctx context.Context, tx pgx.Tx, project *en
 }
 
 func (r *ProjectRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM projects WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
-	return err
+	return r.DeleteTx(ctx, r.db, id)
 }
 
-func (r *ProjectRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+func (r *ProjectRepository) DeleteTx(ctx context.Context, tx types.Executor, id uuid.UUID) error {
 	query := `DELETE FROM projects WHERE id = $1`
 	_, err := tx.Exec(ctx, query, id)
 	return err
@@ -116,7 +104,7 @@ func (r *ProjectRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUI
 func (r *ProjectRepository) List(ctx context.Context, limit, offset int) ([]*entities.Project, error) {
 	query := `
 		SELECT id, name, description, owner_id, database_url, api_key, created_at, updated_at
-		FROM projects 
+		FROM projects
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`

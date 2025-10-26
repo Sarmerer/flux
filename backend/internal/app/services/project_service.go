@@ -23,6 +23,7 @@ type ProjectService struct {
 	dbRepo            repositories.DatabaseRepository
 	projectMemberRepo repositories.ProjectMemberRepository
 	pgService         *database.PostgreSQLManagementService
+	migrationRunner   *database.ProjectMigrationRunner
 	coreDB            *pgxpool.Pool
 	logger            *logging.Logger
 }
@@ -32,6 +33,7 @@ func NewProjectService(
 	dbRepo repositories.DatabaseRepository,
 	projectMemberRepo repositories.ProjectMemberRepository,
 	pgService *database.PostgreSQLManagementService,
+	migrationRunner *database.ProjectMigrationRunner,
 	coreDB *pgxpool.Pool,
 	logger *logging.Logger,
 ) *ProjectService {
@@ -40,6 +42,7 @@ func NewProjectService(
 		dbRepo:            dbRepo,
 		projectMemberRepo: projectMemberRepo,
 		pgService:         pgService,
+		migrationRunner:   migrationRunner,
 		coreDB:            coreDB,
 		logger:            logger,
 	}
@@ -150,11 +153,22 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 			dbLogger.Error("Failed to create physical database", err, map[string]interface{}{
 				"database_name": database.Database,
 			})
-
 			return nil, err
 		}
 
 		dbLogger.Info("Successfully created physical database", map[string]interface{}{
+			"database_name": database.Database,
+		})
+
+		if err := s.migrationRunner.InitializeProjectDatabase(ctx, database); err != nil {
+			dbLogger.Error("Failed to initialize project database schema", err, map[string]interface{}{
+				"database_name": database.Database,
+			})
+			_ = s.pgService.DropDatabase(ctx, database)
+			return nil, errors.NewDatabaseError(err).WithDetails("failed to initialize project database schema")
+		}
+
+		dbLogger.Info("Successfully initialized project database schema", map[string]interface{}{
 			"database_name": database.Database,
 		})
 	}

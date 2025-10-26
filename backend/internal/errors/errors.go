@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"time"
 )
 
@@ -41,13 +42,15 @@ const (
 )
 
 type APIError struct {
-	Code      ErrorCode              `json:"code"`
-	Message   string                 `json:"message"`
-	Details   string                 `json:"details,omitempty"`
-	Field     string                 `json:"field,omitempty"`
-	Timestamp time.Time              `json:"timestamp"`
-	RequestID string                 `json:"request_id,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Code       ErrorCode              `json:"code"`
+	Message    string                 `json:"message"`
+	Details    string                 `json:"details,omitempty"`
+	Field      string                 `json:"field,omitempty"`
+	Timestamp  time.Time              `json:"timestamp"`
+	RequestID  string                 `json:"request_id,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	StackTrace string                 `json:"-"`
+	OriginalError error               `json:"-"`
 }
 
 func (e *APIError) Error() string {
@@ -109,9 +112,39 @@ func (e *APIError) HTTPStatus() int {
 	}
 }
 
-func WriteError(w http.ResponseWriter, err *APIError) {
+func WriteError(w http.ResponseWriter, err *APIError, logger ...interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
+
+	var loggerInstance interface{}
+	if len(logger) > 0 {
+		loggerInstance = logger[0]
+	}
+
+	if err.HTTPStatus() >= 500 && loggerInstance != nil {
+		if ctxLogger, ok := loggerInstance.(interface {
+			ErrorWithStack(msg string, err error, stackTrace string, fields ...map[string]interface{})
+		}); ok {
+			fields := map[string]interface{}{
+				"error_code": err.Code,
+				"details":    err.Details,
+			}
+
+			if err.RequestID != "" {
+				fields["request_id"] = err.RequestID
+			}
+
+			if err.Field != "" {
+				fields["field"] = err.Field
+			}
+
+			if err.Metadata != nil && len(err.Metadata) > 0 {
+				fields["metadata"] = err.Metadata
+			}
+
+			ctxLogger.ErrorWithStack(err.Message, err.OriginalError, err.StackTrace, fields)
+		}
+	}
 
 	json.NewEncoder(w).Encode(err)
 }
@@ -119,6 +152,10 @@ func WriteError(w http.ResponseWriter, err *APIError) {
 func WriteErrorResponse(w http.ResponseWriter, code ErrorCode, message string) {
 	err := NewAPIError(code, message)
 	WriteError(w, err)
+}
+
+func WriteErrorWithLogger(w http.ResponseWriter, err *APIError, logger interface{}) {
+	WriteError(w, err, logger)
 }
 
 func NewValidationError(message string) *APIError {
@@ -142,7 +179,10 @@ func NewDatabaseError(err error) *APIError {
 }
 
 func NewInternalError(err error) *APIError {
-	return NewAPIError(ErrCodeInternal, "Internal server error").WithDetails(err.Error())
+	apiErr := NewAPIError(ErrCodeInternal, "Internal server error").WithDetails(err.Error())
+	apiErr.OriginalError = err
+	apiErr.StackTrace = string(debug.Stack())
+	return apiErr
 }
 
 func NewBusinessRuleError(message string) *APIError {
@@ -162,9 +202,38 @@ func ErrorHandler(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				apiErr := NewInternalError(fmt.Errorf("panic: %v", err))
-				WriteError(w, apiErr)
+
+				logger := getLoggerFromContext(r.Context())
+				if logger != nil {
+					if ctxLogger, ok := logger.(interface {
+						ErrorWithStack(msg string, err error, stackTrace string, fields ...map[string]interface{})
+					}); ok {
+						fields := map[string]interface{}{
+							"panic_value": err,
+							"method":      r.Method,
+							"path":        r.URL.Path,
+							"remote_addr": r.RemoteAddr,
+						}
+						ctxLogger.ErrorWithStack("Panic recovered", apiErr.OriginalError, apiErr.StackTrace, fields)
+					}
+				}
+
+				WriteError(w, apiErr, logger)
 			}
 		}()
 		next.ServeHTTP(w, r)
 	})
+}
+
+type contextKey string
+
+func getLoggerFromContext(ctx interface{}) interface{} {
+	type contextGetter interface {
+		Value(key interface{}) interface{}
+	}
+
+	if c, ok := ctx.(contextGetter); ok {
+		return c.Value(contextKey("logger"))
+	}
+	return nil
 }

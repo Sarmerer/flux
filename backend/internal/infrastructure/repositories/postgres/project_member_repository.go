@@ -6,6 +6,7 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
+	"github.com/flow/internal/domain/types"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -29,7 +30,7 @@ func (r *ProjectMemberRepository) Create(ctx context.Context, member *entities.P
 	return err
 }
 
-func (r *ProjectMemberRepository) CreateTx(ctx context.Context, tx pgx.Tx, member *entities.ProjectMember) error {
+func (r *ProjectMemberRepository) CreateTx(ctx context.Context, tx types.Executor, member *entities.ProjectMember) error {
 	query := `
 		INSERT INTO project_members (id, project_id, user_id, role, permissions, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -134,7 +135,7 @@ func (r *ProjectMemberRepository) Update(ctx context.Context, member *entities.P
 	return err
 }
 
-func (r *ProjectMemberRepository) UpdateTx(ctx context.Context, tx pgx.Tx, member *entities.ProjectMember) error {
+func (r *ProjectMemberRepository) UpdateTx(ctx context.Context, tx types.Executor, member *entities.ProjectMember) error {
 	query := `
 		UPDATE project_members
 		SET role = $2, permissions = $3, updated_at = $4
@@ -150,7 +151,7 @@ func (r *ProjectMemberRepository) Delete(ctx context.Context, id uuid.UUID) erro
 	return err
 }
 
-func (r *ProjectMemberRepository) DeleteTx(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+func (r *ProjectMemberRepository) DeleteTx(ctx context.Context, tx types.Executor, id uuid.UUID) error {
 	query := `DELETE FROM project_members WHERE id = $1`
 	_, err := tx.Exec(ctx, query, id)
 	return err

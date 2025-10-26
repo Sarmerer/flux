@@ -7,22 +7,25 @@ import (
 	"time"
 
 	"github.com/flow/internal/domain/entities"
-	"github.com/flow/internal/domain/repositories"
 
 	"github.com/google/uuid"
 )
 
 type TableService struct {
-	tableRepo repositories.TableRepository
+	repoFactory *ProjectRepositoryFactory
 }
 
-func NewTableService(tableRepo repositories.TableRepository) *TableService {
+func NewTableService(repoFactory *ProjectRepositoryFactory) *TableService {
 	return &TableService{
-		tableRepo: tableRepo,
+		repoFactory: repoFactory,
 	}
 }
 
 func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table repository: %w", err)
+	}
 
 	schemaJSON, err := json.Marshal(req.Schema)
 	if err != nil {
@@ -30,15 +33,16 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 	}
 
 	table := &entities.Table{
-		ID:        uuid.New(),
-		ProjectID: projectID,
-		Name:      req.Name,
-		Schema:    string(schemaJSON),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		ProjectID:   projectID,
+		Name:        req.Name,
+		Description: req.Description,
+		Schema:      string(schemaJSON),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
-	if err := s.tableRepo.Create(ctx, table); err != nil {
+	if err := tableRepo.Create(ctx, table); err != nil {
 		return nil, fmt.Errorf("failed to create table: %w", err)
 	}
 
@@ -46,8 +50,13 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 	return &response, nil
 }
 
-func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entities.TableResponse, error) {
-	table, err := s.tableRepo.GetByID(ctx, id)
+func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID, projectID uuid.UUID) (*entities.TableResponse, error) {
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table repository: %w", err)
+	}
+
+	table, err := tableRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("table not found: %w", err)
 	}
@@ -57,7 +66,12 @@ func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID) (*entitie
 }
 
 func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.TableResponse, error) {
-	tables, err := s.tableRepo.GetByProjectID(ctx, projectID)
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table repository: %w", err)
+	}
+
+	tables, err := tableRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tables: %w", err)
 	}
@@ -71,14 +85,22 @@ func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.
 	return responses, nil
 }
 
-func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest) (*entities.TableResponse, error) {
-	table, err := s.tableRepo.GetByID(ctx, id)
+func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table repository: %w", err)
+	}
+
+	table, err := tableRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("table not found: %w", err)
 	}
 
 	if req.Name != "" {
 		table.Name = req.Name
+	}
+	if req.Description != "" {
+		table.Description = req.Description
 	}
 	if req.Schema != nil {
 		schemaJSON, err := json.Marshal(req.Schema)
@@ -90,7 +112,7 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 
 	table.UpdatedAt = time.Now()
 
-	if err := s.tableRepo.Update(ctx, table); err != nil {
+	if err := tableRepo.Update(ctx, table); err != nil {
 		return nil, fmt.Errorf("failed to update table: %w", err)
 	}
 
@@ -98,14 +120,18 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 	return &response, nil
 }
 
-func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID) error {
+func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error {
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get table repository: %w", err)
+	}
 
-	_, err := s.tableRepo.GetByID(ctx, id)
+	_, err = tableRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("table not found: %w", err)
 	}
 
-	if err := s.tableRepo.Delete(ctx, id); err != nil {
+	if err := tableRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete table: %w", err)
 	}
 

@@ -22,21 +22,21 @@ func NewTableRepository(db *pgxpool.Pool) repositories.TableRepository {
 
 func (r *TableRepository) Create(ctx context.Context, table *entities.Table) error {
 	query := `
-		INSERT INTO tables (id, project_id, name, schema, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO tables (id, name, schema, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`
-	_, err := r.db.Exec(ctx, query, table.ID, table.ProjectID, table.Name, table.Schema, table.CreatedAt, table.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, table.ID, table.Name, table.Schema, table.CreatedAt, table.UpdatedAt)
 	return err
 }
 
 func (r *TableRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Table, error) {
 	query := `
-		SELECT id, project_id, name, schema, created_at, updated_at
+		SELECT id, name, schema, created_at, updated_at
 		FROM tables WHERE id = $1
 	`
 	var table entities.Table
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&table.ID, &table.ProjectID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt,
+		&table.ID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -49,11 +49,11 @@ func (r *TableRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.
 
 func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Table, error) {
 	query := `
-		SELECT id, project_id, name, schema, created_at, updated_at
-		FROM tables WHERE project_id = $1
+		SELECT id, name, schema, created_at, updated_at
+		FROM tables
 		ORDER BY created_at DESC
 	`
-	rows, err := r.db.Query(ctx, query, projectID)
+	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -62,10 +62,11 @@ func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUI
 	var tables []*entities.Table
 	for rows.Next() {
 		var table entities.Table
-		err := rows.Scan(&table.ID, &table.ProjectID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt)
+		err := rows.Scan(&table.ID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
+		table.ProjectID = projectID
 		tables = append(tables, &table)
 	}
 
@@ -90,8 +91,8 @@ func (r *TableRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *TableRepository) List(ctx context.Context, limit, offset int) ([]*entities.Table, error) {
 	query := `
-		SELECT id, project_id, name, schema, created_at, updated_at
-		FROM tables 
+		SELECT id, name, schema, created_at, updated_at
+		FROM tables
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -104,7 +105,7 @@ func (r *TableRepository) List(ctx context.Context, limit, offset int) ([]*entit
 	var tables []*entities.Table
 	for rows.Next() {
 		var table entities.Table
-		err := rows.Scan(&table.ID, &table.ProjectID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt)
+		err := rows.Scan(&table.ID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

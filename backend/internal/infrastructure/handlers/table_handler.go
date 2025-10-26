@@ -1,14 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
+	apierrors "github.com/flow/internal/errors"
 )
 
 type TableHandler struct {
@@ -22,100 +19,108 @@ func NewTableHandler(tableService services.TableServiceInterface) *TableHandler 
 }
 
 func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	var req entities.TableCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	table, err := h.tableService.CreateTable(r.Context(), &req, projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(table)
+	writeJSON(w, http.StatusCreated, table)
 }
 
 func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
-	tableIDStr := chi.URLParam(r, "id")
-	tableID, err := uuid.Parse(tableIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid table ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
-	table, err := h.tableService.GetTableByID(r.Context(), tableID)
+	tableID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		writeError(w, r, apierrors.NewValidationError("Invalid table ID"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(table)
+	table, err := h.tableService.GetTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Table"))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, table)
 }
 
 func (h *TableHandler) GetTables(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tables, err := h.tableService.GetTablesByProjectID(r.Context(), projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tables)
+	writeJSON(w, http.StatusOK, tables)
 }
 
 func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
-	tableIDStr := chi.URLParam(r, "id")
-	tableID, err := uuid.Parse(tableIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid table ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		return
+	}
+
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid table ID"))
 		return
 	}
 
 	var req entities.TableUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	table, err := h.tableService.UpdateTable(r.Context(), tableID, &req)
+	table, err := h.tableService.UpdateTable(r.Context(), tableID, &req, projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(table)
+	writeJSON(w, http.StatusOK, table)
 }
 
 func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
-	tableIDStr := chi.URLParam(r, "id")
-	tableID, err := uuid.Parse(tableIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid table ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
-	if err := h.tableService.DeleteTable(r.Context(), tableID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	if err := h.tableService.DeleteTable(r.Context(), tableID, projectID); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 

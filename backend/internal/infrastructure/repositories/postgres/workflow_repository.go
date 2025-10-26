@@ -23,12 +23,11 @@ func NewWorkflowRepository(db *pgxpool.Pool) repositories.WorkflowRepository {
 
 func (r *WorkflowRepository) Create(ctx context.Context, workflow *entities.Workflow) error {
 	query := `
-		INSERT INTO workflows (id, project_id, name, description, trigger, actions, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO workflows (id, name, description, trigger, actions, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err := r.db.Exec(ctx, query,
 		workflow.ID,
-		workflow.ProjectID,
 		workflow.Name,
 		workflow.Description,
 		workflow.Trigger,
@@ -42,13 +41,12 @@ func (r *WorkflowRepository) Create(ctx context.Context, workflow *entities.Work
 
 func (r *WorkflowRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Workflow, error) {
 	query := `
-		SELECT id, project_id, name, description, trigger, actions, is_active, created_at, updated_at
+		SELECT id, name, description, trigger, actions, is_active, created_at, updated_at
 		FROM workflows WHERE id = $1
 	`
 	var workflow entities.Workflow
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&workflow.ID,
-		&workflow.ProjectID,
 		&workflow.Name,
 		&workflow.Description,
 		&workflow.Trigger,
@@ -68,11 +66,11 @@ func (r *WorkflowRepository) GetByID(ctx context.Context, id uuid.UUID) (*entiti
 
 func (r *WorkflowRepository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Workflow, error) {
 	query := `
-		SELECT id, project_id, name, description, trigger, actions, is_active, created_at, updated_at
-		FROM workflows WHERE project_id = $1
+		SELECT id, name, description, trigger, actions, is_active, created_at, updated_at
+		FROM workflows
 		ORDER BY created_at DESC
 	`
-	rows, err := r.db.Query(ctx, query, projectID)
+	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +81,6 @@ func (r *WorkflowRepository) GetByProjectID(ctx context.Context, projectID uuid.
 		var workflow entities.Workflow
 		err := rows.Scan(
 			&workflow.ID,
-			&workflow.ProjectID,
 			&workflow.Name,
 			&workflow.Description,
 			&workflow.Trigger,
@@ -95,6 +92,7 @@ func (r *WorkflowRepository) GetByProjectID(ctx context.Context, projectID uuid.
 		if err != nil {
 			return nil, err
 		}
+		workflow.ProjectID = projectID
 		workflows = append(workflows, &workflow)
 	}
 
@@ -145,7 +143,7 @@ func (r *WorkflowRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *WorkflowRepository) List(ctx context.Context, limit, offset int) ([]*entities.Workflow, error) {
 	query := `
-		SELECT id, project_id, name, description, trigger, actions, is_active, created_at, updated_at
+		SELECT id, name, description, trigger, actions, is_active, created_at, updated_at
 		FROM workflows
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -161,7 +159,6 @@ func (r *WorkflowRepository) List(ctx context.Context, limit, offset int) ([]*en
 		var workflow entities.Workflow
 		err := rows.Scan(
 			&workflow.ID,
-			&workflow.ProjectID,
 			&workflow.Name,
 			&workflow.Description,
 			&workflow.Trigger,

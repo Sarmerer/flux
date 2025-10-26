@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/flow/internal/domain/entities"
@@ -14,30 +13,31 @@ import (
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/infrastructure/logging"
+	"github.com/flow/internal/validation"
 
 	"github.com/google/uuid"
 )
 
 type WorkflowService struct {
-	workflowRepo       repositories.WorkflowRepository
-	projectRepo        repositories.ProjectRepository
-	dbRepo             repositories.DatabaseRepository
+	repoFactory         *ProjectRepositoryFactory
+	projectRepo         repositories.ProjectRepository
+	dbRepo              repositories.DatabaseRepository
 	dataManipulationSvc *database.DataManipulationService
-	httpClient         *http.Client
-	logger             *logging.Logger
+	httpClient          *http.Client
+	logger              *logging.Logger
 }
 
 func NewWorkflowService(
-	workflowRepo repositories.WorkflowRepository,
+	repoFactory *ProjectRepositoryFactory,
 	projectRepo repositories.ProjectRepository,
 	dbRepo repositories.DatabaseRepository,
 	dataManipulationSvc *database.DataManipulationService,
 	logger *logging.Logger,
 ) *WorkflowService {
 	return &WorkflowService{
-		workflowRepo:       workflowRepo,
-		projectRepo:        projectRepo,
-		dbRepo:             dbRepo,
+		repoFactory:         repoFactory,
+		projectRepo:         projectRepo,
+		dbRepo:              dbRepo,
 		dataManipulationSvc: dataManipulationSvc,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -47,18 +47,22 @@ func NewWorkflowService(
 }
 
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.WorkflowCreateRequest, projectID uuid.UUID) (*entities.WorkflowResponse, error) {
-
 	_, err := s.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
 		return nil, errors.NewNotFoundError("Project")
 	}
 
-	if err := s.validateTrigger(&req.Trigger); err != nil {
+	if err := validation.ValidateTrigger(&req.Trigger); err != nil {
 		return nil, errors.NewValidationError("invalid trigger").WithDetails(err.Error())
 	}
 
-	if err := s.validateActions(req.Actions); err != nil {
+	if err := validation.ValidateActions(req.Actions); err != nil {
 		return nil, errors.NewValidationError("invalid actions").WithDetails(err.Error())
+	}
+
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
 	}
 
 	workflow := &entities.Workflow{
@@ -73,7 +77,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.Work
 		UpdatedAt:   time.Now(),
 	}
 
-	if err := s.workflowRepo.Create(ctx, workflow); err != nil {
+	if err := workflowRepo.Create(ctx, workflow); err != nil {
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to create workflow")
 	}
 
@@ -81,8 +85,13 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.Work
 	return &response, nil
 }
 
-func (s *WorkflowService) GetWorkflowByID(ctx context.Context, id uuid.UUID) (*entities.WorkflowResponse, error) {
-	workflow, err := s.workflowRepo.GetByID(ctx, id)
+func (s *WorkflowService) GetWorkflowByID(ctx context.Context, id uuid.UUID, projectID uuid.UUID) (*entities.WorkflowResponse, error) {
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+	}
+
+	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.NewNotFoundError("Workflow")
 	}
@@ -92,7 +101,12 @@ func (s *WorkflowService) GetWorkflowByID(ctx context.Context, id uuid.UUID) (*e
 }
 
 func (s *WorkflowService) GetWorkflowsByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.WorkflowResponse, error) {
-	workflows, err := s.workflowRepo.GetByProjectID(ctx, projectID)
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+	}
+
+	workflows, err := workflowRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflows")
 	}
@@ -106,8 +120,13 @@ func (s *WorkflowService) GetWorkflowsByProjectID(ctx context.Context, projectID
 	return responses, nil
 }
 
-func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, req *entities.WorkflowUpdateRequest) (*entities.WorkflowResponse, error) {
-	workflow, err := s.workflowRepo.GetByID(ctx, id)
+func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID, req *entities.WorkflowUpdateRequest) (*entities.WorkflowResponse, error) {
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+	}
+
+	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.NewNotFoundError("Workflow")
 	}
@@ -121,14 +140,14 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, req 
 	}
 
 	if req.Trigger != nil {
-		if err := s.validateTrigger(req.Trigger); err != nil {
+		if err := validation.ValidateTrigger(req.Trigger); err != nil {
 			return nil, errors.NewValidationError("invalid trigger").WithDetails(err.Error())
 		}
 		workflow.Trigger = *req.Trigger
 	}
 
 	if req.Actions != nil && len(req.Actions) > 0 {
-		if err := s.validateActions(req.Actions); err != nil {
+		if err := validation.ValidateActions(req.Actions); err != nil {
 			return nil, errors.NewValidationError("invalid actions").WithDetails(err.Error())
 		}
 		workflow.Actions = req.Actions
@@ -140,7 +159,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, req 
 
 	workflow.UpdatedAt = time.Now()
 
-	if err := s.workflowRepo.Update(ctx, workflow); err != nil {
+	if err := workflowRepo.Update(ctx, workflow); err != nil {
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to update workflow")
 	}
 
@@ -148,31 +167,40 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, req 
 	return &response, nil
 }
 
-func (s *WorkflowService) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
+func (s *WorkflowService) DeleteWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error {
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+	}
 
-	_, err := s.workflowRepo.GetByID(ctx, id)
+	_, err = workflowRepo.GetByID(ctx, id)
 	if err != nil {
 		return errors.NewNotFoundError("Workflow")
 	}
 
-	if err := s.workflowRepo.Delete(ctx, id); err != nil {
+	if err := workflowRepo.Delete(ctx, id); err != nil {
 		return errors.NewDatabaseError(err).WithDetails("failed to delete workflow")
 	}
 
 	return nil
 }
 
-func (s *WorkflowService) ToggleWorkflowActive(ctx context.Context, id uuid.UUID, isActive bool) (*entities.WorkflowResponse, error) {
-	workflow, err := s.workflowRepo.GetByID(ctx, id)
+func (s *WorkflowService) ToggleWorkflowActive(ctx context.Context, id uuid.UUID, projectID uuid.UUID, isActive bool) (*entities.WorkflowResponse, error) {
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+	}
+
+	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.NewNotFoundError("Workflow")
 	}
 
-	if err := s.workflowRepo.ToggleActive(ctx, id, isActive); err != nil {
+	if err := workflowRepo.ToggleActive(ctx, id, isActive); err != nil {
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to toggle workflow active state")
 	}
 
-	workflow, err = s.workflowRepo.GetByID(ctx, id)
+	workflow, err = workflowRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.NewDatabaseError(err).WithDetails("failed to fetch updated workflow")
 	}
@@ -181,8 +209,13 @@ func (s *WorkflowService) ToggleWorkflowActive(ctx context.Context, id uuid.UUID
 	return &response, nil
 }
 
-func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, id uuid.UUID) error {
-	workflow, err := s.workflowRepo.GetByID(ctx, id)
+func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error {
+	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
+	if err != nil {
+		return errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+	}
+
+	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
 		return errors.NewNotFoundError("Workflow")
 	}
@@ -240,99 +273,6 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, id uuid.UUID) err
 	return nil
 }
 
-func (s *WorkflowService) validateTrigger(trigger *entities.WorkflowTrigger) error {
-	validTriggerTypes := map[string]bool{
-		"on_row_created": true,
-		"on_row_updated": true,
-		"on_row_deleted": true,
-		"scheduled":      true,
-		"webhook":        true,
-	}
-
-	if !validTriggerTypes[trigger.Type] {
-		return fmt.Errorf("invalid trigger type: %s", trigger.Type)
-	}
-
-	if trigger.Type == "on_row_created" || trigger.Type == "on_row_updated" || trigger.Type == "on_row_deleted" {
-		if trigger.TableName == "" {
-			return fmt.Errorf("table_name is required for trigger type: %s", trigger.Type)
-		}
-	}
-
-	if trigger.Type == "scheduled" {
-		if trigger.Schedule == "" {
-			return fmt.Errorf("schedule is required for scheduled triggers")
-		}
-		if err := validateCronExpression(trigger.Schedule); err != nil {
-			return fmt.Errorf("invalid cron expression: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func validateCronExpression(expr string) error {
-
-	cronRegex := regexp.MustCompile(`^(\*|([0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])|\*/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)\s+(\*|([0-9]|1[0-9]|2[0-3])|\*/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)\s+(\*|([1-9]|1[0-9]|2[0-9]|3[0-1])|\*/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)\s+(\*|([1-9]|1[0-2])|\*/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)\s+(\*|[0-6]|\*/[0-9]+|[0-9]+-[0-9]+|[0-9]+(,[0-9]+)*)$`)
-
-	if !cronRegex.MatchString(expr) {
-		return fmt.Errorf("invalid cron expression format, expected: 'minute hour day month weekday'")
-	}
-
-	return nil
-}
-
-func (s *WorkflowService) validateActions(actions []entities.WorkflowAction) error {
-	if len(actions) == 0 {
-		return fmt.Errorf("at least one action is required")
-	}
-
-	validActionTypes := map[string]bool{
-		"send_webhook": true,
-		"send_email":   true,
-		"update_row":   true,
-		"create_row":   true,
-		"delete_row":   true,
-	}
-
-	for i, action := range actions {
-		if action.ID == "" {
-			return fmt.Errorf("action %d: id is required", i)
-		}
-
-		if !validActionTypes[action.Type] {
-			return fmt.Errorf("action %d: invalid action type: %s", i, action.Type)
-		}
-
-		if action.Config == nil || len(action.Config) == 0 {
-			return fmt.Errorf("action %d: config is required", i)
-		}
-
-		if err := s.validateActionConfig(i, &action); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *WorkflowService) validateActionConfig(index int, action *entities.WorkflowAction) error {
-	switch action.Type {
-	case "send_webhook":
-		if _, ok := action.Config["url"].(string); !ok {
-			return fmt.Errorf("action %d: webhook url is required", index)
-		}
-	case "send_email":
-		if _, ok := action.Config["to"].(string); !ok {
-			return fmt.Errorf("action %d: email recipient (to) is required", index)
-		}
-	case "update_row", "create_row", "delete_row":
-		if _, ok := action.Config["table"].(string); !ok {
-			return fmt.Errorf("action %d: table name is required", index)
-		}
-	}
-	return nil
-}
 
 func (s *WorkflowService) executeAction(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
 	switch action.Type {

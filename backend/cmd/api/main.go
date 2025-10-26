@@ -56,8 +56,6 @@ func main() {
 	userRepo := postgresRepo.NewUserRepository(db)
 	projectRepo := postgresRepo.NewProjectRepository(db)
 	databaseRepo := postgresRepo.NewDatabaseRepository(db)
-	tableRepo := postgresRepo.NewTableRepository(db)
-	workflowRepo := postgresRepo.NewWorkflowRepository(db)
 	projectMemberRepo := postgresRepo.NewProjectMemberRepository(db)
 
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
@@ -102,13 +100,19 @@ func main() {
 	dataManipulationService := database.NewDataManipulationService(connService)
 	schemaManagementService := database.NewSchemaManagementService(connService)
 
+	projectConnResolver := database.NewProjectConnectionResolver(connService, databaseRepo)
+	defer projectConnResolver.Close()
+
+	migrationRunner := database.NewProjectMigrationRunner(connService, appLogger)
+
+	repoFactory := services.NewProjectRepositoryFactory(projectConnResolver)
+
 	dbService := services.NewDatabaseService(databaseRepo, projectRepo, pgManagementService, connService, progressTracker, wsHub)
-	tableSchemaMutationService := services.NewTableSchemaMutationService(tableRepo, databaseRepo, projectRepo, schemaManagementService)
 
 	userService := services.NewUserService(userRepo, cfg.JWT.Secret)
-	projectService := services.NewProjectService(projectRepo, databaseRepo, projectMemberRepo, pgManagementService, db, appLogger)
-	tableService := services.NewTableService(tableRepo)
-	workflowService := services.NewWorkflowService(workflowRepo, projectRepo, databaseRepo, dataManipulationService, appLogger)
+	projectService := services.NewProjectService(projectRepo, databaseRepo, projectMemberRepo, pgManagementService, migrationRunner, db, appLogger)
+	tableService := services.NewTableService(repoFactory)
+	workflowService := services.NewWorkflowService(repoFactory, projectRepo, databaseRepo, dataManipulationService, appLogger)
 
 	userHandler := handlers.NewUserHandler(userService)
 	projectHandler := handlers.NewProjectHandler(projectService)
@@ -116,12 +120,12 @@ func main() {
 	tableHandler := handlers.NewTableHandler(tableService)
 	dbMutationProgressHandler := handlers.NewDatabaseMutationProgressHandler(dbService, progressTracker, wsHub)
 	dbMutationProgressHandler.SetJWTSecret(cfg.JWT.Secret)
-	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(tableSchemaMutationService)
+	tableSchemaMutationHandler := handlers.NewTableSchemaMutationHandler(databaseRepo, projectRepo, schemaManagementService)
 	workflowHandler := handlers.NewWorkflowHandler(workflowService)
 
 	logHandler := handlers.NewLogHandler(logStorage, logStreamer)
 
-	router := routes.SetupRoutes(userHandler, projectHandler, projectMemberHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, projectMemberRepo, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
+	router := routes.SetupRoutes(userHandler, projectHandler, projectMemberHandler, tableHandler, dbMutationProgressHandler, tableSchemaMutationHandler, workflowHandler, logHandler, projectMemberRepo, appLogger, cfg.JWT.Secret, cfg.CORS.AllowedOrigins)
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),

@@ -1,68 +1,116 @@
 package handlers
 
 import (
-	"encoding/json"
+	"context"
+	"fmt"
 	"net/http"
 
-	"github.com/flow/internal/app/services"
+	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/domain/repositories"
+	apierrors "github.com/flow/internal/errors"
+	"github.com/flow/internal/infrastructure/database"
+	"github.com/flow/internal/validation"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 type TableSchemaMutationHandler struct {
-	schemaMutationService *services.TableSchemaMutationService
+	dbRepo      repositories.DatabaseRepository
+	projectRepo repositories.ProjectRepository
+	schemaSvc   *database.SchemaManagementService
 }
 
-func NewTableSchemaMutationHandler(schemaMutationService *services.TableSchemaMutationService) *TableSchemaMutationHandler {
+type ColumnDefinition = database.ColumnDefinition
+type TableSchema = database.TableSchema
+type ForeignKeyDefinition = database.ForeignKeyDefinition
+
+func NewTableSchemaMutationHandler(
+	dbRepo repositories.DatabaseRepository,
+	projectRepo repositories.ProjectRepository,
+	schemaSvc *database.SchemaManagementService,
+) *TableSchemaMutationHandler {
 	return &TableSchemaMutationHandler{
-		schemaMutationService: schemaMutationService,
+		dbRepo:      dbRepo,
+		projectRepo: projectRepo,
+		schemaSvc:   schemaSvc,
 	}
 }
 
+func (h *TableSchemaMutationHandler) getProjectDatabase(ctx context.Context, projectID uuid.UUID) (*entities.Database, error) {
+	databases, err := h.dbRepo.GetByProjectID(ctx, projectID)
+	if err != nil || len(databases) == 0 {
+		return nil, fmt.Errorf("no database found for project")
+	}
+	return databases[0], nil
+}
+
 func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	var req struct {
-		TableName string               `json:"table_name" validate:"required"`
-		Schema    services.TableSchema `json:"schema" validate:"required"`
+		TableName string      `json:"table_name" validate:"required"`
+		Schema    TableSchema `json:"schema" validate:"required"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	if err := h.schemaMutationService.CreateTableInDatabase(r.Context(), projectID, req.TableName, req.Schema); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if req.TableName == "" {
+		writeError(w, r, apierrors.NewValidationError("table name is required"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"status": "table created"})
+	if !validation.IsValidTableName(req.TableName) {
+		writeError(w, r, apierrors.NewValidationError("invalid table name"))
+		return
+	}
+
+	if err := validation.ValidateTableSchema(&req.Schema); err != nil {
+		writeError(w, r, apierrors.NewValidationError("schema validation failed"))
+		return
+	}
+
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		return
+	}
+
+	if err := h.schemaSvc.CreateTable(r.Context(), database, req.TableName, req.Schema); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]string{"status": "table created"})
 }
 
 func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Table name is required"))
 		return
 	}
 
-	if err := h.schemaMutationService.DropTableFromDatabase(r.Context(), projectID, tableName); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		return
+	}
+
+	if err := h.schemaSvc.DropTable(r.Context(), database, tableName); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 
@@ -70,56 +118,69 @@ func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter
 }
 
 func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Table name is required"))
 		return
 	}
 
-	var req services.AddColumnRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var req struct {
+		Column ColumnDefinition `json:"column" validate:"required"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	if err := h.schemaMutationService.AddColumnToTable(r.Context(), projectID, tableName, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "column added"})
+	if err := h.schemaSvc.AddColumn(r.Context(), database, tableName, req.Column); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "column added"})
 }
 
 func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Table name is required"))
 		return
 	}
 
-	var req services.RemoveColumnRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var req struct {
+		ColumnName string `json:"column_name" validate:"required"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	if err := h.schemaMutationService.RemoveColumnFromTable(r.Context(), projectID, tableName, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		return
+	}
+
+	if err := h.schemaSvc.RemoveColumn(r.Context(), database, tableName, req.ColumnName); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 
@@ -127,85 +188,105 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 }
 
 func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Table name is required"))
 		return
 	}
 
-	var req services.ModifyColumnRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var req struct {
+		ColumnName string           `json:"column_name" validate:"required"`
+		Column     ColumnDefinition `json:"column" validate:"required"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	if err := h.schemaMutationService.ModifyColumnInTable(r.Context(), projectID, tableName, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "column modified"})
+	if err := h.schemaSvc.ModifyColumn(r.Context(), database, tableName, req.ColumnName, req.Column); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "column modified"})
 }
 
 func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Table name is required"))
 		return
 	}
 
-	var req services.AddForeignKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var req struct {
+		ForeignKey ForeignKeyDefinition `json:"foreign_key" validate:"required"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	if err := h.schemaMutationService.AddForeignKeyToTable(r.Context(), projectID, tableName, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "foreign key added"})
+	if err := h.schemaSvc.AddForeignKey(r.Context(), database, tableName, req.ForeignKey); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "foreign key added"})
 }
 
 func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		http.Error(w, "Invalid project ID", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+		writeError(w, r, apierrors.NewValidationError("Table name is required"))
 		return
 	}
 
-	var req services.RemoveForeignKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var req struct {
+		ForeignKeyName string `json:"foreign_key_name" validate:"required"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
 		return
 	}
 
-	if err := h.schemaMutationService.RemoveForeignKeyFromTable(r.Context(), projectID, tableName, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		return
+	}
+
+	if err := h.schemaSvc.RemoveForeignKey(r.Context(), database, tableName, req.ForeignKeyName); err != nil {
+		writeError(w, r, apierrors.NewInternalError(err))
 		return
 	}
 

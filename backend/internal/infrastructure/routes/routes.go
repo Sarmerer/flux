@@ -7,6 +7,7 @@ import (
 	"github.com/flow/internal/domain/repositories"
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/handlers"
+	"github.com/flow/internal/infrastructure/logging"
 	authMiddleware "github.com/flow/internal/infrastructure/middleware"
 
 	"github.com/go-chi/chi/v5"
@@ -24,16 +25,17 @@ func SetupRoutes(
 	workflowHandler *handlers.WorkflowHandler,
 	logHandler *handlers.LogHandler,
 	projectMemberRepo repositories.ProjectMemberRepository,
+	appLogger *logging.Logger,
 	jwtSecret string,
 	corsAllowedOrigins []string,
 ) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(errors.ErrorHandler)
-	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(authMiddleware.LoggingMiddleware(appLogger))
+	r.Use(errors.ErrorHandler)
+	r.Use(middleware.Recoverer)
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   corsAllowedOrigins,
