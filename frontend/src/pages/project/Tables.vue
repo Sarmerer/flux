@@ -100,13 +100,42 @@ const filteredTables = computed(() => {
 })
 
 const handleCreateTable = async () => {
-  if (!newTable.value.name.trim()) return
+  if (!newTable.value.name.trim()) {
+    toast.error('Validation Error', 'Table name is required')
+    return
+  }
+
+  if (newTable.value.columns.length === 0) {
+    toast.error('Validation Error', 'At least one column is required')
+    return
+  }
+
+  const hasInvalidColumns = newTable.value.columns.some((col) => !col.name.trim() || !col.type)
+  if (hasInvalidColumns) {
+    toast.error('Validation Error', 'All columns must have a name and type')
+    return
+  }
 
   isCreating.value = true
   try {
+    const schema = {
+      columns: newTable.value.columns.map((col) => ({
+        name: col.name,
+        type: col.type,
+        nullable: col.nullable,
+        default: col.default_value || undefined,
+      })),
+      primary_key: newTable.value.columns
+        .filter((col) => col.primary_key)
+        .map((col) => col.name),
+      indexes: [],
+      foreign_keys: [],
+    }
+
     const createdTable = await createTable({
       name: newTable.value.name,
       description: newTable.value.description || undefined,
+      schema,
     })
 
     toast.success('Success', `Table "${createdTable.name}" has been created`)
@@ -208,7 +237,12 @@ const removeColumn = (index: number) => {
 
             <div class="space-y-4">
               <div class="flex items-center justify-between">
-                <Label>Columns</Label>
+                <div>
+                  <Label>Columns</Label>
+                  <p class="text-xs text-muted-foreground mt-1">
+                    At least one column is required
+                  </p>
+                </div>
                 <Button type="button" variant="outline" size="sm" @click="addColumn">
                   <Plus class="w-4 h-4 mr-1" />
                   Add Column
@@ -250,7 +284,10 @@ const removeColumn = (index: number) => {
             <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
               Cancel
             </Button>
-            <Button @click="handleCreateTable" :disabled="!newTable.name.trim() || isCreating">
+            <Button
+              @click="handleCreateTable"
+              :disabled="!newTable.name.trim() || newTable.columns.length === 0 || isCreating"
+            >
               {{ isCreating ? 'Creating...' : 'Create Table' }}
             </Button>
           </DialogFooter>

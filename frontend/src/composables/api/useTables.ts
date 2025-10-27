@@ -29,7 +29,16 @@ export function useTables(projectId: string) {
     },
   })
 
-  const createTable = async (data: { name: string; description?: string }) => {
+  const createTable = async (data: {
+    name: string
+    description?: string
+    schema?: {
+      columns: Array<{ name: string; type: string; nullable?: boolean; default?: string }>
+      primary_key?: string[]
+      indexes?: any[]
+      foreign_keys?: any[]
+    }
+  }) => {
     const newTable = await tableService.create(projectId, data)
     refresh()
 
