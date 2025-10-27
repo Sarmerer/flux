@@ -26,16 +26,14 @@ func NewDatabaseMutationProgressHandler(
 	dbService *services.DatabaseService,
 	progressTracker *progress.Tracker,
 	hub *realtime.Hub,
+	jwtSecret string,
 ) *DatabaseMutationProgressHandler {
 	return &DatabaseMutationProgressHandler{
 		dbService:       dbService,
 		progressTracker: progressTracker,
 		hub:             hub,
+		jwtSecret:       jwtSecret,
 	}
-}
-
-func (h *DatabaseMutationProgressHandler) SetJWTSecret(secret string) {
-	h.jwtSecret = secret
 }
 
 func (h *DatabaseMutationProgressHandler) CreateProjectDatabaseWithProgress(w http.ResponseWriter, r *http.Request) {

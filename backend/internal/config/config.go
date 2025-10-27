@@ -10,10 +10,11 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	JWT      JWTConfig
-	CORS     CORSConfig
+	Server          ServerConfig
+	Database        DatabaseConfig
+	ProjectDatabase ProjectDatabaseConfig
+	JWT             JWTConfig
+	CORS            CORSConfig
 }
 
 type ServerConfig struct {
@@ -28,6 +29,14 @@ type DatabaseConfig struct {
 	User     string
 	Password string
 	DBName   string
+	SSLMode  string
+}
+
+type ProjectDatabaseConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
 	SSLMode  string
 }
 
@@ -65,6 +74,13 @@ func Load() (*Config, error) {
 			Password: getEnv("DB_PASSWORD", "password"),
 			DBName:   getEnv("DB_NAME", "flow"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		},
+		ProjectDatabase: ProjectDatabaseConfig{
+			Host:     getEnv("PROJECT_DB_HOST", "localhost"),
+			Port:     getEnvAsInt("PROJECT_DB_PORT", 5432),
+			User:     getEnv("PROJECT_DB_USER", "postgres"),
+			Password: getEnv("PROJECT_DB_PASSWORD", "password"),
+			SSLMode:  getEnv("PROJECT_DB_SSL_MODE", "disable"),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),

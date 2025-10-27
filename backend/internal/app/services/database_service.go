@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/flow/internal/domain/entities"
@@ -296,7 +297,60 @@ func (s *DatabaseService) CreateTableWithProgress(ctx context.Context, projectID
 }
 
 func (s *DatabaseService) generateCreateTableSQL(tableReq *entities.TableCreateRequest) (string, error) {
+	var columns []string
 
-	return fmt.Sprintf("CREATE TABLE %s (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), created_at TIMESTAMP DEFAULT NOW())", tableReq.Name), nil
+	if columnsData, ok := tableReq.Schema["columns"].([]interface{}); ok {
+		for _, colData := range columnsData {
+			colMap, ok := colData.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			name, _ := colMap["name"].(string)
+			colType, _ := colMap["type"].(string)
+			nullable, _ := colMap["nullable"].(bool)
+			defaultValue, _ := colMap["default_value"].(string)
+			unique, _ := colMap["unique"].(bool)
+
+			if name == "" || colType == "" {
+				continue
+			}
+
+			colDef := fmt.Sprintf("%s %s", name, colType)
+
+			if !nullable {
+				colDef += " NOT NULL"
+			}
+
+			if defaultValue != "" {
+				colDef += fmt.Sprintf(" DEFAULT %s", defaultValue)
+			}
+
+			if unique {
+				colDef += " UNIQUE"
+			}
+
+			columns = append(columns, colDef)
+		}
+	}
+
+	if len(columns) == 0 {
+		columns = append(columns, "id UUID PRIMARY KEY DEFAULT gen_random_uuid()")
+		columns = append(columns, "created_at TIMESTAMP DEFAULT NOW()")
+	}
+
+	if primaryKey, ok := tableReq.Schema["primary_key"].([]interface{}); ok && len(primaryKey) > 0 {
+		var pkColumns []string
+		for _, pk := range primaryKey {
+			if pkStr, ok := pk.(string); ok {
+				pkColumns = append(pkColumns, pkStr)
+			}
+		}
+		if len(pkColumns) > 0 {
+			columns = append(columns, fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(pkColumns, ", ")))
+		}
+	}
+
+	return fmt.Sprintf("CREATE TABLE %s (%s)", tableReq.Name, strings.Join(columns, ", ")), nil
 }
 

@@ -18,6 +18,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type ProjectDatabaseConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	SSLMode  string
+}
+
 type ProjectService struct {
 	projectRepo       repositories.ProjectRepository
 	dbRepo            repositories.DatabaseRepository
@@ -26,6 +34,7 @@ type ProjectService struct {
 	migrationRunner   *database.ProjectMigrationRunner
 	coreDB            *pgxpool.Pool
 	logger            *logging.Logger
+	projectDBConfig   ProjectDatabaseConfig
 }
 
 func NewProjectService(
@@ -36,6 +45,7 @@ func NewProjectService(
 	migrationRunner *database.ProjectMigrationRunner,
 	coreDB *pgxpool.Pool,
 	logger *logging.Logger,
+	projectDBConfig ProjectDatabaseConfig,
 ) *ProjectService {
 	return &ProjectService{
 		projectRepo:       projectRepo,
@@ -45,6 +55,7 @@ func NewProjectService(
 		migrationRunner:   migrationRunner,
 		coreDB:            coreDB,
 		logger:            logger,
+		projectDBConfig:   projectDBConfig,
 	}
 }
 
@@ -105,12 +116,12 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 			ID:        uuid.New(),
 			ProjectID: project.ID,
 			Name:      fmt.Sprintf("%s_db", req.Name),
-			Host:      "localhost",
-			Port:      5432,
-			Username:  "postgres",
-			Password:  "password",
+			Host:      s.projectDBConfig.Host,
+			Port:      s.projectDBConfig.Port,
+			Username:  s.projectDBConfig.User,
+			Password:  s.projectDBConfig.Password,
 			Database:  fmt.Sprintf("project_%s", project.ID.String()[:8]),
-			SSLMode:   "disable",
+			SSLMode:   s.projectDBConfig.SSLMode,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}

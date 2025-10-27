@@ -17,9 +17,13 @@ type Config struct {
 	SSLMode  string
 }
 
+func (c Config) ConnectionString() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		c.User, c.Password, c.Host, c.Port, c.DBName, c.SSLMode)
+}
+
 func NewConnection(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+	dsn := cfg.ConnectionString()
 
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
