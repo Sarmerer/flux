@@ -33,7 +33,11 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 
 	table, err := h.tableService.CreateTable(r.Context(), &req, projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		if isValidationError(err) {
+			writeError(w, r, apierrors.NewValidationError(err.Error()))
+		} else {
+			writeError(w, r, apierrors.NewInternalError(err))
+		}
 		return
 	}
 

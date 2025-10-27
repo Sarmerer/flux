@@ -164,7 +164,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 			dbLogger.Error("Failed to create physical database", err, map[string]interface{}{
 				"database_name": database.Database,
 			})
-			return nil, err
+
+			if deleteErr := s.projectRepo.Delete(ctx, project.ID); deleteErr != nil {
+				dbLogger.Error("Failed to cleanup project metadata after database creation failure", deleteErr)
+			}
+			return nil, errors.NewDatabaseError(err).WithDetails("failed to create physical database")
 		}
 
 		dbLogger.Info("Successfully created physical database", map[string]interface{}{
@@ -175,7 +179,15 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 			dbLogger.Error("Failed to initialize project database schema", err, map[string]interface{}{
 				"database_name": database.Database,
 			})
-			_ = s.pgService.DropDatabase(ctx, database)
+
+			if dropErr := s.pgService.DropDatabase(ctx, database); dropErr != nil {
+				dbLogger.Error("Failed to drop database after initialization failure", dropErr)
+			}
+
+			if deleteErr := s.projectRepo.Delete(ctx, project.ID); deleteErr != nil {
+				dbLogger.Error("Failed to cleanup project metadata after initialization failure", deleteErr)
+			}
+
 			return nil, errors.NewDatabaseError(err).WithDetails("failed to initialize project database schema")
 		}
 

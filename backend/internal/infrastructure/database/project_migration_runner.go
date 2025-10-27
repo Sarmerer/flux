@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+//go:embed migrations/project_initial_schema.sql
 var projectInitialSchema string
 
 type ProjectMigrationRunner struct {

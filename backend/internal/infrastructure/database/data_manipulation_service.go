@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,26 +19,26 @@ func NewDataManipulationService(connService *ConnectionService) *DataManipulatio
 	}
 }
 
-func (s *DataManipulationService) UpdateRow(ctx context.Context, database *entities.Database, tableName string, rowID string, updates map[string]interface{}) error {
+func (s *DataManipulationService) UpdateRow(ctx context.Context, database *entities.Database, tableName string, rowID string, updates map[string]any) error {
 	if len(updates) == 0 {
 		return fmt.Errorf("no updates provided")
 	}
 
 	setClause := ""
-	args := []interface{}{}
+	args := []any{}
 	argPos := 1
 
 	for key, value := range updates {
 		if setClause != "" {
 			setClause += ", "
 		}
-		setClause += fmt.Sprintf("%s = $%d", key, argPos)
+		setClause += fmt.Sprintf("%s = $%d", pgx.Identifier{key}.Sanitize(), argPos)
 		args = append(args, value)
 		argPos++
 	}
 
 	args = append(args, rowID)
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d", tableName, setClause, argPos)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d", pgx.Identifier{tableName}.Sanitize(), setClause, argPos)
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, args...); err != nil {
@@ -47,14 +48,14 @@ func (s *DataManipulationService) UpdateRow(ctx context.Context, database *entit
 	})
 }
 
-func (s *DataManipulationService) CreateRow(ctx context.Context, database *entities.Database, tableName string, data map[string]interface{}) error {
+func (s *DataManipulationService) CreateRow(ctx context.Context, database *entities.Database, tableName string, data map[string]any) error {
 	if len(data) == 0 {
 		return fmt.Errorf("no data provided")
 	}
 
 	columns := ""
 	placeholders := ""
-	args := []interface{}{}
+	args := []any{}
 	argPos := 1
 
 	for key, value := range data {
@@ -62,13 +63,13 @@ func (s *DataManipulationService) CreateRow(ctx context.Context, database *entit
 			columns += ", "
 			placeholders += ", "
 		}
-		columns += key
+		columns += pgx.Identifier{key}.Sanitize()
 		placeholders += fmt.Sprintf("$%d", argPos)
 		args = append(args, value)
 		argPos++
 	}
 
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, placeholders)
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", pgx.Identifier{tableName}.Sanitize(), columns, placeholders)
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, args...); err != nil {
@@ -79,7 +80,7 @@ func (s *DataManipulationService) CreateRow(ctx context.Context, database *entit
 }
 
 func (s *DataManipulationService) DeleteRow(ctx context.Context, database *entities.Database, tableName string, rowID string) error {
-	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", tableName)
+	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", pgx.Identifier{tableName}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, rowID); err != nil {

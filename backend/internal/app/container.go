@@ -181,7 +181,11 @@ func (c *Container) initServices() {
 		},
 	)
 
-	c.TableService = services.NewTableService(repoFactory)
+	c.TableService = services.NewTableService(
+		repoFactory,
+		c.ProjectConnResolver,
+		c.SchemaManagementService,
+	)
 
 	c.WorkflowService = services.NewWorkflowService(
 		repoFactory,

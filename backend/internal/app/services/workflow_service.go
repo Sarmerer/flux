@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/flow/internal/domain/entities"
@@ -292,9 +295,13 @@ func (s *WorkflowService) executeAction(ctx context.Context, workflow *entities.
 }
 
 func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entities.WorkflowAction) error {
-	url, ok := action.Config["url"].(string)
+	webhookURL, ok := action.Config["url"].(string)
 	if !ok {
 		return fmt.Errorf("webhook url not found in config")
+	}
+
+	if err := s.validateWebhookURL(webhookURL); err != nil {
+		return fmt.Errorf("invalid webhook URL: %w", err)
 	}
 
 	payload := map[string]interface{}{
@@ -309,7 +316,7 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 		return fmt.Errorf("failed to marshal webhook payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create webhook request: %w", err)
 	}
@@ -328,9 +335,66 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 	}
 
 	s.logger.Info("Successfully sent webhook", map[string]interface{}{
-		"url":    url,
+		"url":    webhookURL,
 		"status": resp.StatusCode,
 	})
+	return nil
+}
+
+func (s *WorkflowService) validateWebhookURL(webhookURL string) error {
+	parsedURL, err := url.Parse(webhookURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL format: %w", err)
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("only http and https schemes are allowed")
+	}
+
+	if parsedURL.Host == "" {
+		return fmt.Errorf("URL must have a host")
+	}
+
+	host := parsedURL.Hostname()
+
+	blockedHosts := []string{
+		"localhost",
+		"127.0.0.1",
+		"0.0.0.0",
+		"::1",
+		"[::1]",
+	}
+
+	for _, blocked := range blockedHosts {
+		if strings.EqualFold(host, blocked) {
+			return fmt.Errorf("localhost addresses are not allowed")
+		}
+	}
+
+	ip := net.ParseIP(host)
+	if ip != nil {
+		if ip.IsLoopback() {
+			return fmt.Errorf("loopback addresses are not allowed")
+		}
+		if ip.IsPrivate() {
+			return fmt.Errorf("private IP addresses are not allowed")
+		}
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("link-local addresses are not allowed")
+		}
+	}
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("failed to resolve host: %w", err)
+	}
+
+	for _, ip := range ips {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
+			return fmt.Errorf("host resolves to a blocked IP address")
+		}
+	}
+
 	return nil
 }
 
@@ -356,6 +420,10 @@ func (s *WorkflowService) executeUpdateRow(ctx context.Context, workflow *entiti
 	tableName, ok := action.Config["table"].(string)
 	if !ok {
 		return fmt.Errorf("table name not found in config")
+	}
+
+	if !validation.IsValidTableName(tableName) {
+		return fmt.Errorf("invalid table name in workflow action: %s", tableName)
 	}
 
 	rowID, ok := action.Config["row_id"].(string)
@@ -384,6 +452,10 @@ func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entiti
 		return fmt.Errorf("table name not found in config")
 	}
 
+	if !validation.IsValidTableName(tableName) {
+		return fmt.Errorf("invalid table name in workflow action: %s", tableName)
+	}
+
 	data, ok := action.Config["data"].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("data not found in config")
@@ -403,6 +475,10 @@ func (s *WorkflowService) executeDeleteRow(ctx context.Context, workflow *entiti
 	tableName, ok := action.Config["table"].(string)
 	if !ok {
 		return fmt.Errorf("table name not found in config")
+	}
+
+	if !validation.IsValidTableName(tableName) {
+		return fmt.Errorf("invalid table name in workflow action: %s", tableName)
 	}
 
 	rowID, ok := action.Config["row_id"].(string)

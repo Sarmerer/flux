@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -77,7 +78,7 @@ func (s *SchemaManagementService) CreateTable(ctx context.Context, database *ent
 }
 
 func (s *SchemaManagementService) DropTable(ctx context.Context, database *entities.Database, tableName string) error {
-	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", tableName)
+	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", pgx.Identifier{tableName}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropSQL); err != nil {
@@ -99,7 +100,9 @@ func (s *SchemaManagementService) AddColumn(ctx context.Context, database *entit
 }
 
 func (s *SchemaManagementService) RemoveColumn(ctx context.Context, database *entities.Database, tableName string, columnName string) error {
-	dropColumnSQL := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s", tableName, columnName)
+	dropColumnSQL := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s",
+		pgx.Identifier{tableName}.Sanitize(),
+		pgx.Identifier{columnName}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropColumnSQL); err != nil {
@@ -132,7 +135,9 @@ func (s *SchemaManagementService) AddForeignKey(ctx context.Context, database *e
 }
 
 func (s *SchemaManagementService) RemoveForeignKey(ctx context.Context, database *entities.Database, tableName string, foreignKeyName string) error {
-	dropFKSQL := fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s", tableName, foreignKeyName)
+	dropFKSQL := fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s",
+		pgx.Identifier{tableName}.Sanitize(),
+		pgx.Identifier{foreignKeyName}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropFKSQL); err != nil {
@@ -146,14 +151,15 @@ func (s *SchemaManagementService) buildCreateTableSQL(tableName string, schema T
 	var columns []string
 
 	for _, col := range schema.Columns {
-		colDef := fmt.Sprintf("%s %s", col.Name, col.Type)
+		colName := pgx.Identifier{col.Name}.Sanitize()
+		colDef := fmt.Sprintf("%s %s", colName, col.Type)
 
 		if !col.Nullable {
 			colDef += " NOT NULL"
 		}
 
 		if col.DefaultValue != "" {
-			colDef += fmt.Sprintf(" DEFAULT %s", col.DefaultValue)
+			colDef += " DEFAULT " + col.DefaultValue
 		}
 
 		if col.Unique {
@@ -164,21 +170,28 @@ func (s *SchemaManagementService) buildCreateTableSQL(tableName string, schema T
 	}
 
 	if len(schema.PrimaryKey) > 0 {
-		columns = append(columns, fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(schema.PrimaryKey, ", ")))
+		pkColumns := make([]string, len(schema.PrimaryKey))
+		for i, col := range schema.PrimaryKey {
+			pkColumns[i] = pgx.Identifier{col}.Sanitize()
+		}
+		columns = append(columns, fmt.Sprintf("PRIMARY KEY (%s)", strings.Join(pkColumns, ", ")))
 	}
 
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", tableName, strings.Join(columns, ", "))
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", pgx.Identifier{tableName}.Sanitize(), strings.Join(columns, ", "))
 }
 
 func (s *SchemaManagementService) buildAddColumnSQL(tableName string, column ColumnDefinition) string {
-	colDef := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, column.Name, column.Type)
+	colDef := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
+		pgx.Identifier{tableName}.Sanitize(),
+		pgx.Identifier{column.Name}.Sanitize(),
+		column.Type)
 
 	if !column.Nullable {
 		colDef += " NOT NULL"
 	}
 
 	if column.DefaultValue != "" {
-		colDef += fmt.Sprintf(" DEFAULT %s", column.DefaultValue)
+		colDef += " DEFAULT " + column.DefaultValue
 	}
 
 	return colDef
@@ -186,26 +199,29 @@ func (s *SchemaManagementService) buildAddColumnSQL(tableName string, column Col
 
 func (s *SchemaManagementService) buildModifyColumnSQL(tableName, oldColumnName string, newColumn ColumnDefinition) string {
 	var modifications []string
+	oldColSanitized := pgx.Identifier{oldColumnName}.Sanitize()
 
-	modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s TYPE %s", oldColumnName, newColumn.Type))
+	modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s TYPE %s", oldColSanitized, newColumn.Type))
 
 	if !newColumn.Nullable {
-		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s SET NOT NULL", oldColumnName))
+		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s SET NOT NULL", oldColSanitized))
 	} else {
-		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s DROP NOT NULL", oldColumnName))
+		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s DROP NOT NULL", oldColSanitized))
 	}
 
 	if newColumn.DefaultValue != "" {
-		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s SET DEFAULT %s", oldColumnName, newColumn.DefaultValue))
+		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s SET DEFAULT %s", oldColSanitized, newColumn.DefaultValue))
 	} else {
-		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s DROP DEFAULT", oldColumnName))
+		modifications = append(modifications, fmt.Sprintf("ALTER COLUMN %s DROP DEFAULT", oldColSanitized))
 	}
 
 	if oldColumnName != newColumn.Name {
-		modifications = append(modifications, fmt.Sprintf("RENAME COLUMN %s TO %s", oldColumnName, newColumn.Name))
+		modifications = append(modifications, fmt.Sprintf("RENAME COLUMN %s TO %s",
+			oldColSanitized,
+			pgx.Identifier{newColumn.Name}.Sanitize()))
 	}
 
-	return fmt.Sprintf("ALTER TABLE %s %s", tableName, strings.Join(modifications, ", "))
+	return fmt.Sprintf("ALTER TABLE %s %s", pgx.Identifier{tableName}.Sanitize(), strings.Join(modifications, ", "))
 }
 
 func (s *SchemaManagementService) buildCreateIndexSQL(tableName string, index IndexDefinition) string {
@@ -214,20 +230,32 @@ func (s *SchemaManagementService) buildCreateIndexSQL(tableName string, index In
 		unique = "UNIQUE "
 	}
 
+	columns := make([]string, len(index.Columns))
+	for i, col := range index.Columns {
+		columns[i] = pgx.Identifier{col}.Sanitize()
+	}
+
 	return fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON %s (%s)",
-		unique, index.Name, tableName, strings.Join(index.Columns, ", "))
+		unique,
+		pgx.Identifier{index.Name}.Sanitize(),
+		pgx.Identifier{tableName}.Sanitize(),
+		strings.Join(columns, ", "))
 }
 
 func (s *SchemaManagementService) buildAddForeignKeySQL(tableName string, fk ForeignKeyDefinition) string {
 	sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)",
-		tableName, fk.Name, fk.Column, fk.ReferencedTable, fk.ReferencedColumn)
+		pgx.Identifier{tableName}.Sanitize(),
+		pgx.Identifier{fk.Name}.Sanitize(),
+		pgx.Identifier{fk.Column}.Sanitize(),
+		pgx.Identifier{fk.ReferencedTable}.Sanitize(),
+		pgx.Identifier{fk.ReferencedColumn}.Sanitize())
 
 	if fk.OnDelete != "" {
-		sql += fmt.Sprintf(" ON DELETE %s", fk.OnDelete)
+		sql += fmt.Sprintf(" ON DELETE %s", strings.ToUpper(fk.OnDelete))
 	}
 
 	if fk.OnUpdate != "" {
-		sql += fmt.Sprintf(" ON UPDATE %s", fk.OnUpdate)
+		sql += fmt.Sprintf(" ON UPDATE %s", strings.ToUpper(fk.OnUpdate))
 	}
 
 	return sql

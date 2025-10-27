@@ -3,10 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/logging"
 	appMiddleware "github.com/flow/internal/infrastructure/middleware"
+	"github.com/flow/internal/validation"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -40,4 +42,20 @@ func getLogger(r *http.Request) *logging.ContextLogger {
 
 func decodeJSON(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
+}
+
+func isValidationError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if _, ok := err.(validation.Errors); ok {
+		return true
+	}
+
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "validation failed") ||
+		strings.Contains(errMsg, "invalid") ||
+		strings.Contains(errMsg, "required") ||
+		strings.Contains(errMsg, "duplicate")
 }

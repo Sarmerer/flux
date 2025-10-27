@@ -7,29 +7,64 @@ import (
 	"time"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/infrastructure/database"
+	"github.com/flow/internal/validation"
 
 	"github.com/google/uuid"
 )
 
 type TableService struct {
-	repoFactory *ProjectRepositoryFactory
+	repoFactory     *ProjectRepositoryFactory
+	resolver        *database.ProjectConnectionResolver
+	schemaService   *database.SchemaManagementService
 }
 
-func NewTableService(repoFactory *ProjectRepositoryFactory) *TableService {
+func NewTableService(
+	repoFactory *ProjectRepositoryFactory,
+	resolver *database.ProjectConnectionResolver,
+	schemaService *database.SchemaManagementService,
+) *TableService {
 	return &TableService{
-		repoFactory: repoFactory,
+		repoFactory:   repoFactory,
+		resolver:      resolver,
+		schemaService: schemaService,
 	}
 }
 
 func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get table repository: %w", err)
+	if !validation.IsValidTableName(req.Name) {
+		return nil, fmt.Errorf("invalid table name: %s", req.Name)
 	}
 
-	schemaJSON, err := json.Marshal(req.Schema)
+	var tableSchema validation.TableSchema
+	schemaBytes, err := json.Marshal(req.Schema)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema format: %w", err)
+	}
+
+	if err := json.Unmarshal(schemaBytes, &tableSchema); err != nil {
+		return nil, fmt.Errorf("schema does not match expected structure: %w", err)
+	}
+
+	if err := validation.ValidateTableSchema(&tableSchema); err != nil {
+		return nil, fmt.Errorf("schema validation failed: %w", err)
+	}
+
+	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project database: %w", err)
+	}
+
+	if err := s.schemaService.CreateTable(ctx, db, req.Name, tableSchema); err != nil {
+		return nil, fmt.Errorf("failed to create physical table: %w", err)
+	}
+
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		if dropErr := s.schemaService.DropTable(ctx, db, req.Name); dropErr != nil {
+			return nil, fmt.Errorf("failed to get table repository (and failed to rollback physical table): %w", err)
+		}
+		return nil, fmt.Errorf("failed to get table repository: %w", err)
 	}
 
 	table := &entities.Table{
@@ -37,13 +72,16 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 		ProjectID:   projectID,
 		Name:        req.Name,
 		Description: req.Description,
-		Schema:      string(schemaJSON),
+		Schema:      string(schemaBytes),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
 	if err := tableRepo.Create(ctx, table); err != nil {
-		return nil, fmt.Errorf("failed to create table: %w", err)
+		if dropErr := s.schemaService.DropTable(ctx, db, req.Name); dropErr != nil {
+			return nil, fmt.Errorf("failed to create table metadata (and failed to rollback physical table): %w", err)
+		}
+		return nil, fmt.Errorf("failed to create table metadata: %w", err)
 	}
 
 	response := table.ToResponse()
@@ -126,13 +164,22 @@ func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID, projectID 
 		return fmt.Errorf("failed to get table repository: %w", err)
 	}
 
-	_, err = tableRepo.GetByID(ctx, id)
+	table, err := tableRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("table not found: %w", err)
 	}
 
+	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project database: %w", err)
+	}
+
+	if err := s.schemaService.DropTable(ctx, db, table.Name); err != nil {
+		return fmt.Errorf("failed to drop physical table: %w", err)
+	}
+
 	if err := tableRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("failed to delete table: %w", err)
+		return fmt.Errorf("failed to delete table metadata: %w", err)
 	}
 
 	return nil
