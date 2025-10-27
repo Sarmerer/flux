@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -26,7 +25,7 @@ func NewProjectHandler(projectService services.ProjectServiceInterface) *Project
 
 func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var req entities.ProjectCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
 		return
@@ -45,12 +44,7 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.projectService.CreateProject(r.Context(), &req, userID)
 	if err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewInternalError(err))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -68,12 +62,7 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.projectService.GetProjectByID(r.Context(), projectID)
 	if err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewNotFoundError("Project not found"))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -90,12 +79,7 @@ func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 
 	projects, err := h.projectService.GetProjectsByMemberID(r.Context(), userID)
 	if err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewInternalError(err))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -112,7 +96,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req entities.ProjectCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
 		return
@@ -125,12 +109,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.projectService.UpdateProject(r.Context(), projectID, &req)
 	if err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewInternalError(err))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -147,12 +126,7 @@ func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.projectService.DeleteProject(r.Context(), projectID); err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewInternalError(err))
-		}
+		writeError(w, err)
 		return
 	}
 

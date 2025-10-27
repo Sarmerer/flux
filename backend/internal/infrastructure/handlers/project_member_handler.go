@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -101,7 +100,7 @@ func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.R
 	}
 
 	var req AddMemberRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
@@ -177,7 +176,7 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 	}
 
 	var req UpdateMemberRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}

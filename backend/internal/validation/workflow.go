@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/errors"
 )
 
 func ValidateTrigger(trigger *entities.WorkflowTrigger) error {
@@ -17,21 +18,29 @@ func ValidateTrigger(trigger *entities.WorkflowTrigger) error {
 	}
 
 	if !validTriggerTypes[trigger.Type] {
-		return fmt.Errorf("invalid trigger type: %s", trigger.Type)
+		return errors.NewValidationError("Invalid trigger type").
+			WithField("trigger.type").
+			WithDetails(fmt.Sprintf("Type '%s' is not supported", trigger.Type))
 	}
 
 	if trigger.Type == "on_row_created" || trigger.Type == "on_row_updated" || trigger.Type == "on_row_deleted" {
 		if trigger.TableName == "" {
-			return fmt.Errorf("table_name is required for trigger type: %s", trigger.Type)
+			return errors.NewValidationError("Table name is required").
+				WithField("trigger.table_name").
+				WithDetails(fmt.Sprintf("Required for trigger type '%s'", trigger.Type))
 		}
 	}
 
 	if trigger.Type == "scheduled" {
 		if trigger.Schedule == "" {
-			return fmt.Errorf("schedule is required for scheduled triggers")
+			return errors.NewValidationError("Schedule is required").
+				WithField("trigger.schedule").
+				WithDetails("Required for scheduled triggers")
 		}
 		if err := validateCronExpression(trigger.Schedule); err != nil {
-			return fmt.Errorf("invalid cron expression: %w", err)
+			return errors.NewValidationError("Invalid cron expression").
+				WithField("trigger.schedule").
+				WithDetails(err.Error())
 		}
 	}
 
@@ -50,7 +59,7 @@ func validateCronExpression(expr string) error {
 
 func ValidateActions(actions []entities.WorkflowAction) error {
 	if len(actions) == 0 {
-		return fmt.Errorf("at least one action is required")
+		return errors.NewValidationError("At least one action is required").WithField("actions")
 	}
 
 	validActionTypes := map[string]bool{
@@ -63,15 +72,19 @@ func ValidateActions(actions []entities.WorkflowAction) error {
 
 	for i, action := range actions {
 		if action.ID == "" {
-			return fmt.Errorf("action %d: id is required", i)
+			return errors.NewValidationError("Action ID is required").
+				WithField(fmt.Sprintf("actions[%d].id", i))
 		}
 
 		if !validActionTypes[action.Type] {
-			return fmt.Errorf("action %d: invalid action type: %s", i, action.Type)
+			return errors.NewValidationError("Invalid action type").
+				WithField(fmt.Sprintf("actions[%d].type", i)).
+				WithDetails(fmt.Sprintf("Type '%s' is not supported", action.Type))
 		}
 
 		if len(action.Config) == 0 {
-			return fmt.Errorf("action %d: config is required", i)
+			return errors.NewValidationError("Action config is required").
+				WithField(fmt.Sprintf("actions[%d].config", i))
 		}
 
 		if err := validateActionConfig(i, &action); err != nil {
@@ -86,15 +99,18 @@ func validateActionConfig(index int, action *entities.WorkflowAction) error {
 	switch action.Type {
 	case "send_webhook":
 		if _, ok := action.Config["url"].(string); !ok {
-			return fmt.Errorf("action %d: webhook url is required", index)
+			return errors.NewValidationError("Webhook URL is required").
+				WithField(fmt.Sprintf("actions[%d].config.url", index))
 		}
 	case "send_email":
 		if _, ok := action.Config["to"].(string); !ok {
-			return fmt.Errorf("action %d: email recipient (to) is required", index)
+			return errors.NewValidationError("Email recipient is required").
+				WithField(fmt.Sprintf("actions[%d].config.to", index))
 		}
 	case "update_row", "create_row", "delete_row":
 		if _, ok := action.Config["table"].(string); !ok {
-			return fmt.Errorf("action %d: table name is required", index)
+			return errors.NewValidationError("Table name is required").
+				WithField(fmt.Sprintf("actions[%d].config.table", index))
 		}
 	}
 	return nil

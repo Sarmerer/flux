@@ -289,18 +289,24 @@ func (s *WorkflowService) executeAction(ctx context.Context, workflow *entities.
 	case "delete_row":
 		return s.executeDeleteRow(ctx, workflow, action)
 	default:
-		return fmt.Errorf("unsupported action type: %s", action.Type)
+		return errors.NewValidationError("Unsupported action type").
+			WithField("action.type").
+			WithDetails(fmt.Sprintf("Type '%s' is not supported", action.Type))
 	}
 }
 
 func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entities.WorkflowAction) error {
 	webhookURL, ok := action.Config["url"].(string)
 	if !ok {
-		return fmt.Errorf("webhook url not found in config")
+		return errors.NewValidationError("Webhook URL not found in config").
+			WithField("action.config.url")
 	}
 
 	if err := s.validateWebhookURL(webhookURL); err != nil {
-		return fmt.Errorf("invalid webhook URL: %w", err)
+		if apiErr, ok := err.(*errors.APIError); ok {
+			return apiErr
+		}
+		return errors.NewValidationError("Invalid webhook URL").WithDetails(err.Error())
 	}
 
 	payload := map[string]interface{}{
@@ -312,12 +318,12 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal webhook payload: %w", err)
+		return errors.NewInternalError(err).WithDetails("Failed to marshal webhook payload")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		return fmt.Errorf("Failed to create webhook request: %w", err)
+		return errors.NewInternalError(err).WithDetails("Failed to create webhook request")
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -325,12 +331,13 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to send webhook: %w", err)
+		return errors.NewAPIError(errors.ErrCodeExternalService, "Failed to send webhook").WithDetails(err.Error())
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("webhook returned non-success status: %d", resp.StatusCode)
+		return errors.NewAPIError(errors.ErrCodeExternalService, "Webhook request failed").
+			WithDetails(fmt.Sprintf("Received status code %d", resp.StatusCode))
 	}
 
 	s.logger.Info("Successfully sent webhook", map[string]interface{}{
@@ -343,15 +350,19 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 func (s *WorkflowService) validateWebhookURL(webhookURL string) error {
 	parsedURL, err := url.Parse(webhookURL)
 	if err != nil {
-		return fmt.Errorf("invalid URL format: %w", err)
+		return errors.NewValidationError("Invalid URL format").
+			WithField("url").
+			WithDetails(err.Error())
 	}
 
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return fmt.Errorf("only http and https schemes are allowed")
+		return errors.NewValidationError("Only HTTP and HTTPS schemes are allowed").
+			WithField("url").
+			WithDetails(fmt.Sprintf("Scheme '%s' is not supported", parsedURL.Scheme))
 	}
 
 	if parsedURL.Host == "" {
-		return fmt.Errorf("URL must have a host")
+		return errors.NewValidationError("URL must have a host").WithField("url")
 	}
 
 	host := parsedURL.Hostname()
@@ -366,31 +377,37 @@ func (s *WorkflowService) validateWebhookURL(webhookURL string) error {
 
 	for _, blocked := range blockedHosts {
 		if strings.EqualFold(host, blocked) {
-			return fmt.Errorf("localhost addresses are not allowed")
+			return errors.NewValidationError("Localhost addresses are not allowed").
+				WithField("url").
+				WithDetails(fmt.Sprintf("Host '%s' is blocked", host))
 		}
 	}
 
 	ip := net.ParseIP(host)
 	if ip != nil {
 		if ip.IsLoopback() {
-			return fmt.Errorf("loopback addresses are not allowed")
+			return errors.NewValidationError("Loopback addresses are not allowed").WithField("url")
 		}
 		if ip.IsPrivate() {
-			return fmt.Errorf("private IP addresses are not allowed")
+			return errors.NewValidationError("Private IP addresses are not allowed").WithField("url")
 		}
 		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-			return fmt.Errorf("link-local addresses are not allowed")
+			return errors.NewValidationError("Link-local addresses are not allowed").WithField("url")
 		}
 	}
 
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		return fmt.Errorf("Failed to resolve host: %w", err)
+		return errors.NewAPIError(errors.ErrCodeExternalService, "Failed to resolve host").
+			WithField("url").
+			WithDetails(err.Error())
 	}
 
 	for _, ip := range ips {
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
-			return fmt.Errorf("host resolves to a blocked IP address")
+			return errors.NewValidationError("Host resolves to a blocked IP address").
+				WithField("url").
+				WithDetails(fmt.Sprintf("Host '%s' resolves to blocked IP", host))
 		}
 	}
 
@@ -400,7 +417,8 @@ func (s *WorkflowService) validateWebhookURL(webhookURL string) error {
 func (s *WorkflowService) executeSendEmail(ctx context.Context, action *entities.WorkflowAction) error {
 	to, ok := action.Config["to"].(string)
 	if !ok {
-		return fmt.Errorf("email recipient not found in config")
+		return errors.NewValidationError("Email recipient not found in config").
+			WithField("action.config.to")
 	}
 
 	subject, _ := action.Config["subject"].(string)
@@ -418,26 +436,31 @@ func (s *WorkflowService) executeSendEmail(ctx context.Context, action *entities
 func (s *WorkflowService) executeUpdateRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
 	tableName, ok := action.Config["table"].(string)
 	if !ok {
-		return fmt.Errorf("table name not found in config")
+		return errors.NewValidationError("Table name not found in config").
+			WithField("action.config.table")
 	}
 
 	if !validation.IsValidTableName(tableName) {
-		return fmt.Errorf("invalid table name in workflow action: %s", tableName)
+		return errors.NewValidationError("Invalid table name in workflow action").
+			WithField("action.config.table").
+			WithDetails(fmt.Sprintf("Table name '%s' is invalid", tableName))
 	}
 
 	rowID, ok := action.Config["row_id"].(string)
 	if !ok {
-		return fmt.Errorf("row_id not found in config")
+		return errors.NewValidationError("Row ID not found in config").
+			WithField("action.config.row_id")
 	}
 
 	updates, ok := action.Config["updates"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("updates not found in config")
+		return errors.NewValidationError("Updates not found in config").
+			WithField("action.config.updates")
 	}
 
 	databases, err := s.dbRepo.GetByProjectID(ctx, workflow.ProjectID)
 	if err != nil || len(databases) == 0 {
-		return fmt.Errorf("project database not found")
+		return errors.NewNotFoundError("Project database not found")
 	}
 
 	database := databases[0]
@@ -448,21 +471,25 @@ func (s *WorkflowService) executeUpdateRow(ctx context.Context, workflow *entiti
 func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
 	tableName, ok := action.Config["table"].(string)
 	if !ok {
-		return fmt.Errorf("table name not found in config")
+		return errors.NewValidationError("Table name not found in config").
+			WithField("action.config.table")
 	}
 
 	if !validation.IsValidTableName(tableName) {
-		return fmt.Errorf("invalid table name in workflow action: %s", tableName)
+		return errors.NewValidationError("Invalid table name in workflow action").
+			WithField("action.config.table").
+			WithDetails(fmt.Sprintf("Table name '%s' is invalid", tableName))
 	}
 
 	data, ok := action.Config["data"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("data not found in config")
+		return errors.NewValidationError("Data not found in config").
+			WithField("action.config.data")
 	}
 
 	databases, err := s.dbRepo.GetByProjectID(ctx, workflow.ProjectID)
 	if err != nil || len(databases) == 0 {
-		return fmt.Errorf("project database not found")
+		return errors.NewNotFoundError("Project database not found")
 	}
 
 	database := databases[0]
@@ -473,21 +500,25 @@ func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entiti
 func (s *WorkflowService) executeDeleteRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
 	tableName, ok := action.Config["table"].(string)
 	if !ok {
-		return fmt.Errorf("table name not found in config")
+		return errors.NewValidationError("Table name not found in config").
+			WithField("action.config.table")
 	}
 
 	if !validation.IsValidTableName(tableName) {
-		return fmt.Errorf("invalid table name in workflow action: %s", tableName)
+		return errors.NewValidationError("Invalid table name in workflow action").
+			WithField("action.config.table").
+			WithDetails(fmt.Sprintf("Table name '%s' is invalid", tableName))
 	}
 
 	rowID, ok := action.Config["row_id"].(string)
 	if !ok {
-		return fmt.Errorf("row_id not found in config")
+		return errors.NewValidationError("Row ID not found in config").
+			WithField("action.config.row_id")
 	}
 
 	databases, err := s.dbRepo.GetByProjectID(ctx, workflow.ProjectID)
 	if err != nil || len(databases) == 0 {
-		return fmt.Errorf("project database not found")
+		return errors.NewNotFoundError("Project database not found")
 	}
 
 	database := databases[0]

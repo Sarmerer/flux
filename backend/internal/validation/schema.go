@@ -2,7 +2,9 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 )
 
@@ -12,24 +14,20 @@ type IndexDefinition = database.IndexDefinition
 type ForeignKeyDefinition = database.ForeignKeyDefinition
 
 func ValidateTableSchema(schema *TableSchema) error {
-	var errors []Error
+	var validationErrors []string
 
 	if len(schema.Columns) == 0 {
-		errors = append(errors, Error{Field: "columns", Message: "at least one column is required"})
+		validationErrors = append(validationErrors, "at least one column is required")
 	}
 
 	columnNames := make(map[string]bool)
 	for i, col := range schema.Columns {
 		if err := validateColumnDefinition(col, i); err != nil {
-			if validationErr, ok := err.(Errors); ok {
-				errors = append(errors, validationErr.Errors...)
-			} else {
-				errors = append(errors, Error{Field: fmt.Sprintf("columns[%d]", i), Message: err.Error()})
-			}
+			validationErrors = append(validationErrors, err.Error())
 		}
 
 		if columnNames[col.Name] {
-			errors = append(errors, Error{Field: fmt.Sprintf("columns[%d].name", i), Message: "duplicate column name"})
+			validationErrors = append(validationErrors, fmt.Sprintf("duplicate column name at index %d", i))
 		}
 		columnNames[col.Name] = true
 	}
@@ -37,121 +35,115 @@ func ValidateTableSchema(schema *TableSchema) error {
 	if len(schema.PrimaryKey) > 0 {
 		for _, pkCol := range schema.PrimaryKey {
 			if !columnNames[pkCol] {
-				errors = append(errors, Error{Field: "primary_key", Message: fmt.Sprintf("primary key column '%s' does not exist", pkCol)})
+				validationErrors = append(validationErrors, fmt.Sprintf("primary key column '%s' does not exist", pkCol))
 			}
 		}
 	}
 
 	for i, index := range schema.Indexes {
 		if err := validateIndexDefinition(index, i); err != nil {
-			if validationErr, ok := err.(Errors); ok {
-				errors = append(errors, validationErr.Errors...)
-			} else {
-				errors = append(errors, Error{Field: fmt.Sprintf("indexes[%d]", i), Message: err.Error()})
-			}
+			validationErrors = append(validationErrors, err.Error())
 		}
 
 		for _, colName := range index.Columns {
 			if !columnNames[colName] {
-				errors = append(errors, Error{Field: fmt.Sprintf("indexes[%d].columns", i), Message: fmt.Sprintf("index column '%s' does not exist", colName)})
+				validationErrors = append(validationErrors, fmt.Sprintf("index %d: column '%s' does not exist", i, colName))
 			}
 		}
 	}
 
 	for i, fk := range schema.ForeignKeys {
 		if err := validateForeignKeyDefinition(fk, i); err != nil {
-			if validationErr, ok := err.(Errors); ok {
-				errors = append(errors, validationErr.Errors...)
-			} else {
-				errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d]", i), Message: err.Error()})
-			}
+			validationErrors = append(validationErrors, err.Error())
 		}
 
 		if !columnNames[fk.Column] {
-			errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].column", i), Message: fmt.Sprintf("foreign key column '%s' does not exist", fk.Column)})
+			validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: column '%s' does not exist", i, fk.Column))
 		}
 	}
 
-	if len(errors) > 0 {
-		return Errors{Errors: errors}
+	if len(validationErrors) > 0 {
+		return errors.NewValidationError("Schema validation failed").
+			WithField("schema").
+			WithDetails(strings.Join(validationErrors, "; "))
 	}
 
 	return nil
 }
 
 func validateColumnDefinition(col ColumnDefinition, index int) error {
-	var errors []Error
+	var validationErrors []string
 
 	if col.Name == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("columns[%d].name", index), Message: "column name is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("column %d: name is required", index))
 	} else if !IsValidColumnName(col.Name) {
-		errors = append(errors, Error{Field: fmt.Sprintf("columns[%d].name", index), Message: "invalid column name"})
+		validationErrors = append(validationErrors, fmt.Sprintf("column %d: invalid name", index))
 	}
 
 	if col.Type == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("columns[%d].type", index), Message: "column type is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("column %d: type is required", index))
 	} else if !IsValidColumnType(col.Type) {
-		errors = append(errors, Error{Field: fmt.Sprintf("columns[%d].type", index), Message: "invalid column type"})
+		validationErrors = append(validationErrors, fmt.Sprintf("column %d: invalid type", index))
 	}
 
-	if len(errors) > 0 {
-		return Errors{Errors: errors}
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(validationErrors, "; "))
 	}
 
 	return nil
 }
 
 func validateIndexDefinition(indexDef IndexDefinition, indexNum int) error {
-	var errors []Error
+	var validationErrors []string
 
 	if indexDef.Name == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("indexes[%d].name", indexNum), Message: "index name is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("index %d: name is required", indexNum))
 	} else if !IsValidIndexName(indexDef.Name) {
-		errors = append(errors, Error{Field: fmt.Sprintf("indexes[%d].name", indexNum), Message: "invalid index name"})
+		validationErrors = append(validationErrors, fmt.Sprintf("index %d: invalid name", indexNum))
 	}
 
 	if len(indexDef.Columns) == 0 {
-		errors = append(errors, Error{Field: fmt.Sprintf("indexes[%d].columns", indexNum), Message: "at least one column is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("index %d: at least one column is required", indexNum))
 	}
 
-	if len(errors) > 0 {
-		return Errors{Errors: errors}
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(validationErrors, "; "))
 	}
 
 	return nil
 }
 
 func validateForeignKeyDefinition(fk ForeignKeyDefinition, index int) error {
-	var errors []Error
+	var validationErrors []string
 
 	if fk.Name == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].name", index), Message: "foreign key name is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: name is required", index))
 	} else if !IsValidConstraintName(fk.Name) {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].name", index), Message: "invalid foreign key name"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: invalid name", index))
 	}
 
 	if fk.Column == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].column", index), Message: "column is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: column is required", index))
 	}
 
 	if fk.ReferencedTable == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].referenced_table", index), Message: "referenced table is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: referenced table is required", index))
 	}
 
 	if fk.ReferencedColumn == "" {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].referenced_column", index), Message: "referenced column is required"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: referenced column is required", index))
 	}
 
 	if fk.OnDelete != "" && !IsValidForeignKeyAction(fk.OnDelete) {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].on_delete", index), Message: "invalid ON DELETE action"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: invalid ON DELETE action", index))
 	}
 
 	if fk.OnUpdate != "" && !IsValidForeignKeyAction(fk.OnUpdate) {
-		errors = append(errors, Error{Field: fmt.Sprintf("foreign_keys[%d].on_update", index), Message: "invalid ON UPDATE action"})
+		validationErrors = append(validationErrors, fmt.Sprintf("foreign key %d: invalid ON UPDATE action", index))
 	}
 
-	if len(errors) > 0 {
-		return Errors{Errors: errors}
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("%s", strings.Join(validationErrors, "; "))
 	}
 
 	return nil

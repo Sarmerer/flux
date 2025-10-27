@@ -33,11 +33,7 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 
 	table, err := h.tableService.CreateTable(r.Context(), &req, projectID)
 	if err != nil {
-		if isValidationError(err) {
-			errors.WriteError(w, errors.NewValidationError(err.Error()))
-		} else {
-			errors.WriteError(w, errors.NewInternalError(err))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -59,7 +55,7 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 
 	table, err := h.tableService.GetTableByID(r.Context(), tableID, projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
+		writeError(w, err)
 		return
 	}
 
@@ -75,7 +71,7 @@ func (h *TableHandler) GetTables(w http.ResponseWriter, r *http.Request) {
 
 	tables, err := h.tableService.GetTablesByProjectID(r.Context(), projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -103,7 +99,7 @@ func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 
 	table, err := h.tableService.UpdateTable(r.Context(), tableID, &req, projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -124,7 +120,7 @@ func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.tableService.DeleteTable(r.Context(), tableID, projectID); err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 

@@ -1,22 +1,21 @@
 package validation
 
 import (
-	"fmt"
-
 	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/errors"
 )
 
 func ValidateTableCreateRequest(req *entities.TableCreateRequest) error {
 	if req.Name == "" {
-		return fmt.Errorf("table name is required")
+		return errors.NewValidationError("Table name is required").WithField("name")
 	}
 
 	if !IsValidTableName(req.Name) {
-		return fmt.Errorf("invalid table name")
+		return errors.NewValidationError("Invalid table name").WithField("name")
 	}
 
 	if req.Schema == nil {
-		return fmt.Errorf("table schema is required")
+		return errors.NewValidationError("Table schema is required").WithField("schema")
 	}
 
 	return nil

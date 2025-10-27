@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -26,7 +25,7 @@ func NewUserHandler(userService services.UserServiceInterface) *UserHandler {
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req entities.UserCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
 		return
@@ -47,12 +46,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.Register(r.Context(), &req)
 	if err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewInternalError(err))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -61,7 +55,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req entities.UserLoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSON(r, &req); err != nil {
 		apiErr := errors.NewValidationError("Invalid request body").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
 		return
@@ -78,12 +72,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.userService.Login(r.Context(), &req)
 	if err != nil {
-
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewUnauthorizedError(err.Error()))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -102,11 +91,7 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewNotFoundError("User not found"))
-		}
+		writeError(w, err)
 		return
 	}
 
@@ -122,11 +107,7 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		if apiErr, ok := err.(*errors.APIError); ok {
-			errors.WriteError(w, apiErr)
-		} else {
-			errors.WriteError(w, errors.NewNotFoundError("User not found"))
-		}
+		writeError(w, err)
 		return
 	}
 

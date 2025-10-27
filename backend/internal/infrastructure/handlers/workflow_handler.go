@@ -33,7 +33,7 @@ func (h *WorkflowHandler) CreateWorkflow(w http.ResponseWriter, r *http.Request)
 
 	workflow, err := h.workflowService.CreateWorkflow(r.Context(), &req, projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -55,7 +55,7 @@ func (h *WorkflowHandler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	workflow, err := h.workflowService.GetWorkflowByID(r.Context(), workflowID, projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("Workflow not found"))
+		writeError(w, err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func (h *WorkflowHandler) GetWorkflows(w http.ResponseWriter, r *http.Request) {
 
 	workflows, err := h.workflowService.GetWorkflowsByProjectID(r.Context(), projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *WorkflowHandler) UpdateWorkflow(w http.ResponseWriter, r *http.Request)
 
 	workflow, err := h.workflowService.UpdateWorkflow(r.Context(), workflowID, projectID, &req)
 	if err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -120,7 +120,7 @@ func (h *WorkflowHandler) DeleteWorkflow(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.workflowService.DeleteWorkflow(r.Context(), workflowID, projectID); err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -150,7 +150,7 @@ func (h *WorkflowHandler) ToggleWorkflowActive(w http.ResponseWriter, r *http.Re
 
 	workflow, err := h.workflowService.ToggleWorkflowActive(r.Context(), workflowID, projectID, req.IsActive)
 	if err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (h *WorkflowHandler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := h.workflowService.ExecuteWorkflow(r.Context(), workflowID, projectID); err != nil {
-		errors.WriteError(w, errors.NewInternalError(err))
+		writeError(w, err)
 		return
 	}
 

@@ -3,10 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
-	"github.com/flow/internal/validation"
-
+	"github.com/flow/internal/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -26,18 +24,10 @@ func decodeJSON(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
-func isValidationError(err error) bool {
-	if err == nil {
-		return false
+func writeError(w http.ResponseWriter, err error) {
+	if apiErr, ok := err.(*errors.APIError); ok {
+		errors.WriteError(w, apiErr)
+	} else {
+		errors.WriteError(w, errors.NewInternalError(err))
 	}
-
-	if _, ok := err.(validation.Errors); ok {
-		return true
-	}
-
-	errMsg := err.Error()
-	return strings.Contains(errMsg, "validation failed") ||
-		strings.Contains(errMsg, "invalid") ||
-		strings.Contains(errMsg, "required") ||
-		strings.Contains(errMsg, "duplicate")
 }

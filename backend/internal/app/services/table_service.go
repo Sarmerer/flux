@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/validation"
 
@@ -33,38 +34,50 @@ func NewTableService(
 
 func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
 	if !validation.IsValidTableName(req.Name) {
-		return nil, fmt.Errorf("invalid table name: %s", req.Name)
+		return nil, errors.NewValidationError("Invalid table name").
+			WithField("name").
+			WithDetails(fmt.Sprintf("Table name '%s' contains invalid characters or format", req.Name))
 	}
 
 	var tableSchema validation.TableSchema
 	schemaBytes, err := json.Marshal(req.Schema)
 	if err != nil {
-		return nil, fmt.Errorf("invalid schema format: %w", err)
+		return nil, errors.NewValidationError("Invalid schema format").
+			WithField("schema").
+			WithDetails(err.Error())
 	}
 
 	if err := json.Unmarshal(schemaBytes, &tableSchema); err != nil {
-		return nil, fmt.Errorf("schema does not match expected structure: %w", err)
+		return nil, errors.NewValidationError("Schema does not match expected structure").
+			WithField("schema").
+			WithDetails(err.Error())
 	}
 
 	if err := validation.ValidateTableSchema(&tableSchema); err != nil {
-		return nil, fmt.Errorf("schema validation failed: %w", err)
+		if apiErr, ok := err.(*errors.APIError); ok {
+			return nil, apiErr
+		}
+		return nil, errors.NewValidationError("Schema validation failed").
+			WithField("schema").
+			WithDetails(err.Error())
 	}
 
 	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get project database: %w", err)
+		return nil, errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
 	}
 
 	if err := s.schemaService.CreateTable(ctx, db, req.Name, tableSchema); err != nil {
-		return nil, fmt.Errorf("Failed to create table: %w", err)
+		return nil, errors.NewDatabaseError("Failed to create table", err)
 	}
 
 	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
 	if err != nil {
 		if dropErr := s.schemaService.DropTable(ctx, db, req.Name); dropErr != nil {
-			return nil, fmt.Errorf("Failed to get table repository (and failed to rollback physical table): %w", err)
+			return nil, errors.NewInternalError(err).
+				WithDetails("Failed to get table repository and failed to rollback physical table: " + dropErr.Error())
 		}
-		return nil, fmt.Errorf("Failed to get table repository: %w", err)
+		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
 	}
 
 	table := &entities.Table{
@@ -79,9 +92,10 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 
 	if err := tableRepo.Create(ctx, table); err != nil {
 		if dropErr := s.schemaService.DropTable(ctx, db, req.Name); dropErr != nil {
-			return nil, fmt.Errorf("Failed to create table metadata (and failed to rollback physical table): %w", err)
+			return nil, errors.NewDatabaseError("Failed to create table metadata", err).
+				WithDetails("Additionally failed to rollback physical table: " + dropErr.Error())
 		}
-		return nil, fmt.Errorf("Failed to create table metadata: %w", err)
+		return nil, errors.NewDatabaseError("Failed to create table metadata", err)
 	}
 
 	response := table.ToResponse()
@@ -91,12 +105,12 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID, projectID uuid.UUID) (*entities.TableResponse, error) {
 	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get table repository: %w", err)
+		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
 	}
 
 	table, err := tableRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("table not found: %w", err)
+		return nil, errors.NewNotFoundError("Table not found")
 	}
 
 	response := table.ToResponse()
@@ -106,12 +120,12 @@ func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID, projectID
 func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.TableResponse, error) {
 	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get table repository: %w", err)
+		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
 	}
 
 	tables, err := tableRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get tables: %w", err)
+		return nil, errors.NewDatabaseError("Failed to get tables", err)
 	}
 
 	responses := make([]*entities.TableResponse, 0)
@@ -126,12 +140,12 @@ func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.
 func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entities.TableUpdateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
 	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get table repository: %w", err)
+		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
 	}
 
 	table, err := tableRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("table not found: %w", err)
+		return nil, errors.NewNotFoundError("Table not found")
 	}
 
 	if req.Name != "" {
@@ -143,7 +157,9 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 	if req.Schema != nil {
 		schemaJSON, err := json.Marshal(req.Schema)
 		if err != nil {
-			return nil, fmt.Errorf("invalid schema format: %w", err)
+			return nil, errors.NewValidationError("Invalid schema format").
+				WithField("schema").
+				WithDetails(err.Error())
 		}
 		table.Schema = string(schemaJSON)
 	}
@@ -151,7 +167,7 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 	table.UpdatedAt = time.Now()
 
 	if err := tableRepo.Update(ctx, table); err != nil {
-		return nil, fmt.Errorf("Failed to update table: %w", err)
+		return nil, errors.NewDatabaseError("Failed to update table", err)
 	}
 
 	response := table.ToResponse()
@@ -161,25 +177,25 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error {
 	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("Failed to get table repository: %w", err)
+		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
 	}
 
 	table, err := tableRepo.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("table not found: %w", err)
+		return errors.NewNotFoundError("Table not found")
 	}
 
 	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
 	if err != nil {
-		return fmt.Errorf("Failed to get project database: %w", err)
+		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
 	}
 
 	if err := s.schemaService.DropTable(ctx, db, table.Name); err != nil {
-		return fmt.Errorf("Failed to drop physical table: %w", err)
+		return errors.NewDatabaseError("Failed to drop physical table", err)
 	}
 
 	if err := tableRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("Failed to delete table metadata: %w", err)
+		return errors.NewDatabaseError("Failed to delete table metadata", err)
 	}
 
 	return nil
