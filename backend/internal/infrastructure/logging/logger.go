@@ -36,9 +36,10 @@ type Logger struct {
 	storage    LogStorage
 	streamer   LogStreamer
 	bufferSize int
+	verbosity  LogVerbosity
 }
 
-func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer) *Logger {
+func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer, verbosity LogVerbosity) *Logger {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	logger := zerolog.New(output).
@@ -52,14 +53,15 @@ func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer) *Logg
 		storage:    storage,
 		streamer:   streamer,
 		bufferSize: 100,
+		verbosity:  verbosity,
 	}
 }
 
-func NewProductionLogger(storage LogStorage, streamer LogStreamer) *Logger {
-	return NewLogger(os.Stdout, storage, streamer)
+func NewProductionLogger(storage LogStorage, streamer LogStreamer, verbosity LogVerbosity) *Logger {
+	return NewLogger(os.Stdout, storage, streamer, verbosity)
 }
 
-func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer) *Logger {
+func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer, verbosity LogVerbosity) *Logger {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	consoleWriter := zerolog.ConsoleWriter{
@@ -67,42 +69,40 @@ func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer) *Logger {
 		TimeFormat: "15:04:05",
 		NoColor:    false,
 		FormatLevel: func(i interface{}) string {
-			var levelStr string
 			if level, ok := i.(string); ok {
 				switch level {
 				case "debug":
-					levelStr = "\033[90mDBG\033[0m"
+					return "\033[35m●\033[0m"
 				case "info":
-					levelStr = "\033[36mINF\033[0m"
+					return "\033[36m●\033[0m"
 				case "warn":
-					levelStr = "\033[33mWRN\033[0m"
+					return "\033[33m●\033[0m"
 				case "error":
-					levelStr = "\033[31mERR\033[0m"
+					return "\033[31m●\033[0m"
 				case "fatal":
-					levelStr = "\033[31;1mFTL\033[0m"
+					return "\033[31;1m●\033[0m"
 				default:
-					levelStr = level
+					return level
 				}
 			}
-			return levelStr
+			return ""
 		},
 		FormatMessage: func(i interface{}) string {
 			return fmt.Sprintf("\033[1m%s\033[0m", i)
 		},
 		FormatFieldName: func(i interface{}) string {
-			return fmt.Sprintf("%s:", i)
+			return fmt.Sprintf("\033[2m%s\033[0m", i)
 		},
 		FormatFieldValue: func(i interface{}) string {
-			return fmt.Sprintf("\033[2m%s\033[0m", i)
+			return fmt.Sprintf("%v", i)
 		},
 		PartsOrder: []string{
 			zerolog.TimestampFieldName,
 			zerolog.LevelFieldName,
-			zerolog.CallerFieldName,
 			zerolog.MessageFieldName,
 		},
 	}
-	return NewLogger(consoleWriter, storage, streamer)
+	return NewLogger(consoleWriter, storage, streamer, verbosity)
 }
 
 func (l *Logger) WithContext(ctx LogContext) *ContextLogger {
@@ -131,10 +131,11 @@ func (l *Logger) WithContext(ctx LogContext) *ContextLogger {
 	}
 
 	return &ContextLogger{
-		logger:   event.Logger(),
-		context:  ctx,
-		storage:  l.storage,
-		streamer: l.streamer,
+		logger:    event.Logger(),
+		context:   ctx,
+		storage:   l.storage,
+		streamer:  l.streamer,
+		verbosity: l.verbosity,
 	}
 }
 
@@ -256,10 +257,15 @@ func (l *Logger) storeAndStream(level LogLevel, msg string, ctx *LogContext, fie
 }
 
 type ContextLogger struct {
-	logger   zerolog.Logger
-	context  LogContext
-	storage  LogStorage
-	streamer LogStreamer
+	logger    zerolog.Logger
+	context   LogContext
+	storage   LogStorage
+	streamer  LogStreamer
+	verbosity LogVerbosity
+}
+
+func (cl *ContextLogger) GetVerbosity() LogVerbosity {
+	return cl.verbosity
 }
 
 func (cl *ContextLogger) Debug(msg string, fields ...map[string]interface{}) {

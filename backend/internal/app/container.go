@@ -88,7 +88,7 @@ func (c *Container) initDatabase(ctx context.Context) error {
 	c.DB = db
 
 	logStorage := logging.NewPostgresLogStorage(db)
-	migrationLogger := logging.NewDevelopmentLogger(logStorage, nil)
+	migrationLogger := logging.NewDevelopmentLogger(logStorage, nil, logging.VerbosityNormal)
 
 	if err := database.AutoMigrate(ctx, db, migrationLogger); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -128,7 +128,7 @@ func (c *Container) initInfrastructure(ctx context.Context) error {
 
 	logStorage := logging.NewPostgresLogStorage(c.DB)
 	logStreamer := logging.NewWebSocketLogStreamer(wsHub)
-	c.Logger = logging.NewDevelopmentLogger(logStorage, logStreamer)
+	c.Logger = logging.NewDevelopmentLogger(logStorage, logStreamer, logging.VerbosityNormal)
 
 	c.ConnService = database.NewConnectionService(c.DB)
 	c.PgManagementService = database.NewPostgreSQLManagementService(c.ConnService)

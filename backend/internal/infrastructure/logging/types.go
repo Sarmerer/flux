@@ -7,6 +7,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type LogVerbosity int
+
+const (
+	VerbosityMinimal LogVerbosity = iota
+	VerbosityNormal
+	VerbosityVerbose
+)
+
 type LogEntry struct {
 	ID         uuid.UUID              `json:"id"`
 	Level      LogLevel               `json:"level"`
