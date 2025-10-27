@@ -10,7 +10,6 @@ declare module 'vue-router' {
     requiresGuest?: boolean
     permissions?: Permission[]
     roles?: Role[]
-    tab?: string
   }
 }
 
@@ -26,8 +25,6 @@ const ProjectOverview = () => import('@/pages/project/overview/index.vue')
 const Members = () => import('@/pages/project/Members.vue')
 
 const Tables = () => import('@/pages/project/Tables.vue')
-const TableBuilder = () => import('@/pages/table/Builder.vue')
-const TableData = () => import('@/pages/table/Data.vue')
 
 const Workflows = () => import('@/pages/workflow/List.vue')
 const WorkflowBuilder = () => import('@/pages/workflow/Builder.vue')
@@ -82,25 +79,7 @@ const routes = [
     path: '/projects/:projectId/overview',
     name: 'ProjectOverview',
     component: ProjectOverview,
-    meta: { requiresAuth: true, tab: 'overview' },
-  },
-  {
-    path: '/projects/:projectId/overview/tables',
-    name: 'ProjectTablesView',
-    component: ProjectOverview,
-    meta: { requiresAuth: true, tab: 'tables' },
-  },
-  {
-    path: '/projects/:projectId/overview/workflows',
-    name: 'ProjectWorkflowsView',
-    component: ProjectOverview,
-    meta: { requiresAuth: true, tab: 'workflows' },
-  },
-  {
-    path: '/projects/:projectId/overview/activity',
-    name: 'ProjectActivityView',
-    component: ProjectOverview,
-    meta: { requiresAuth: true, tab: 'activity' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/projects/:projectId/tables',
@@ -109,20 +88,20 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/tables/:tableId/builder',
-    name: 'TableBuilder',
-    component: TableBuilder,
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/projects/:projectId/tables/:tableId/data',
-    name: 'DataGrid',
-    component: TableData,
+    path: '/projects/:projectId/tables/:tableId',
+    name: 'TableDetail',
+    component: Tables,
     meta: { requiresAuth: true },
   },
   {
     path: '/projects/:projectId/workflows',
     name: 'Workflows',
+    component: Workflows,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/projects/:projectId/workflows/:workflowId',
+    name: 'WorkflowDetail',
     component: Workflows,
     meta: { requiresAuth: true },
   },

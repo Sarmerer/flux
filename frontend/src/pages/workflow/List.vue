@@ -1,21 +1,18 @@
 <script setup lang="ts">
+import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
 import {
   CheckCircle,
-  Clock,
-  Edit,
-  Play,
   Plus,
   Search,
-  Trash2,
-  Workflow,
-  XCircle,
+  Settings2,
+  Workflow as WorkflowIcon,
+  Zap,
 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +20,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,16 +32,14 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
-import { useFormatting } from '@/composables/formatting'
-
 const route = useRoute()
 const router = useRouter()
 
 const projectId = computed(() => route.params.projectId as string)
+const workflowId = computed(() => route.params.workflowId as string | undefined)
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
-const isEditDialogOpen = ref(false)
-const selectedWorkflow = ref(null)
+const isLoading = ref(false)
 
 const workflows = ref([
   {
@@ -154,8 +148,6 @@ const newWorkflow = ref({
   actions: [] as any[],
 })
 
-const { formatDateTime } = useFormatting()
-
 const triggerTypes = [
   { value: 'on_row_created', label: 'On Row Created' },
   { value: 'on_row_updated', label: 'On Row Updated' },
@@ -172,6 +164,11 @@ const filteredWorkflows = computed(() => {
       (workflow.description &&
         workflow.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
   )
+})
+
+const selectedWorkflow = computed(() => {
+  if (!workflowId.value) return null
+  return workflows.value.find((w) => w.id === workflowId.value)
 })
 
 const handleCreateWorkflow = async () => {
@@ -210,248 +207,165 @@ const handleCreateWorkflow = async () => {
   }
 }
 
-const handleEditWorkflow = (workflow: any) => {
-  selectedWorkflow.value = workflow
-  isEditDialogOpen.value = true
-}
-
-const handleDeleteWorkflow = async (workflowId: string) => {
-  if (confirm('Are you sure you want to delete this workflow? This action cannot be undone.')) {
-    try {
-      workflows.value = workflows.value.filter((w) => w.id !== workflowId)
-    } catch (error) {
-      console.error('Failed to delete workflow:', error)
-    }
-  }
-}
-
-const handleToggleWorkflow = async (workflow: any) => {
-  try {
-    workflow.is_active = !workflow.is_active
-  } catch (error) {
-    console.error('Failed to toggle workflow:', error)
-  }
-}
-
-const handleRunWorkflow = async (workflow: any) => {
-  try {
-    console.log('Running workflow:', workflow.id)
-  } catch (error) {
-    console.error('Failed to run workflow:', error)
-  }
-}
-
-const getStatusIcon = (workflow: any) => {
-  if (workflow.is_active) {
-    return CheckCircle
-  } else {
-    return XCircle
-  }
-}
-
-const getStatusColor = (workflow: any) => {
-  if (workflow.is_active) {
-    return 'text-green-600'
-  } else {
-    return 'text-gray-400'
-  }
+const handleSelectWorkflow = (id: string) => {
+  router.push(`/projects/${projectId.value}/workflows/${id}`)
 }
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-3xl font-bold text-gray-900">Workflows</h1>
-        <p class="text-gray-600">Automate your database operations with workflows</p>
-      </div>
-      <Dialog v-model:open="isCreateDialogOpen">
-        <DialogTrigger asChild>
-          <Button class="flex items-center space-x-2">
+  <div class="flex h-[calc(100vh-3.5rem)]">
+    <div class="w-80 border-r flex flex-col bg-muted/10">
+      <div class="p-4 border-b space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Workflows</h2>
+          <Button size="sm" @click="isCreateDialogOpen = true">
             <Plus class="w-4 h-4" />
-            <span>New Workflow</span>
           </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Workflow</DialogTitle>
-            <DialogDescription>
-              Create a new workflow to automate your database operations.
-            </DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <Label for="workflow-name">Workflow Name</Label>
-              <Input
-                id="workflow-name"
-                v-model="newWorkflow.name"
-                placeholder="Enter workflow name"
-                required
+        </div>
+        <div class="relative">
+          <Search
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"
+          />
+          <Input v-model="searchQuery" placeholder="Search workflows..." class="pl-9 h-9" />
+        </div>
+      </div>
+
+      <LoadingWrapper :is-loading="isLoading" loading-text="Loading workflows...">
+        <div class="flex-1 overflow-y-auto">
+          <div class="p-2 space-y-1">
+            <button
+              v-for="workflow in filteredWorkflows"
+              :key="workflow.id"
+              @click="handleSelectWorkflow(workflow.id)"
+              :class="[
+                'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                workflowId === workflow.id
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'hover:bg-muted text-muted-foreground hover:text-foreground',
+              ]"
+            >
+              <Zap class="w-4 h-4 flex-shrink-0" />
+              <span class="flex-1 text-left truncate">{{ workflow.name }}</span>
+              <CheckCircle
+                v-if="workflow.is_active"
+                class="w-3.5 h-3.5 text-green-600 flex-shrink-0"
               />
-            </div>
-            <div class="space-y-2">
-              <Label for="workflow-description">Description</Label>
-              <Textarea
-                id="workflow-description"
-                v-model="newWorkflow.description"
-                placeholder="Enter workflow description"
-                rows="3"
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="trigger-type">Trigger Type</Label>
-              <Select v-model="newWorkflow.trigger.type">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trigger type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    v-for="trigger in triggerTypes"
-                    :key="trigger.value"
-                    :value="trigger.value"
-                  >
-                    {{ trigger.label }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            </button>
+          </div>
+
+          <div
+            v-if="filteredWorkflows.length === 0"
+            class="p-4 text-center text-sm text-muted-foreground"
+          >
+            <p>No workflows found</p>
+          </div>
+        </div>
+      </LoadingWrapper>
+    </div>
+
+    <div class="flex-1 flex flex-col">
+      <div v-if="!workflowId" class="flex-1 flex items-center justify-center">
+        <div class="text-center space-y-4">
+          <div class="flex justify-center">
+            <div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <WorkflowIcon class="w-8 h-8 text-muted-foreground" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateDialogOpen = false"> Cancel </Button>
-            <Button @click="handleCreateWorkflow" :disabled="!newWorkflow.name.trim()">
-              Create Workflow
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          <div>
+            <h3 class="text-lg font-semibold mb-1">Select a workflow</h3>
+            <p class="text-sm text-muted-foreground">
+              Choose a workflow from the list to view and edit it
+            </p>
+          </div>
+          <Button @click="isCreateDialogOpen = true">
+            <Plus class="w-4 h-4 mr-2" />
+            Create New Workflow
+          </Button>
+        </div>
+      </div>
 
-    <div class="relative">
-      <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-      <Input v-model="searchQuery" placeholder="Search workflows..." class="pl-10" />
-    </div>
+      <div v-else class="flex-1 flex flex-col">
+        <div class="border-b px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div>
+                <h1 class="text-2xl font-bold">{{ selectedWorkflow?.name }}</h1>
+                <p class="text-sm text-muted-foreground mt-1">
+                  {{ selectedWorkflow?.description || 'No description' }}
+                </p>
+              </div>
+              <Badge v-if="selectedWorkflow?.is_active" variant="default">Active</Badge>
+              <Badge v-else variant="secondary">Inactive</Badge>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button variant="outline" size="sm">
+                <Settings2 class="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </div>
+          </div>
+        </div>
 
-    <div v-if="filteredWorkflows.length === 0" class="text-center py-12">
-      <Workflow class="mx-auto h-12 w-12 text-gray-400" />
-      <h3 class="mt-2 text-sm font-medium text-gray-900">
-        {{ searchQuery ? 'No workflows found' : 'No workflows yet' }}
-      </h3>
-      <p class="mt-1 text-sm text-gray-500">
-        {{
-          searchQuery
-            ? 'Try adjusting your search terms.'
-            : 'Get started by creating your first workflow.'
-        }}
-      </p>
-      <div v-if="!searchQuery" class="mt-6">
-        <Button @click="isCreateDialogOpen = true">Create Workflow</Button>
+        <div class="flex-1 overflow-auto p-6">
+          <div class="space-y-4">
+            <div class="text-sm text-muted-foreground">Workflow builder view would go here</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <Card
-        v-for="workflow in filteredWorkflows"
-        :key="workflow.id"
-        class="hover:shadow-lg transition-shadow duration-200 flex flex-col justify-between"
-      >
-        <CardHeader class="pb-3">
-          <div class="flex items-start justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="p-2 bg-purple-100 rounded-lg">
-                <Workflow class="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <CardTitle class="text-lg">{{ workflow.name }}</CardTitle>
-                <CardDescription class="mt-1">
-                  {{ workflow.description || 'No description' }}
-                </CardDescription>
-              </div>
-            </div>
-            <div class="flex items-center space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleRunWorkflow(workflow)"
-                title="Run Workflow"
-              >
-                <Play class="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleToggleWorkflow(workflow)"
-                :title="workflow.is_active ? 'Pause Workflow' : 'Activate Workflow'"
-              >
-                <component
-                  :is="getStatusIcon(workflow)"
-                  :class="getStatusColor(workflow)"
-                  class="h-4 w-4"
-                />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleEditWorkflow(workflow)"
-                title="Edit Workflow"
-              >
-                <Edit class="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                @click="handleDeleteWorkflow(workflow.id)"
-                title="Delete Workflow"
-              >
-                <Trash2 class="h-4 w-4" />
-              </Button>
-            </div>
+    <Dialog v-model:open="isCreateDialogOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Workflow</DialogTitle>
+          <DialogDescription>
+            Create a new workflow to automate your database operations.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label for="workflow-name">Workflow Name</Label>
+            <Input
+              id="workflow-name"
+              v-model="newWorkflow.name"
+              placeholder="Enter workflow name"
+              required
+            />
           </div>
-        </CardHeader>
-        <CardContent class="pt-0">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-500">Trigger</span>
-              <Badge variant="outline">
-                {{ triggerTypes.find((t) => t.value === workflow.trigger.type)?.label }}
-              </Badge>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-500">Actions</span>
-              <span class="font-medium">{{ workflow.actions.length }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-500">Status</span>
-              <Badge :variant="workflow.is_active ? 'default' : 'secondary'">
-                {{ workflow.is_active ? 'Active' : 'Inactive' }}
-              </Badge>
-            </div>
-            <div
-              v-if="workflow.last_run"
-              class="flex items-center justify-between text-sm text-gray-500"
-            >
-              <div class="flex items-center space-x-1">
-                <Clock class="h-4 w-4" />
-                <span>Last run {{ formatDateTime(workflow.last_run) }}</span>
-              </div>
-            </div>
+          <div class="space-y-2">
+            <Label for="workflow-description">Description</Label>
+            <Textarea
+              id="workflow-description"
+              v-model="newWorkflow.description"
+              placeholder="Enter workflow description"
+              rows="3"
+            />
           </div>
-          <div class="mt-4 flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              class="flex-1"
-              @click="router.push(`/projects/${projectId}/workflows/${workflow.id}/builder`)"
-            >
-              <Edit class="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-            <Button variant="outline" size="sm" class="flex-1" @click="handleRunWorkflow(workflow)">
-              <Play class="w-4 h-4 mr-1" />
-              Run
-            </Button>
+          <div class="space-y-2">
+            <Label for="trigger-type">Trigger Type</Label>
+            <Select v-model="newWorkflow.trigger.type">
+              <SelectTrigger>
+                <SelectValue placeholder="Select trigger type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="trigger in triggerTypes"
+                  :key="trigger.value"
+                  :value="trigger.value"
+                >
+                  {{ trigger.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isCreateDialogOpen = false"> Cancel </Button>
+          <Button @click="handleCreateWorkflow" :disabled="!newWorkflow.name.trim()">
+            Create Workflow
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

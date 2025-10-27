@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Workflow } from 'lucide-vue-next'
 
-import ProjectSelector from './ProjectSelector.vue'
 import { SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar'
 </script>
 
 <template>
-  <SidebarHeader class="p-4 space-y-3 group-data-[collapsible=icon]:px-2">
+  <SidebarHeader class="p-4 group-data-[collapsible=icon]:px-2">
     <div class="flex items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-3">
       <div class="flex items-center space-x-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full">
         <div class="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 transition-all">
@@ -18,7 +17,5 @@ import { SidebarHeader, SidebarTrigger } from '@/components/ui/sidebar'
       </div>
       <SidebarTrigger class="group-data-[collapsible=icon]:w-full" />
     </div>
-
-    <ProjectSelector class="group-data-[collapsible=icon]:hidden" />
   </SidebarHeader>
 </template>

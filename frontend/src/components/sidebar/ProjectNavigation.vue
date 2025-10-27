@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, LayoutGrid, Settings as SettingsIcon, Users } from 'lucide-vue-next'
+import { Activity, LayoutGrid, Settings as SettingsIcon, Table, Users, Workflow } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -33,6 +33,24 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
           >
             <LayoutGrid class="w-4 h-4" />
             <span>Overview</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            @click="router.push(`/projects/${activeProjectId}/tables`)"
+            :isActive="isActive(`/projects/${activeProjectId}/tables`)"
+          >
+            <Table class="w-4 h-4" />
+            <span>Tables</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            @click="router.push(`/projects/${activeProjectId}/workflows`)"
+            :isActive="isActive(`/projects/${activeProjectId}/workflows`)"
+          >
+            <Workflow class="w-4 h-4" />
+            <span>Workflows</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

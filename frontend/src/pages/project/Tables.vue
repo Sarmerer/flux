@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
-import { Calendar, Eye, Plus, Search, Settings, Table, Trash2 } from 'lucide-vue-next'
+import { Database, Plus, Search, Settings2, Table as TableIcon } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -16,7 +14,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,9 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { useTables } from '@/composables/api'
-import { useFormatting } from '@/composables/formatting'
+import { useTableDetail } from '@/composables/api/useTableDetail'
 import { useToast } from '@/composables/ui'
 
 const route = useRoute()
@@ -38,8 +36,15 @@ const toast = useToast()
 const sidebarStore = useSidebarItemsStore()
 
 const projectId = computed(() => route.params.projectId as string)
+const tableId = computed(() => route.params.tableId as string | undefined)
 
-const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
+const { tables, loading: isLoading, createTable } = useTables(projectId.value)
+
+const {
+  data: tableDetail,
+  loading: tableDetailLoading,
+  refresh: refreshTableDetail,
+} = useTableDetail(projectId.value, tableId.value ?? '')
 
 watch(
   tables,
@@ -53,9 +58,8 @@ watch(
 
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
-const isEditDialogOpen = ref(false)
-const selectedTable = ref(null)
 const isCreating = ref(false)
+const activeTab = ref('data')
 
 const newTable = ref<{
   name: string
@@ -72,8 +76,6 @@ const newTable = ref<{
   description: '',
   columns: [],
 })
-
-const { formatDate } = useFormatting()
 
 const columnTypes = [
   'VARCHAR',
@@ -97,6 +99,21 @@ const filteredTables = computed(() => {
       (table.description &&
         table.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
   )
+})
+
+const selectedTable = computed(() => {
+  if (!tableId.value || !tables.value) return null
+  return tables.value.find((t: any) => t.id === tableId.value)
+})
+
+const tableColumns = computed(() => {
+  if (!tableDetail.value) return []
+  return tableDetail.value.columns
+})
+
+const tableRows = computed(() => {
+  if (!tableDetail.value) return []
+  return tableDetail.value.rows ?? []
 })
 
 const handleCreateTable = async () => {
@@ -142,7 +159,7 @@ const handleCreateTable = async () => {
     isCreateDialogOpen.value = false
     newTable.value = { name: '', description: '', columns: [] }
 
-    router.push(`/projects/${projectId.value}/tables/${createdTable.id}/builder`)
+    router.push(`/projects/${projectId.value}/tables/${createdTable.id}`)
   } catch (error: any) {
     console.error('Failed to create table:', error)
     toast.error('Error', error.message || 'Failed to create table')
@@ -151,31 +168,8 @@ const handleCreateTable = async () => {
   }
 }
 
-const handleEditTable = (table: any) => {
-  selectedTable.value = table
-  isEditDialogOpen.value = true
-}
-
-const handleDeleteTable = async (tableId: string, tableName: string) => {
-  if (
-    confirm(`Are you sure you want to delete table "${tableName}"? This action cannot be undone.`)
-  ) {
-    try {
-      await deleteTable(tableId)
-      toast.success('Deleted', `Table "${tableName}" has been deleted`)
-    } catch (error: any) {
-      console.error('Failed to delete table:', error)
-      toast.error('Error', error.message || 'Failed to delete table')
-    }
-  }
-}
-
-const handleViewTable = (tableId: string) => {
-  router.push(`/projects/${projectId.value}/tables/${tableId}/data`)
-}
-
-const handleEditSchema = (tableId: string) => {
-  router.push(`/projects/${projectId.value}/tables/${tableId}/builder`)
+const handleSelectTable = (id: string) => {
+  router.push(`/projects/${projectId.value}/tables/${id}`)
 }
 
 const addColumn = () => {
@@ -191,199 +185,299 @@ const addColumn = () => {
 const removeColumn = (index: number) => {
   newTable.value.columns.splice(index, 1)
 }
+
+watch(tableId, () => {
+  if (tableId.value) {
+    refreshTableDetail()
+  }
+})
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-3xl font-bold text-foreground">Tables</h1>
-        <p class="text-muted-foreground">Manage your database tables and schemas</p>
-      </div>
-      <Dialog v-model:open="isCreateDialogOpen">
-        <DialogTrigger asChild>
-          <Button class="flex items-center space-x-2">
+  <div class="flex h-[calc(100vh-3.5rem)]">
+    <div class="w-80 border-r flex flex-col bg-muted/10">
+      <div class="p-4 border-b space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Tables</h2>
+          <Button size="sm" @click="isCreateDialogOpen = true">
             <Plus class="w-4 h-4" />
-            <span>New Table</span>
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create New Table</DialogTitle>
-            <DialogDescription>
-              Create a new table with custom columns and schema.
-            </DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label for="table-name">Table Name</Label>
-                <Input
-                  id="table-name"
-                  v-model="newTable.name"
-                  placeholder="e.g., users, products"
-                  required
-                />
-              </div>
-              <div class="space-y-2">
-                <Label for="table-description">Description</Label>
-                <Input
-                  id="table-description"
-                  v-model="newTable.description"
-                  placeholder="Brief description"
-                />
-              </div>
+        </div>
+        <div class="relative">
+          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input v-model="searchQuery" placeholder="Search tables..." class="pl-9 h-9" />
+        </div>
+      </div>
+
+      <LoadingWrapper :is-loading="isLoading" loading-text="Loading tables...">
+        <div class="flex-1 overflow-y-auto">
+          <div class="p-2 space-y-1">
+            <button
+              v-for="table in filteredTables"
+              :key="table.id"
+              @click="handleSelectTable(table.id)"
+              :class="[
+                'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                tableId === table.id
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+              ]"
+            >
+              <TableIcon class="w-4 h-4 flex-shrink-0" />
+              <span class="flex-1 text-left truncate">{{ table.name }}</span>
+            </button>
+          </div>
+
+          <div v-if="!isLoading && filteredTables.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+            <p>No tables found</p>
+          </div>
+        </div>
+      </LoadingWrapper>
+    </div>
+
+    <div class="flex-1 flex flex-col">
+      <div v-if="!tableId" class="flex-1 flex items-center justify-center">
+        <div class="text-center space-y-4">
+          <div class="flex justify-center">
+            <div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Database class="w-8 h-8 text-muted-foreground" />
             </div>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold mb-1">Select a table</h3>
+            <p class="text-sm text-muted-foreground">Choose a table from the list to view its data and schema</p>
+          </div>
+          <Button @click="isCreateDialogOpen = true">
+            <Plus class="w-4 h-4 mr-2" />
+            Create New Table
+          </Button>
+        </div>
+      </div>
 
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <Label>Columns</Label>
-                  <p class="text-xs text-muted-foreground mt-1">
-                    At least one column is required
-                  </p>
-                </div>
-                <Button type="button" variant="outline" size="sm" @click="addColumn">
-                  <Plus class="w-4 h-4 mr-1" />
-                  Add Column
-                </Button>
-              </div>
+      <div v-else class="flex-1 flex flex-col">
+        <div class="border-b px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold">{{ selectedTable?.name }}</h1>
+              <p class="text-sm text-muted-foreground mt-1">{{ selectedTable?.description || 'No description' }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button variant="outline" size="sm">
+                <Settings2 class="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </div>
+          </div>
+        </div>
 
-              <div class="space-y-3 max-h-60 overflow-y-auto">
-                <div
-                  v-for="(column, index) in newTable.columns"
-                  :key="index"
-                  class="flex items-center space-x-2 p-3 border rounded-lg"
-                >
-                  <div class="flex-1 grid grid-cols-4 gap-2">
-                    <Input v-model="column.name" placeholder="Column name" />
-                    <Select v-model="column.type">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem v-for="type in columnTypes" :key="type" :value="type">
-                          {{ type }}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input v-model="column.default_value" placeholder="Default value" />
-                    <div class="flex items-center space-x-2">
-                      <input v-model="column.nullable" type="checkbox" class="rounded" />
-                      <span class="text-sm">Nullable</span>
+        <Tabs v-model="activeTab" class="flex-1 flex flex-col">
+          <div class="border-b px-6">
+            <TabsList class="h-11 bg-transparent p-0">
+              <TabsTrigger value="data" class="h-11">Data</TabsTrigger>
+              <TabsTrigger value="schema" class="h-11">Schema</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <div class="flex-1 overflow-auto">
+            <TabsContent value="data" class="m-0 p-6 h-full">
+              <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between">
+                    <div class="text-sm text-muted-foreground">
+                      {{ tableRows.length }} rows
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Button variant="outline" size="sm">
+                        <Plus class="w-4 h-4 mr-2" />
+                        Insert Row
+                      </Button>
                     </div>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" @click="removeColumn(index)">
-                    <Trash2 class="w-4 h-4" />
-                  </Button>
+
+                  <div class="border rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                      <table class="w-full">
+                        <thead class="bg-muted/50">
+                          <tr>
+                            <th
+                              v-for="column in tableColumns"
+                              :key="column.name"
+                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            >
+                              {{ column.name }}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border bg-background">
+                          <tr v-for="(row, idx) in tableRows" :key="idx" class="hover:bg-muted/30 transition-colors">
+                            <td
+                              v-for="column in tableColumns"
+                              :key="column.name"
+                              class="px-4 py-3 text-sm text-foreground whitespace-nowrap"
+                            >
+                              {{ row[column.name] ?? '-' }}
+                            </td>
+                          </tr>
+                          <tr v-if="tableRows.length === 0">
+                            <td :colspan="tableColumns.length" class="px-4 py-8 text-center text-sm text-muted-foreground">
+                              No data yet
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
+              </LoadingWrapper>
+            </TabsContent>
+
+            <TabsContent value="schema" class="m-0 p-6 h-full">
+              <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading schema...">
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between">
+                    <div class="text-sm text-muted-foreground">
+                      {{ tableColumns.length }} columns
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Button variant="outline" size="sm">
+                        <Plus class="w-4 h-4 mr-2" />
+                        Add Column
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div class="border rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                      <table class="w-full">
+                        <thead class="bg-muted/50">
+                          <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                              Name
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                              Type
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                              Nullable
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                              Default
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border bg-background">
+                          <tr v-for="column in tableColumns" :key="column.name" class="hover:bg-muted/30 transition-colors">
+                            <td class="px-4 py-3 text-sm font-medium text-foreground">
+                              {{ column.name }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-muted-foreground">
+                              {{ column.type }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-muted-foreground">
+                              {{ column.is_nullable ? 'Yes' : 'No' }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-muted-foreground">
+                              {{ column.default_value ?? '-' }}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </LoadingWrapper>
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
+    </div>
+
+    <Dialog v-model:open="isCreateDialogOpen">
+      <DialogContent class="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Create New Table</DialogTitle>
+          <DialogDescription>
+            Create a new table with custom columns and schema.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label for="table-name">Table Name</Label>
+              <Input
+                id="table-name"
+                v-model="newTable.name"
+                placeholder="e.g., users, products"
+                required
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="table-description">Description</Label>
+              <Input
+                id="table-description"
+                v-model="newTable.description"
+                placeholder="Brief description"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <Label>Columns</Label>
+                <p class="text-xs text-muted-foreground mt-1">
+                  At least one column is required
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" @click="addColumn">
+                <Plus class="w-4 h-4 mr-1" />
+                Add Column
+              </Button>
+            </div>
+
+            <div class="space-y-3 max-h-60 overflow-y-auto">
+              <div
+                v-for="(column, index) in newTable.columns"
+                :key="index"
+                class="flex items-center space-x-2 p-3 border rounded-lg"
+              >
+                <div class="flex-1 grid grid-cols-4 gap-2">
+                  <Input v-model="column.name" placeholder="Column name" />
+                  <Select v-model="column.type">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="type in columnTypes" :key="type" :value="type">
+                        {{ type }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input v-model="column.default_value" placeholder="Default value" />
+                  <div class="flex items-center space-x-2">
+                    <input v-model="column.nullable" type="checkbox" class="rounded" />
+                    <span class="text-sm">Nullable</span>
+                  </div>
+                </div>
+                <Button type="button" variant="ghost" size="sm" @click="removeColumn(index)">
+                  <Plus class="w-4 h-4 rotate-45" />
+                </Button>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
-              Cancel
-            </Button>
-            <Button
-              @click="handleCreateTable"
-              :disabled="!newTable.name.trim() || newTable.columns.length === 0 || isCreating"
-            >
-              {{ isCreating ? 'Creating...' : 'Create Table' }}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-
-    <div class="relative">
-      <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-      <Input v-model="searchQuery" placeholder="Search tables..." class="pl-10" />
-    </div>
-
-    <LoadingWrapper :is-loading="isLoading" loading-text="Loading tables...">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card
-          v-for="table in filteredTables"
-          :key="table.id"
-          class="hover:shadow-lg transition-shadow duration-200"
-        >
-          <CardHeader class="pb-3">
-            <div class="flex items-start justify-between">
-              <div class="flex items-center space-x-3">
-                <div class="p-2 bg-blue-100 rounded-lg">
-                  <Table class="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle class="text-lg">{{ table.name }}</CardTitle>
-                  <CardDescription class="mt-1">
-                    {{ table.description || 'No description' }}
-                  </CardDescription>
-                </div>
-              </div>
-              <div class="flex items-center space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="handleViewTable(table.id)"
-                  title="View Data"
-                >
-                  <Eye class="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="handleEditSchema(table.id)"
-                  title="Edit Schema"
-                >
-                  <Settings class="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  @click="handleDeleteTable(table.id, table.name)"
-                  title="Delete Table"
-                >
-                  <Trash2 class="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent class="pt-0">
-            <div class="space-y-3">
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-gray-500">Columns</span>
-                <span class="font-medium">{{ table.columns ?? 0 }}</span>
-              </div>
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-gray-500">Rows</span>
-                <span class="font-medium">{{ (table.rows ?? 0).toLocaleString() }}</span>
-              </div>
-              <div class="flex items-center justify-between text-sm text-gray-500">
-                <div class="flex items-center space-x-1">
-                  <Calendar class="h-4 w-4" />
-                  <span>Updated {{ formatDate(table.updated_at) }}</span>
-                </div>
-                <Badge variant="secondary">Active</Badge>
-              </div>
-            </div>
-            <div class="mt-4 flex space-x-2">
-              <Button variant="outline" size="sm" class="flex-1" @click="handleViewTable(table.id)">
-                <Eye class="w-4 h-4 mr-1" />
-                View Data
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                class="flex-1"
-                @click="handleEditSchema(table.id)"
-              >
-                <Settings class="w-4 h-4 mr-1" />
-                Edit Schema
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </LoadingWrapper>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
+            Cancel
+          </Button>
+          <Button
+            @click="handleCreateTable"
+            :disabled="!newTable.name.trim() || newTable.columns.length === 0 || isCreating"
+          >
+            {{ isCreating ? 'Creating...' : 'Create Table' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

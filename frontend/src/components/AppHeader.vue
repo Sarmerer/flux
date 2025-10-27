@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Plus, Search } from 'lucide-vue-next'
+import { Check, ChevronDown, ChevronRight, FolderOpen, Plus, Search } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -15,11 +15,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
+import { useProjects } from '@/composables/api'
 import { useToast } from '@/composables/ui'
 
 const router = useRouter()
 const route = useRoute()
 const activeProjectStore = useActiveProjectStore()
+const { projects } = useProjects()
 const toast = useToast()
 
 const activeProject = computed(() => activeProjectStore.activeProject)
@@ -27,6 +29,7 @@ const activeProject = computed(() => activeProjectStore.activeProject)
 interface BreadcrumbItem {
   label: string
   path?: string
+  isProjectSelector?: boolean
 }
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => {
@@ -39,11 +42,14 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
   } else if (route.path === '/settings') {
     crumbs.push({ label: 'Settings' })
   } else if (activeProject.value) {
-    crumbs.push({ label: 'Projects', path: '/projects' })
-    crumbs.push({ label: activeProject.value.name, path: `/projects/${activeProject.value.id}` })
+    crumbs.push({
+      label: activeProject.value.name,
+      path: `/projects/${activeProject.value.id}`,
+      isProjectSelector: true
+    })
 
     if (route.path.includes('/tables')) {
-      crumbs.push({ label: 'Tables' })
+      crumbs.push({ label: 'Tables', path: `/projects/${activeProject.value.id}/tables` })
     } else if (route.path.includes('/workflows')) {
       crumbs.push({ label: 'Workflows' })
     } else if (route.path.includes('/members')) {
@@ -57,6 +63,10 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
 })
 
 const showQuickActions = computed(() => !!activeProject.value)
+
+const onProjectSelect = (projectId: string) => {
+  router.push(`/projects/${projectId}`)
+}
 
 const onQuickAction = (action: string) => {
   if (!activeProject.value) {
@@ -79,8 +89,51 @@ const onQuickAction = (action: string) => {
   <header class="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
     <nav class="flex items-center gap-2 text-sm flex-1">
       <template v-for="(crumb, index) in breadcrumbs" :key="index">
+        <DropdownMenu v-if="crumb.isProjectSelector">
+          <DropdownMenuTrigger asChild>
+            <button class="flex items-center gap-1 text-foreground font-medium hover:bg-muted px-2 py-1 rounded-md transition-colors">
+              {{ crumb.label }}
+              <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" class="w-64">
+            <DropdownMenuLabel class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Switch Project
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div class="max-h-64 overflow-y-auto">
+              <DropdownMenuItem
+                v-for="project in projects"
+                :key="project.id"
+                @click="onProjectSelect(project.id)"
+                class="cursor-pointer"
+              >
+                <div class="flex items-center justify-between w-full">
+                  <div class="flex items-center space-x-2 flex-1 truncate">
+                    <FolderOpen class="w-4 h-4 flex-shrink-0" />
+                    <span class="truncate">{{ project.name }}</span>
+                  </div>
+                  <Check
+                    v-if="activeProject?.id === project.id"
+                    class="w-4 h-4 flex-shrink-0 text-primary"
+                  />
+                </div>
+              </DropdownMenuItem>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @click="router.push('/projects')" class="cursor-pointer">
+              <FolderOpen class="w-4 h-4 mr-2" />
+              View All Projects
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="router.push('/projects/new')" class="cursor-pointer font-medium">
+              <Plus class="w-4 h-4 mr-2" />
+              Create New Project
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <button
-          v-if="crumb.path"
+          v-else-if="crumb.path"
           @click="router.push(crumb.path)"
           class="text-muted-foreground hover:text-foreground transition-colors"
         >

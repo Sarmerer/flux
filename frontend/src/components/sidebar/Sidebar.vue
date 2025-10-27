@@ -3,8 +3,6 @@ import SidebarFooter from './Footer.vue'
 import SidebarHeader from './Header.vue'
 import HomeNavigation from './HomeNavigation.vue'
 import ProjectNavigation from './ProjectNavigation.vue'
-import TablesList from './TablesList.vue'
-import WorkflowsList from './WorkflowsList.vue'
 import { computed } from 'vue'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
@@ -27,8 +25,6 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
 
       <template v-else>
         <ProjectNavigation />
-        <TablesList />
-        <WorkflowsList />
       </template>
     </SidebarContent>
 
