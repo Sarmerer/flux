@@ -61,7 +61,7 @@ const onTabChange = (tab: string | number) => {
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="h-full">
     <LoadingWrapper :is-loading="activeProjectStore.isLoading" loading-text="Loading project...">
       <ErrorState
         v-if="activeProjectStore.error"
@@ -73,54 +73,82 @@ const onTabChange = (tab: string | number) => {
       </ErrorState>
 
       <template v-else-if="activeProject">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-foreground">{{ activeProject.name }}</h1>
-            <p class="text-muted-foreground">{{ activeProject.description || 'No description' }}</p>
+        <div class="border-b bg-muted/30">
+          <div class="px-6 py-8">
+            <div class="flex items-start justify-between mb-6">
+              <div class="flex-1">
+                <h1 class="text-3xl font-bold text-foreground mb-2">{{ activeProject.name }}</h1>
+                <p class="text-muted-foreground text-sm max-w-2xl">
+                  {{ activeProject.description || 'No description provided' }}
+                </p>
+              </div>
+              <Button variant="outline" size="sm">
+                <Settings class="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard
+                v-for="stat in statsCards"
+                :key="stat.title"
+                :title="stat.title"
+                :value="stat.value"
+                :description="stat.description"
+                :icon="stat.icon"
+              />
+            </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <Button variant="outline">
-              <Settings class="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-          </div>
+
+          <Tabs :model-value="currentTab" @update:model-value="onTabChange" class="px-6">
+            <TabsList class="bg-transparent border-b-0 h-auto p-0">
+              <TabsTrigger
+                value="overview"
+                class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="tables"
+                class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Tables
+              </TabsTrigger>
+              <TabsTrigger
+                value="workflows"
+                class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Workflows
+              </TabsTrigger>
+              <TabsTrigger
+                value="activity"
+                class="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Activity
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard
-            v-for="stat in statsCards"
-            :key="stat.title"
-            :title="stat.title"
-            :value="stat.value"
-            :description="stat.description"
-            :icon="stat.icon"
-          />
+        <div class="p-6">
+          <Tabs :model-value="currentTab" @update:model-value="onTabChange">
+            <TabsContent value="overview" class="mt-0">
+              <OverviewTab :active-project="activeProject" />
+            </TabsContent>
+
+            <TabsContent value="tables" class="mt-0">
+              <TablesTab :active-project="activeProject" />
+            </TabsContent>
+
+            <TabsContent value="workflows" class="mt-0">
+              <WorkflowsTab :active-project="activeProject" />
+            </TabsContent>
+
+            <TabsContent value="activity" class="mt-0">
+              <ActivityTab />
+            </TabsContent>
+          </Tabs>
         </div>
-
-        <Tabs :model-value="currentTab" @update:model-value="onTabChange" class="space-y-6">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tables">Tables</TabsTrigger>
-            <TabsTrigger value="workflows">Workflows</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" class="space-y-6">
-            <OverviewTab :active-project="activeProject" />
-          </TabsContent>
-
-          <TabsContent value="tables">
-            <TablesTab :active-project="activeProject" />
-          </TabsContent>
-
-          <TabsContent value="workflows">
-            <WorkflowsTab :active-project="activeProject" />
-          </TabsContent>
-
-          <TabsContent value="activity">
-            <ActivityTab />
-          </TabsContent>
-        </Tabs>
       </template>
     </LoadingWrapper>
   </div>

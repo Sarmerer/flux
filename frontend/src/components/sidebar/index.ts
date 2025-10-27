@@ -1,0 +1,8 @@
+export { default as AppSidebar } from './Sidebar.vue'
+export { default as ProjectSelector } from './ProjectSelector.vue'
+export { default as SidebarHeader } from './Header.vue'
+export { default as SidebarFooter } from './Footer.vue'
+export { default as HomeNavigation } from './HomeNavigation.vue'
+export { default as ProjectNavigation } from './ProjectNavigation.vue'
+export { default as TablesList } from './TablesList.vue'
+export { default as WorkflowsList } from './WorkflowsList.vue'

@@ -1,22 +1,24 @@
 <script setup lang="ts">
-import AppSidebar from '@/components/AppSidebar.vue'
+import AppHeader from '@/components/AppHeader.vue'
 import Toaster from '@/components/ui/toast/Toaster.vue'
 
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { AppSidebar } from '@/components/sidebar'
+
+import { SidebarProvider } from '@/components/ui/sidebar'
 </script>
 
 <template>
   <SidebarProvider>
     <AppSidebar />
 
-    <main class="flex-1">
-      <header class="p-4 border-b">
-        <SidebarTrigger />
-      </header>
+    <main class="flex-1 flex flex-col min-h-screen">
+      <AppHeader />
 
-      <RouterView v-slot="{ Component }">
-        <component :is="Component" />
-      </RouterView>
+      <div class="flex-1">
+        <RouterView v-slot="{ Component }">
+          <component :is="Component" />
+        </RouterView>
+      </div>
     </main>
 
     <Toaster />
