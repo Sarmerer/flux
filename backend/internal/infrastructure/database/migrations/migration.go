@@ -59,7 +59,7 @@ func GetAppliedMigrations(ctx context.Context, db *pgxpool.Pool) (map[int64]bool
 	query := "SELECT version FROM schema_migrations ORDER BY version"
 	rows, err := db.Query(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query migrations: %w", err)
+		return nil, fmt.Errorf("Failed to query migrations: %w", err)
 	}
 	defer rows.Close()
 
@@ -67,7 +67,7 @@ func GetAppliedMigrations(ctx context.Context, db *pgxpool.Pool) (map[int64]bool
 	for rows.Next() {
 		var version int64
 		if err := rows.Scan(&version); err != nil {
-			return nil, fmt.Errorf("failed to scan migration version: %w", err)
+			return nil, fmt.Errorf("Failed to scan migration version: %w", err)
 		}
 		applied[version] = true
 	}

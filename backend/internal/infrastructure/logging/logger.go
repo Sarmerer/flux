@@ -264,6 +264,15 @@ type ContextLogger struct {
 	verbosity LogVerbosity
 }
 
+const LoggerKey = "logger"
+
+func GetLogger(ctx context.Context) *ContextLogger {
+	if logger, ok := ctx.Value(LoggerKey).(*ContextLogger); ok {
+		return logger
+	}
+	return nil
+}
+
 func (cl *ContextLogger) GetVerbosity() LogVerbosity {
 	return cl.verbosity
 }

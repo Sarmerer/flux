@@ -52,7 +52,7 @@ func NewWorkflowService(
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.WorkflowCreateRequest, projectID uuid.UUID) (*entities.WorkflowResponse, error) {
 	_, err := s.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Project")
+		return nil, errors.NewNotFoundError("Project not found")
 	}
 
 	if err := validation.ValidateTrigger(&req.Trigger); err != nil {
@@ -65,7 +65,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.Work
 
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return nil, errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	workflow := &entities.Workflow{
@@ -81,7 +81,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.Work
 	}
 
 	if err := workflowRepo.Create(ctx, workflow); err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to create workflow")
+		return nil, errors.NewDatabaseError("Failed to create workflow", err)
 	}
 
 	response := workflow.ToResponse()
@@ -91,12 +91,12 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *entities.Work
 func (s *WorkflowService) GetWorkflowByID(ctx context.Context, id uuid.UUID, projectID uuid.UUID) (*entities.WorkflowResponse, error) {
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return nil, errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Workflow")
+		return nil, errors.NewNotFoundError("Workflow not found")
 	}
 
 	response := workflow.ToResponse()
@@ -106,12 +106,12 @@ func (s *WorkflowService) GetWorkflowByID(ctx context.Context, id uuid.UUID, pro
 func (s *WorkflowService) GetWorkflowsByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.WorkflowResponse, error) {
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return nil, errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	workflows, err := workflowRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflows")
+		return nil, errors.NewDatabaseError("Failed to get workflows", err)
 	}
 
 	responses := make([]*entities.WorkflowResponse, 0)
@@ -126,12 +126,12 @@ func (s *WorkflowService) GetWorkflowsByProjectID(ctx context.Context, projectID
 func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID, req *entities.WorkflowUpdateRequest) (*entities.WorkflowResponse, error) {
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return nil, errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Workflow")
+		return nil, errors.NewNotFoundError("Workflow not found")
 	}
 
 	if req.Name != "" {
@@ -163,7 +163,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, proj
 	workflow.UpdatedAt = time.Now()
 
 	if err := workflowRepo.Update(ctx, workflow); err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to update workflow")
+		return nil, errors.NewDatabaseError("Failed to update workflow", err)
 	}
 
 	response := workflow.ToResponse()
@@ -173,16 +173,16 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, id uuid.UUID, proj
 func (s *WorkflowService) DeleteWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error {
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	_, err = workflowRepo.GetByID(ctx, id)
 	if err != nil {
-		return errors.NewNotFoundError("Workflow")
+		return errors.NewNotFoundError("Workflow not found")
 	}
 
 	if err := workflowRepo.Delete(ctx, id); err != nil {
-		return errors.NewDatabaseError(err).WithDetails("failed to delete workflow")
+		return errors.NewDatabaseError("Failed to delete workflow", err)
 	}
 
 	return nil
@@ -191,21 +191,21 @@ func (s *WorkflowService) DeleteWorkflow(ctx context.Context, id uuid.UUID, proj
 func (s *WorkflowService) ToggleWorkflowActive(ctx context.Context, id uuid.UUID, projectID uuid.UUID, isActive bool) (*entities.WorkflowResponse, error) {
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return nil, errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Workflow")
+		return nil, errors.NewNotFoundError("Workflow not found")
 	}
 
 	if err := workflowRepo.ToggleActive(ctx, id, isActive); err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to toggle workflow active state")
+		return nil, errors.NewDatabaseError("Failed to toggle workflow active status", err)
 	}
 
 	workflow, err = workflowRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to fetch updated workflow")
+		return nil, errors.NewDatabaseError("Failed to retrieve updated workflow", err)
 	}
 
 	response := workflow.ToResponse()
@@ -215,12 +215,12 @@ func (s *WorkflowService) ToggleWorkflowActive(ctx context.Context, id uuid.UUID
 func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error {
 	workflowRepo, err := s.repoFactory.GetWorkflowRepository(ctx, projectID)
 	if err != nil {
-		return errors.NewDatabaseError(err).WithDetails("failed to get workflow repository")
+		return errors.NewDatabaseError("Failed to get workflow repository", err)
 	}
 
 	workflow, err := workflowRepo.GetByID(ctx, id)
 	if err != nil {
-		return errors.NewNotFoundError("Workflow")
+		return errors.NewNotFoundError("Workflow not found")
 	}
 
 	logger := s.logger.WithContext(logging.LogContext{
@@ -257,7 +257,7 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, id uuid.UUID, pro
 				"action_id":   action.ID,
 				"action_type": action.Type,
 			})
-			return errors.NewAPIError(errors.ErrCodeOperationFailed, fmt.Sprintf("failed to execute action %s", action.ID)).WithDetails(err.Error())
+			return errors.NewAPIError(errors.ErrCodeOperationFailed, fmt.Sprintf("Failed to execute action %s", action.ID)).WithDetails(err.Error())
 		}
 
 		actionLogger.Info("Workflow action completed", map[string]interface{}{
@@ -275,7 +275,6 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, id uuid.UUID, pro
 
 	return nil
 }
-
 
 func (s *WorkflowService) executeAction(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
 	switch action.Type {
@@ -313,12 +312,12 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal webhook payload: %w", err)
+		return fmt.Errorf("Failed to marshal webhook payload: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		return fmt.Errorf("failed to create webhook request: %w", err)
+		return fmt.Errorf("Failed to create webhook request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -326,7 +325,7 @@ func (s *WorkflowService) executeSendWebhook(ctx context.Context, action *entiti
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send webhook: %w", err)
+		return fmt.Errorf("Failed to send webhook: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -386,7 +385,7 @@ func (s *WorkflowService) validateWebhookURL(webhookURL string) error {
 
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		return fmt.Errorf("failed to resolve host: %w", err)
+		return fmt.Errorf("Failed to resolve host: %w", err)
 	}
 
 	for _, ip := range ips {

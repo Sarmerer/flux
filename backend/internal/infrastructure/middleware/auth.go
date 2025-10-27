@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -12,14 +11,13 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
+	"github.com/flow/internal/errors"
 )
 
-type contextKey string
-
 const (
-	UserIDKey        contextKey = "user_id"
-	ProjectMemberKey contextKey = "project_member"
-	ProjectIDKey     contextKey = "project_id"
+	UserIDKey        string = "user_id"
+	ProjectMemberKey string = "project_member"
+	ProjectIDKey     string = "project_id"
 )
 
 type Claims struct {
@@ -33,12 +31,12 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				respondWithError(w, "Authorization header required", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("Authorization header missing"))
 				return
 			}
 
 			if !strings.HasPrefix(authHeader, "Bearer ") {
-				respondWithError(w, "Invalid authorization header format", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("Invalid authorization header format"))
 				return
 			}
 
@@ -52,25 +50,25 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 			})
 
 			if err != nil || !token.Valid {
-				respondWithError(w, "Invalid or expired token", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("Invalid or expired token"))
 				return
 			}
 
 			claims, ok := token.Claims.(jwt.MapClaims)
 			if !ok {
-				respondWithError(w, "Invalid token claims", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("Invalid token claims"))
 				return
 			}
 
 			userIDStr, ok := claims["user_id"].(string)
 			if !ok {
-				respondWithError(w, "Invalid user ID in token", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("User ID not found in token"))
 				return
 			}
 
 			userID, err := uuid.Parse(userIDStr)
 			if err != nil {
-				respondWithError(w, "Invalid user ID format", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("Invalid user ID in token"))
 				return
 			}
 
@@ -85,22 +83,12 @@ func GetUserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	return userID, ok
 }
 
-func GetProjectMemberFromContext(ctx context.Context) (*entities.ProjectMember, bool) {
-	member, ok := ctx.Value(ProjectMemberKey).(*entities.ProjectMember)
-	return member, ok
-}
-
-func GetProjectIDFromContext(ctx context.Context) (uuid.UUID, bool) {
-	projectID, ok := ctx.Value(ProjectIDKey).(uuid.UUID)
-	return projectID, ok
-}
-
 func RequireProjectPermission(projectMemberRepo repositories.ProjectMemberRepository, permission entities.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID, ok := GetUserIDFromContext(r.Context())
 			if !ok {
-				respondWithError(w, "Unauthorized", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("User not authenticated"))
 				return
 			}
 
@@ -110,24 +98,24 @@ func RequireProjectPermission(projectMemberRepo repositories.ProjectMemberReposi
 			}
 
 			if projectIDStr == "" {
-				respondWithError(w, "Project ID required", http.StatusBadRequest)
+				errors.WriteError(w, errors.NewValidationError("Project ID required").WithField("projectId"))
 				return
 			}
 
 			projectID, err := uuid.Parse(projectIDStr)
 			if err != nil {
-				respondWithError(w, "Invalid project ID", http.StatusBadRequest)
+				errors.WriteError(w, errors.NewValidationError("Invalid project ID").WithField("projectId"))
 				return
 			}
 
 			member, err := projectMemberRepo.GetByProjectAndUser(r.Context(), projectID, userID)
 			if err != nil {
-				respondWithError(w, "Not a member of this project", http.StatusForbidden)
+				errors.WriteError(w, errors.NewNotFoundError("Project member not found"))
 				return
 			}
 
 			if !member.HasPermission(permission) {
-				respondWithError(w, "Insufficient permissions for this project", http.StatusForbidden)
+				errors.WriteError(w, errors.NewForbiddenError("Insufficient permissions"))
 				return
 			}
 
@@ -136,96 +124,6 @@ func RequireProjectPermission(projectMemberRepo repositories.ProjectMemberReposi
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-}
-
-func RequireProjectAnyPermission(projectMemberRepo repositories.ProjectMemberRepository, permissions ...entities.Permission) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID, ok := GetUserIDFromContext(r.Context())
-			if !ok {
-				respondWithError(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			projectIDStr := chi.URLParam(r, "projectId")
-			if projectIDStr == "" {
-				projectIDStr = chi.URLParam(r, "id")
-			}
-
-			if projectIDStr == "" {
-				respondWithError(w, "Project ID required", http.StatusBadRequest)
-				return
-			}
-
-			projectID, err := uuid.Parse(projectIDStr)
-			if err != nil {
-				respondWithError(w, "Invalid project ID", http.StatusBadRequest)
-				return
-			}
-
-			member, err := projectMemberRepo.GetByProjectAndUser(r.Context(), projectID, userID)
-			if err != nil {
-				respondWithError(w, "Not a member of this project", http.StatusForbidden)
-				return
-			}
-
-			if !member.HasAnyPermission(permissions...) {
-				respondWithError(w, "Insufficient permissions for this project", http.StatusForbidden)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), ProjectMemberKey, member)
-			ctx = context.WithValue(ctx, ProjectIDKey, projectID)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-func RequireProjectRole(projectMemberRepo repositories.ProjectMemberRepository, roles ...entities.Role) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID, ok := GetUserIDFromContext(r.Context())
-			if !ok {
-				respondWithError(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			projectIDStr := chi.URLParam(r, "projectId")
-			if projectIDStr == "" {
-				projectIDStr = chi.URLParam(r, "id")
-			}
-
-			if projectIDStr == "" {
-				respondWithError(w, "Project ID required", http.StatusBadRequest)
-				return
-			}
-
-			projectID, err := uuid.Parse(projectIDStr)
-			if err != nil {
-				respondWithError(w, "Invalid project ID", http.StatusBadRequest)
-				return
-			}
-
-			member, err := projectMemberRepo.GetByProjectAndUser(r.Context(), projectID, userID)
-			if err != nil {
-				respondWithError(w, "Not a member of this project", http.StatusForbidden)
-				return
-			}
-
-			if !member.HasRole(roles...) {
-				respondWithError(w, "Insufficient permissions for this project", http.StatusForbidden)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), ProjectMemberKey, member)
-			ctx = context.WithValue(ctx, ProjectIDKey, projectID)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-func RequireProjectAdmin(projectMemberRepo repositories.ProjectMemberRepository) func(http.Handler) http.Handler {
-	return RequireProjectRole(projectMemberRepo, entities.RoleAdmin)
 }
 
 func RequireProjectMembership(projectMemberRepo repositories.ProjectMemberRepository) func(http.Handler) http.Handler {
@@ -233,7 +131,7 @@ func RequireProjectMembership(projectMemberRepo repositories.ProjectMemberReposi
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID, ok := GetUserIDFromContext(r.Context())
 			if !ok {
-				respondWithError(w, "Unauthorized", http.StatusUnauthorized)
+				errors.WriteError(w, errors.NewUnauthorizedError("User not authenticated"))
 				return
 			}
 
@@ -243,19 +141,19 @@ func RequireProjectMembership(projectMemberRepo repositories.ProjectMemberReposi
 			}
 
 			if projectIDStr == "" {
-				respondWithError(w, "Project ID required", http.StatusBadRequest)
+				errors.WriteError(w, errors.NewValidationError("Project ID required").WithField("projectId"))
 				return
 			}
 
 			projectID, err := uuid.Parse(projectIDStr)
 			if err != nil {
-				respondWithError(w, "Invalid project ID", http.StatusBadRequest)
+				errors.WriteError(w, errors.NewValidationError("Invalid project ID").WithField("projectId"))
 				return
 			}
 
 			member, err := projectMemberRepo.GetByProjectAndUser(r.Context(), projectID, userID)
 			if err != nil {
-				respondWithError(w, "Not a member of this project", http.StatusForbidden)
+				errors.WriteError(w, errors.NewNotFoundError("Project member not found"))
 				return
 			}
 
@@ -264,15 +162,4 @@ func RequireProjectMembership(projectMemberRepo repositories.ProjectMemberReposi
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-}
-
-func respondWithError(w http.ResponseWriter, message string, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]string{
-			"message": message,
-			"code":    http.StatusText(statusCode),
-		},
-	})
 }

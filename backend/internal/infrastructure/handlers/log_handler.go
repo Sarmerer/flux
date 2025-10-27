@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -128,13 +127,13 @@ func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 
 	logs, err := h.storage.Query(r.Context(), filter)
 	if err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to query logs"))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to query logs", err))
 		return
 	}
 
 	count, err := h.storage.Count(r.Context(), filter)
 	if err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to count logs"))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to count logs", err))
 		return
 	}
 
@@ -145,9 +144,7 @@ func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 		"offset": filter.Offset,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
@@ -165,13 +162,13 @@ func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 
 	logs, err := h.storage.Query(r.Context(), filter)
 	if err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to query project logs"))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to query project logs", err))
 		return
 	}
 
 	count, err := h.storage.Count(r.Context(), filter)
 	if err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to count project logs"))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to count project logs", err))
 		return
 	}
 
@@ -183,9 +180,7 @@ func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 		"project_id": projectID,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *LogHandler) DeleteOldLogs(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +199,7 @@ func (h *LogHandler) DeleteOldLogs(w http.ResponseWriter, r *http.Request) {
 	duration := time.Duration(days) * 24 * time.Hour
 	deleted, err := h.storage.DeleteOlderThan(r.Context(), duration)
 	if err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err).WithDetails("failed to delete old logs"))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to delete old logs", err))
 		return
 	}
 
@@ -213,9 +208,7 @@ func (h *LogHandler) DeleteOldLogs(w http.ResponseWriter, r *http.Request) {
 		"message": "Old logs deleted successfully",
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *LogHandler) applyCommonFilters(r *http.Request, filter *logging.LogFilter) {

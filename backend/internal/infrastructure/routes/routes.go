@@ -20,7 +20,7 @@ func SetupRoutes(
 	projectHandler *handlers.ProjectHandler,
 	projectMemberHandler *handlers.ProjectMemberHandler,
 	tableHandler *handlers.TableHandler,
-	dbMutationProgressHandler *handlers.DatabaseMutationProgressHandler,
+	realtimeHandler *handlers.RealtimeHandler,
 	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
 	workflowHandler *handlers.WorkflowHandler,
 	logHandler *handlers.LogHandler,
@@ -67,12 +67,6 @@ func SetupRoutes(
 				r.Get("/{id}", userHandler.GetProfile)
 			})
 
-			r.Route("/operations", func(r chi.Router) {
-				r.Get("/", dbMutationProgressHandler.GetUserOperations)
-				r.Get("/{operationId}", dbMutationProgressHandler.GetOperationStatus)
-				r.Delete("/{operationId}", dbMutationProgressHandler.CancelOperation)
-			})
-
 			r.Route("/logs", func(r chi.Router) {
 				r.Get("/", logHandler.GetLogs)
 				r.Delete("/cleanup", logHandler.DeleteOldLogs)
@@ -87,10 +81,10 @@ func SetupRoutes(
 				r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 					Get("/{id}", projectHandler.GetProject)
 
-				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectsEdit)).
+				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectEdit)).
 					Put("/{id}", projectHandler.UpdateProject)
 
-				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectsDelete)).
+				r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermProjectDelete)).
 					Delete("/{id}", projectHandler.DeleteProject)
 
 				r.Route("/{projectId}/members", func(r chi.Router) {
@@ -100,13 +94,13 @@ func SetupRoutes(
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/me", projectMemberHandler.GetMyProjectRole)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUsersManage)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUserManage)).
 						Post("/", projectMemberHandler.AddProjectMember)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUsersManage)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUserManage)).
 						Put("/{memberId}", projectMemberHandler.UpdateProjectMember)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUsersManage)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermUserManage)).
 						Delete("/{memberId}", projectMemberHandler.RemoveProjectMember)
 				})
 
@@ -120,20 +114,17 @@ func SetupRoutes(
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/{id}", tableHandler.GetTable)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesCreate)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableCreate)).
 						Post("/", tableHandler.CreateTable)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesCreate)).
-						Post("/with-progress", dbMutationProgressHandler.CreateTableWithProgress)
-
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit)).
 						Put("/{id}", tableHandler.UpdateTable)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesDelete)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableDelete)).
 						Delete("/{id}", tableHandler.DeleteTable)
 
 					r.Route("/{tableName}/schema", func(r chi.Router) {
-						r.Use(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTablesEdit))
+						r.Use(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit))
 
 						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)
 						r.Delete("/drop", tableSchemaMutationHandler.DropTableFromDatabase)
@@ -152,23 +143,23 @@ func SetupRoutes(
 					r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
 						Get("/{id}", workflowHandler.GetWorkflow)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsCreate)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowCreate)).
 						Post("/", workflowHandler.CreateWorkflow)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowEdit)).
 						Put("/{id}", workflowHandler.UpdateWorkflow)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowEdit)).
 						Post("/{id}/toggle", workflowHandler.ToggleWorkflowActive)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsEdit)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowEdit)).
 						Post("/{id}/execute", workflowHandler.ExecuteWorkflow)
 
-					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowsDelete)).
+					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowDelete)).
 						Delete("/{id}", workflowHandler.DeleteWorkflow)
 				})
 
-				r.Get("/ws", dbMutationProgressHandler.WebSocketHandler)
+				r.Get("/ws", realtimeHandler.WebSocketHandler)
 			})
 		})
 	})

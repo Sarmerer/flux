@@ -70,9 +70,9 @@ func (s *DatabaseService) createDatabase(ctx context.Context, projectID uuid.UUI
 	_, err := s.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
 		if opCtx != nil {
-			opCtx.Fail(errors.NewNotFoundError("Project"))
+			opCtx.Fail(errors.NewNotFoundError("Project not found"))
 		}
-		return nil, errors.NewNotFoundError("Project")
+		return nil, errors.NewNotFoundError("Project not found")
 	}
 	if opCtx != nil {
 		opCtx.CompleteStep("Verifying project exists")
@@ -94,10 +94,11 @@ func (s *DatabaseService) createDatabase(ctx context.Context, projectID uuid.UUI
 	}
 
 	if err := s.dbRepo.Create(ctx, database); err != nil {
+		dbErr := errors.NewDatabaseError("Failed to save database configuration", err)
 		if opCtx != nil {
-			opCtx.Fail(errors.NewDatabaseError(err).WithDetails("failed to save database configuration"))
+			opCtx.Fail(dbErr)
 		}
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to save database configuration")
+		return nil, dbErr
 	}
 	if opCtx != nil {
 		opCtx.CompleteStep("Creating database configuration")
@@ -147,7 +148,7 @@ func (s *DatabaseService) UpdateProjectDatabase(ctx context.Context, databaseID 
 
 	database, err := s.dbRepo.GetByID(ctx, databaseID)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Database")
+		return nil, errors.NewNotFoundError("Database not found")
 	}
 
 	database.Name = req.Name
@@ -160,7 +161,7 @@ func (s *DatabaseService) UpdateProjectDatabase(ctx context.Context, databaseID 
 	database.UpdatedAt = time.Now()
 
 	if err := s.dbRepo.Update(ctx, database); err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to update database configuration")
+		return nil, errors.NewDatabaseError("Failed to update database configuration", err)
 	}
 
 	response := database.ToResponse()
@@ -171,7 +172,7 @@ func (s *DatabaseService) DeleteProjectDatabase(ctx context.Context, databaseID 
 
 	database, err := s.dbRepo.GetByID(ctx, databaseID)
 	if err != nil {
-		return errors.NewNotFoundError("Database")
+		return errors.NewNotFoundError("Database not found")
 	}
 
 	if err := s.pgService.DropDatabase(ctx, database); err != nil {
@@ -179,7 +180,7 @@ func (s *DatabaseService) DeleteProjectDatabase(ctx context.Context, databaseID 
 	}
 
 	if err := s.dbRepo.Delete(ctx, databaseID); err != nil {
-		return errors.NewDatabaseError(err).WithDetails("failed to remove database configuration")
+		return errors.NewDatabaseError("Failed to delete database configuration", err)
 	}
 
 	return nil
@@ -188,7 +189,7 @@ func (s *DatabaseService) DeleteProjectDatabase(ctx context.Context, databaseID 
 func (s *DatabaseService) TestDatabaseConnection(ctx context.Context, databaseID uuid.UUID) error {
 	database, err := s.dbRepo.GetByID(ctx, databaseID)
 	if err != nil {
-		return errors.NewNotFoundError("Database")
+		return errors.NewNotFoundError("Database not found")
 	}
 
 	return s.pgService.TestConnection(ctx, database)
@@ -197,7 +198,7 @@ func (s *DatabaseService) TestDatabaseConnection(ctx context.Context, databaseID
 func (s *DatabaseService) GetProjectDatabases(ctx context.Context, projectID uuid.UUID) ([]*entities.DatabaseResponse, error) {
 	databases, err := s.dbRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to get databases")
+		return nil, errors.NewDatabaseError("Failed to retrieve databases", err)
 	}
 
 	responses := make([]*entities.DatabaseResponse, 0)
@@ -236,12 +237,12 @@ func (s *DatabaseService) CreateTableWithProgress(ctx context.Context, projectID
 	opCtx.UpdateProgress("Getting project database", "Retrieving project database configuration", 0.2)
 	databases, err := s.dbRepo.GetByProjectID(ctx, projectID)
 	if err != nil {
-		opCtx.Fail(errors.NewDatabaseError(err).WithDetails("failed to get project databases"))
+		opCtx.Fail(errors.NewDatabaseError("Failed to retrieve project database", err))
 		return nil, err
 	}
 
 	if len(databases) == 0 {
-		err := errors.NewNotFoundError("Project database")
+		err := errors.NewNotFoundError("Project database not found")
 		opCtx.Fail(err)
 		return nil, err
 	}
@@ -252,7 +253,7 @@ func (s *DatabaseService) CreateTableWithProgress(ctx context.Context, projectID
 	opCtx.UpdateProgress("Creating table schema", "Preparing table creation SQL", 0.3)
 	createTableSQL, err := s.generateCreateTableSQL(tableReq)
 	if err != nil {
-		opCtx.Fail(errors.NewAPIError(errors.ErrCodeOperationFailed, "failed to generate table SQL").WithDetails(err.Error()))
+		opCtx.Fail(errors.NewAPIError(errors.ErrCodeOperationFailed, "Failed to generate table SQL").WithDetails(err.Error()))
 		return nil, err
 	}
 	opCtx.CompleteStep("Creating table schema")
@@ -281,7 +282,7 @@ func (s *DatabaseService) CreateTableWithProgress(ctx context.Context, projectID
 
 	schemaJSON, err := json.Marshal(tableReq.Schema)
 	if err != nil {
-		opCtx.Fail(errors.NewAPIError(errors.ErrCodeOperationFailed, "failed to marshal schema").WithDetails(err.Error()))
+		opCtx.Fail(errors.NewAPIError(errors.ErrCodeOperationFailed, "Failed to marshal schema").WithDetails(err.Error()))
 		return nil, err
 	}
 
@@ -353,4 +354,3 @@ func (s *DatabaseService) generateCreateTableSQL(tableReq *entities.TableCreateR
 
 	return fmt.Sprintf("CREATE TABLE %s (%s)", tableReq.Name, strings.Join(columns, ", ")), nil
 }
-

@@ -22,7 +22,7 @@ type ProjectRepository interface {
 	Create(ctx context.Context, project *entities.Project) error
 	CreateTx(ctx context.Context, tx types.Executor, project *entities.Project) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Project, error)
-	GetByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*entities.Project, error)
+	GetByMemberID(ctx context.Context, memberID uuid.UUID) ([]*entities.Project, error)
 	Update(ctx context.Context, project *entities.Project) error
 	UpdateTx(ctx context.Context, tx types.Executor, project *entities.Project) error
 	Delete(ctx context.Context, id uuid.UUID) error

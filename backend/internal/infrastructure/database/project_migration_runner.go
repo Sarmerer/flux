@@ -34,7 +34,7 @@ func (r *ProjectMigrationRunner) InitializeProjectDatabase(ctx context.Context, 
 	err := r.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		_, err := pool.Exec(ctx, projectInitialSchema)
 		if err != nil {
-			return fmt.Errorf("failed to execute initial schema: %w", err)
+			return fmt.Errorf("Failed to execute initial schema: %w", err)
 		}
 
 		r.logger.Info("Successfully initialized project database schema", map[string]interface{}{
@@ -65,7 +65,7 @@ func (r *ProjectMigrationRunner) GetProjectSchemaVersion(ctx context.Context, da
 	})
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to get schema version: %w", err)
+		return 0, fmt.Errorf("Failed to get schema version: %w", err)
 	}
 
 	return version, nil
@@ -81,13 +81,13 @@ func (r *ProjectMigrationRunner) RunProjectMigration(ctx context.Context, databa
 	err := r.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		tx, err := pool.Begin(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to begin transaction: %w", err)
+			return fmt.Errorf("Failed to begin transaction: %w", err)
 		}
 		defer tx.Rollback(ctx)
 
 		_, err = tx.Exec(ctx, sql)
 		if err != nil {
-			return fmt.Errorf("failed to execute migration: %w", err)
+			return fmt.Errorf("Failed to execute migration: %w", err)
 		}
 
 		_, err = tx.Exec(ctx,
@@ -95,11 +95,11 @@ func (r *ProjectMigrationRunner) RunProjectMigration(ctx context.Context, databa
 			version, name,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to record migration: %w", err)
+			return fmt.Errorf("Failed to record migration: %w", err)
 		}
 
 		if err = tx.Commit(ctx); err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
+			return fmt.Errorf("Failed to commit transaction: %w", err)
 		}
 
 		return nil

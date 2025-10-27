@@ -107,7 +107,7 @@ func (l *Listener) Subscribe(channel string, handler EventHandler) error {
 	if len(l.handlers[channel]) == 1 {
 		err := l.listener.Listen(channel)
 		if err != nil {
-			return fmt.Errorf("failed to listen on channel %s: %w", channel, err)
+			return fmt.Errorf("Failed to listen on channel %s: %w", channel, err)
 		}
 		log.Printf("[pglistener] Subscribed to channel: %s", channel)
 	}
@@ -123,7 +123,7 @@ func (l *Listener) Unsubscribe(channel string) error {
 
 	err := l.listener.Unlisten(channel)
 	if err != nil {
-		return fmt.Errorf("failed to unlisten from channel %s: %w", channel, err)
+		return fmt.Errorf("Failed to unlisten from channel %s: %w", channel, err)
 	}
 
 	log.Printf("[pglistener] Unsubscribed from channel: %s", channel)
@@ -198,7 +198,7 @@ func (l *Listener) Stop() error {
 
 	err := l.listener.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close listener: %w", err)
+		return fmt.Errorf("Failed to close listener: %w", err)
 	}
 
 	log.Println("[pglistener] Listener stopped")
@@ -208,13 +208,13 @@ func (l *Listener) Stop() error {
 func (l *Listener) Notify(channel string, event Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
+		return fmt.Errorf("Failed to marshal event: %w", err)
 	}
 
 	query := fmt.Sprintf("NOTIFY %s, '%s'", channel, string(payload))
 	_, err = l.db.ExecContext(l.ctx, query)
 	if err != nil {
-		return fmt.Errorf("failed to send notification: %w", err)
+		return fmt.Errorf("Failed to send notification: %w", err)
 	}
 
 	return nil

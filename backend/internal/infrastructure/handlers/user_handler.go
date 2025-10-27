@@ -56,9 +56,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	writeJSON(w, http.StatusCreated, user)
 }
 
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -84,14 +82,13 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
-			errors.WriteError(w, errors.NewUnauthorizedError().WithDetails(err.Error()))
+			errors.WriteError(w, errors.NewUnauthorizedError(err.Error()))
 		}
 		return
 	}
 
 	response := map[string]string{"token": token}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -108,19 +105,18 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
-			errors.WriteError(w, errors.NewNotFoundError("User"))
+			errors.WriteError(w, errors.NewNotFoundError("User not found"))
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	writeJSON(w, http.StatusOK, user)
 }
 
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		errors.WriteError(w, errors.NewUnauthorizedError().WithDetails("User ID not found in context"))
+		errors.WriteError(w, errors.NewUnauthorizedError("User not authenticated"))
 		return
 	}
 
@@ -129,11 +125,10 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
-			errors.WriteError(w, errors.NewNotFoundError("User"))
+			errors.WriteError(w, errors.NewNotFoundError("User not found"))
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	writeJSON(w, http.StatusOK, user)
 }

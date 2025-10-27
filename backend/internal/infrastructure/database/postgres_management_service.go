@@ -25,7 +25,7 @@ func (s *PostgreSQLManagementService) CreateDatabase(ctx context.Context, databa
 	return s.connService.ExecuteWithPostgreSQLServer(ctx, database, func(pool *pgxpool.Pool) error {
 		createQuery := fmt.Sprintf("CREATE DATABASE %s", database.Database)
 		if _, err := pool.Exec(ctx, createQuery); err != nil {
-			return errors.NewDatabaseError(err).WithDetails(fmt.Sprintf("failed to create database %s", database.Database))
+			return errors.NewDatabaseError(fmt.Sprintf("Failed to create database %s", database.Database), err)
 		}
 		log.Printf("Successfully created PostgreSQL database: %s", database.Database)
 		return nil
@@ -53,7 +53,7 @@ func (s *PostgreSQLManagementService) DropDatabase(ctx context.Context, database
 				log.Printf("Database %s does not exist, skipping drop", database.Database)
 				return nil
 			}
-			return errors.NewDatabaseError(err).WithDetails(fmt.Sprintf("failed to drop database %s", database.Database))
+			return errors.NewDatabaseError(fmt.Sprintf("Failed to drop database %s", database.Database), err)
 		}
 
 		log.Printf("Successfully dropped PostgreSQL database: %s", database.Database)
@@ -68,7 +68,7 @@ func (s *PostgreSQLManagementService) TestConnection(ctx context.Context, databa
 func (s *PostgreSQLManagementService) CreateTable(ctx context.Context, database *entities.Database, tableName string, schema string) error {
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, schema); err != nil {
-			return errors.NewDatabaseError(err).WithDetails(fmt.Sprintf("failed to create table %s", tableName))
+			return errors.NewDatabaseError(fmt.Sprintf("Failed to create table %s", tableName), err)
 		}
 		log.Printf("Successfully created table: %s", tableName)
 		return nil
@@ -80,7 +80,7 @@ func (s *PostgreSQLManagementService) TableExists(ctx context.Context, database 
 	err := s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		checkQuery := "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)"
 		if err := pool.QueryRow(ctx, checkQuery, tableName).Scan(&exists); err != nil {
-			return errors.NewDatabaseError(err).WithDetails(fmt.Sprintf("failed to check if table %s exists", tableName))
+			return errors.NewDatabaseError(fmt.Sprintf("Failed to check if table %s exists", tableName), err)
 		}
 		return nil
 	})
@@ -92,7 +92,7 @@ func (s *PostgreSQLManagementService) DropTable(ctx context.Context, database *e
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", tableName)
 		if _, err := pool.Exec(ctx, dropQuery); err != nil {
-			return errors.NewDatabaseError(err).WithDetails(fmt.Sprintf("failed to drop table %s", tableName))
+			return errors.NewDatabaseError(fmt.Sprintf("Failed to drop table %s", tableName), err)
 		}
 		log.Printf("Successfully dropped table: %s", tableName)
 		return nil
@@ -102,7 +102,7 @@ func (s *PostgreSQLManagementService) DropTable(ctx context.Context, database *e
 func (s *PostgreSQLManagementService) ExecuteQuery(ctx context.Context, database *entities.Database, query string, args ...interface{}) error {
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, args...); err != nil {
-			return errors.NewDatabaseError(err).WithDetails("failed to execute query")
+			return errors.NewDatabaseError("Failed to execute query", err)
 		}
 		return nil
 	})

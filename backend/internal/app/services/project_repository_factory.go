@@ -23,7 +23,7 @@ func NewProjectRepositoryFactory(resolver *database.ProjectConnectionResolver) *
 func (f *ProjectRepositoryFactory) GetTableRepository(ctx context.Context, projectID uuid.UUID) (repositories.TableRepository, error) {
 	pool, err := f.resolver.GetProjectDB(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project database connection: %w", err)
+		return nil, fmt.Errorf("Failed to get project database connection: %w", err)
 	}
 	return postgresRepos.NewTableRepository(pool), nil
 }
@@ -31,7 +31,7 @@ func (f *ProjectRepositoryFactory) GetTableRepository(ctx context.Context, proje
 func (f *ProjectRepositoryFactory) GetWorkflowRepository(ctx context.Context, projectID uuid.UUID) (repositories.WorkflowRepository, error) {
 	pool, err := f.resolver.GetProjectDB(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project database connection: %w", err)
+		return nil, fmt.Errorf("Failed to get project database connection: %w", err)
 	}
 	return postgresRepos.NewWorkflowRepository(pool), nil
 }

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"runtime/debug"
 	"time"
+
+	"github.com/flow/internal/infrastructure/logging"
 )
 
 type ErrorCode string
@@ -42,15 +44,14 @@ const (
 )
 
 type APIError struct {
-	Code       ErrorCode              `json:"code"`
-	Message    string                 `json:"message"`
-	Details    string                 `json:"details,omitempty"`
-	Field      string                 `json:"field,omitempty"`
-	Timestamp  time.Time              `json:"timestamp"`
-	RequestID  string                 `json:"request_id,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
-	StackTrace string                 `json:"-"`
-	OriginalError error               `json:"-"`
+	Code          ErrorCode              `json:"code"`
+	Message       string                 `json:"message"`
+	Details       string                 `json:"details,omitempty"`
+	Field         string                 `json:"field,omitempty"`
+	Timestamp     time.Time              `json:"timestamp"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	StackTrace    string                 `json:"-"`
+	OriginalError error                  `json:"-"`
 }
 
 func (e *APIError) Error() string {
@@ -72,11 +73,6 @@ func (e *APIError) WithDetails(details string) *APIError {
 
 func (e *APIError) WithField(field string) *APIError {
 	e.Field = field
-	return e
-}
-
-func (e *APIError) WithRequestID(requestID string) *APIError {
-	e.RequestID = requestID
 	return e
 }
 
@@ -130,15 +126,11 @@ func WriteError(w http.ResponseWriter, err *APIError, logger ...interface{}) {
 				"details":    err.Details,
 			}
 
-			if err.RequestID != "" {
-				fields["request_id"] = err.RequestID
-			}
-
 			if err.Field != "" {
 				fields["field"] = err.Field
 			}
 
-			if err.Metadata != nil && len(err.Metadata) > 0 {
+			if len(err.Metadata) > 0 {
 				fields["metadata"] = err.Metadata
 			}
 
@@ -149,40 +141,40 @@ func WriteError(w http.ResponseWriter, err *APIError, logger ...interface{}) {
 	json.NewEncoder(w).Encode(err)
 }
 
-func WriteErrorResponse(w http.ResponseWriter, code ErrorCode, message string) {
-	err := NewAPIError(code, message)
-	WriteError(w, err)
-}
-
-func WriteErrorWithLogger(w http.ResponseWriter, err *APIError, logger interface{}) {
-	WriteError(w, err, logger)
-}
-
 func NewValidationError(message string) *APIError {
 	return NewAPIError(ErrCodeValidation, message)
 }
 
-func NewNotFoundError(resource string) *APIError {
-	return NewAPIError(ErrCodeNotFound, fmt.Sprintf("%s not found", resource))
+func NewNotFoundError(message string) *APIError {
+	return NewAPIError(ErrCodeNotFound, message)
 }
 
-func NewUnauthorizedError() *APIError {
-	return NewAPIError(ErrCodeUnauthorized, "Unauthorized access")
+func NewUnauthorizedError(message string) *APIError {
+	return NewAPIError(ErrCodeUnauthorized, message)
 }
 
-func NewForbiddenError() *APIError {
-	return NewAPIError(ErrCodeForbidden, "Access forbidden")
+func NewForbiddenError(message string) *APIError {
+	return NewAPIError(ErrCodeForbidden, message)
 }
 
-func NewDatabaseError(err error) *APIError {
-	return NewAPIError(ErrCodeDatabaseError, "Database operation failed").WithDetails(err.Error())
+func NewDatabaseError(message string, err error) *APIError {
+	apiErr := NewAPIError(ErrCodeDatabaseError, message)
+	if err != nil {
+		apiErr.Details = err.Error()
+		apiErr.OriginalError = err
+	}
+	return apiErr
 }
 
 func NewInternalError(err error) *APIError {
-	apiErr := NewAPIError(ErrCodeInternal, "Internal server error").WithDetails(err.Error())
-	apiErr.OriginalError = err
-	apiErr.StackTrace = string(debug.Stack())
-	return apiErr
+	message := "Internal server error"
+	if err != nil {
+		apiErr := NewAPIError(ErrCodeInternal, message).WithDetails(err.Error())
+		apiErr.OriginalError = err
+		apiErr.StackTrace = string(debug.Stack())
+		return apiErr
+	}
+	return NewAPIError(ErrCodeInternal, message)
 }
 
 func NewBusinessRuleError(message string) *APIError {
@@ -193,8 +185,8 @@ func NewConflictError(message string) *APIError {
 	return NewAPIError(ErrCodeConflict, message)
 }
 
-func NewAlreadyExistsError(resource string) *APIError {
-	return NewAPIError(ErrCodeAlreadyExists, fmt.Sprintf("%s already exists", resource))
+func NewAlreadyExistsError(message string) *APIError {
+	return NewAPIError(ErrCodeAlreadyExists, message)
 }
 
 func ErrorHandler(next http.Handler) http.Handler {
@@ -203,19 +195,15 @@ func ErrorHandler(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				apiErr := NewInternalError(fmt.Errorf("panic: %v", err))
 
-				logger := getLoggerFromContext(r.Context())
+				logger := logging.GetLogger(r.Context())
 				if logger != nil {
-					if ctxLogger, ok := logger.(interface {
-						ErrorWithStack(msg string, err error, stackTrace string, fields ...map[string]interface{})
-					}); ok {
-						fields := map[string]interface{}{
-							"panic_value": err,
-							"method":      r.Method,
-							"path":        r.URL.Path,
-							"remote_addr": r.RemoteAddr,
-						}
-						ctxLogger.ErrorWithStack("Panic recovered", apiErr.OriginalError, apiErr.StackTrace, fields)
+					fields := map[string]interface{}{
+						"panic_value": err,
+						"method":      r.Method,
+						"path":        r.URL.Path,
+						"remote_addr": r.RemoteAddr,
 					}
+					logger.ErrorWithStack("Panic recovered", apiErr.OriginalError, apiErr.StackTrace, fields)
 				}
 
 				WriteError(w, apiErr, logger)
@@ -223,17 +211,4 @@ func ErrorHandler(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
-}
-
-type contextKey string
-
-func getLoggerFromContext(ctx interface{}) interface{} {
-	type contextGetter interface {
-		Value(key interface{}) interface{}
-	}
-
-	if c, ok := ctx.(contextGetter); ok {
-		return c.Value(contextKey("logger"))
-	}
-	return nil
 }

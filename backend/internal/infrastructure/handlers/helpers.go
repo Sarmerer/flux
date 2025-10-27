@@ -5,9 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/flow/internal/errors"
-	"github.com/flow/internal/infrastructure/logging"
-	appMiddleware "github.com/flow/internal/infrastructure/middleware"
 	"github.com/flow/internal/validation"
 
 	"github.com/go-chi/chi/v5"
@@ -23,21 +20,6 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(data)
-}
-
-func writeError(w http.ResponseWriter, r *http.Request, err error) {
-	logger := appMiddleware.GetLogger(r.Context())
-
-	if apiErr, ok := err.(*errors.APIError); ok {
-		errors.WriteErrorWithLogger(w, apiErr, logger)
-	} else {
-		internalErr := errors.NewInternalError(err)
-		errors.WriteErrorWithLogger(w, internalErr, logger)
-	}
-}
-
-func getLogger(r *http.Request) *logging.ContextLogger {
-	return appMiddleware.GetLogger(r.Context())
 }
 
 func decodeJSON(r *http.Request, v interface{}) error {

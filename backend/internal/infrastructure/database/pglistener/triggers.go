@@ -19,12 +19,12 @@ func (tm *TriggerManager) CreateNotifyTrigger(ctx context.Context, schema, table
 
 	err := tm.createTriggerFunction(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create trigger function: %w", err)
+		return fmt.Errorf("Failed to create trigger function: %w", err)
 	}
 
 	err = tm.createTableTrigger(ctx, schema, table, channel)
 	if err != nil {
-		return fmt.Errorf("failed to create table trigger: %w", err)
+		return fmt.Errorf("Failed to create table trigger: %w", err)
 	}
 
 	return nil
@@ -94,7 +94,7 @@ EXECUTE FUNCTION notify_table_change('%s');
 
 	_, err := tm.db.ExecContext(ctx, query)
 	if err != nil {
-		return fmt.Errorf("failed to create trigger %s: %w", triggerName, err)
+		return fmt.Errorf("Failed to create trigger %s: %w", triggerName, err)
 	}
 
 	return nil

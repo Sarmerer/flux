@@ -86,18 +86,18 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 	})
 
 	allPermissions := entities.Permissions{
-		entities.PermProjectsCreate,
-		entities.PermProjectsEdit,
-		entities.PermProjectsDelete,
-		entities.PermProjectsView,
-		entities.PermWorkflowsCreate,
-		entities.PermWorkflowsEdit,
-		entities.PermWorkflowsDelete,
-		entities.PermTablesCreate,
-		entities.PermTablesEdit,
-		entities.PermTablesDelete,
-		entities.PermSettingsManage,
-		entities.PermUsersManage,
+		entities.PermProjectCreate,
+		entities.PermProjectEdit,
+		entities.PermProjectDelete,
+		entities.PermProjectView,
+		entities.PermWorkflowCreate,
+		entities.PermWorkflowEdit,
+		entities.PermWorkflowDelete,
+		entities.PermTableCreate,
+		entities.PermTableEdit,
+		entities.PermTableDelete,
+		entities.PermSettingManage,
+		entities.PermUserManage,
 	}
 
 	member := &entities.ProjectMember{
@@ -130,18 +130,18 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 	err := utils.WithTransaction(ctx, s.coreDB, func(ctx context.Context, tx pgx.Tx) error {
 		if err := s.projectRepo.CreateTx(ctx, tx, project); err != nil {
 			logger.Error("Failed to create project", err)
-			return errors.NewDatabaseError(err).WithDetails("failed to create project")
+			return errors.NewDatabaseError("Failed to create project", err)
 		}
 
 		if err := s.projectMemberRepo.CreateTx(ctx, tx, member); err != nil {
 			logger.Error("Failed to assign creator as admin", err)
-			return errors.NewDatabaseError(err).WithDetails("failed to assign project role")
+			return errors.NewDatabaseError("Failed to assign project member", err)
 		}
 
 		if database != nil {
 			if err := s.dbRepo.CreateTx(ctx, tx, database); err != nil {
 				logger.Error("Failed to insert database configuration", err)
-				return errors.NewDatabaseError(err).WithDetails("failed to create database configuration")
+				return errors.NewDatabaseError("Failed to create database configuration", err)
 			}
 		}
 
@@ -161,17 +161,17 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 		})
 
 		if err := s.pgService.CreateDatabase(ctx, database); err != nil {
-			dbLogger.Error("Failed to create physical database", err, map[string]interface{}{
+			dbLogger.Error("Failed to create dedicated database", err, map[string]interface{}{
 				"database_name": database.Database,
 			})
 
 			if deleteErr := s.projectRepo.Delete(ctx, project.ID); deleteErr != nil {
 				dbLogger.Error("Failed to cleanup project metadata after database creation failure", deleteErr)
 			}
-			return nil, errors.NewDatabaseError(err).WithDetails("failed to create physical database")
+			return nil, errors.NewDatabaseError("Failed to create dedicated database", err)
 		}
 
-		dbLogger.Info("Successfully created physical database", map[string]interface{}{
+		dbLogger.Info("Successfully created dedicated database", map[string]interface{}{
 			"database_name": database.Database,
 		})
 
@@ -188,7 +188,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 				dbLogger.Error("Failed to cleanup project metadata after initialization failure", deleteErr)
 			}
 
-			return nil, errors.NewDatabaseError(err).WithDetails("failed to initialize project database schema")
+			return nil, errors.NewDatabaseError("Failed to initialize project database schema", err)
 		}
 
 		dbLogger.Info("Successfully initialized project database schema", map[string]interface{}{
@@ -214,18 +214,18 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *entities.Projec
 func (s *ProjectService) GetProjectByID(ctx context.Context, id uuid.UUID) (*entities.ProjectResponse, error) {
 	project, err := s.projectRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Project")
+		return nil, errors.NewNotFoundError("Project not found")
 	}
 
 	response := project.ToResponse()
 	return &response, nil
 }
 
-func (s *ProjectService) GetProjectsByOwnerID(ctx context.Context, userID uuid.UUID) ([]*entities.ProjectResponse, error) {
+func (s *ProjectService) GetProjectsByMemberID(ctx context.Context, userID uuid.UUID) ([]*entities.ProjectResponse, error) {
 
 	memberships, err := s.projectMemberRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to retrieve project memberships")
+		return nil, errors.NewDatabaseError("Failed to retrieve project memberships", err)
 	}
 
 	responses := make([]*entities.ProjectResponse, 0)
@@ -250,7 +250,7 @@ func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *e
 
 	project, err := s.projectRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewNotFoundError("Project")
+		return nil, errors.NewNotFoundError("Project not found")
 	}
 
 	project.Name = req.Name
@@ -258,7 +258,7 @@ func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *e
 	project.UpdatedAt = time.Now()
 
 	if err := s.projectRepo.Update(ctx, project); err != nil {
-		return nil, errors.NewDatabaseError(err).WithDetails("failed to update project")
+		return nil, errors.NewDatabaseError("Failed to update project", err)
 	}
 
 	response := project.ToResponse()
@@ -269,7 +269,7 @@ func (s *ProjectService) DeleteProject(ctx context.Context, id uuid.UUID) error 
 
 	project, err := s.projectRepo.GetByID(ctx, id)
 	if err != nil {
-		return errors.NewNotFoundError("Project")
+		return errors.NewNotFoundError("Project not found")
 	}
 
 	logger := s.logger.WithContext(logging.LogContext{
@@ -298,12 +298,12 @@ func (s *ProjectService) DeleteProject(ctx context.Context, id uuid.UUID) error 
 
 		if err := s.pgService.DropDatabase(ctx, database); err != nil {
 
-			dbLogger.Warn("Failed to drop physical database", map[string]interface{}{
+			dbLogger.Warn("Failed to drop dedicated database", map[string]interface{}{
 				"database_name": database.Database,
 				"error":         err.Error(),
 			})
 		} else {
-			dbLogger.Info("Successfully dropped physical database", map[string]interface{}{
+			dbLogger.Info("Successfully dropped dedicated database", map[string]interface{}{
 				"database_name": database.Database,
 			})
 		}
@@ -311,7 +311,7 @@ func (s *ProjectService) DeleteProject(ctx context.Context, id uuid.UUID) error 
 
 	if err := s.projectRepo.Delete(ctx, id); err != nil {
 		logger.Error("Failed to delete project from database", err)
-		return errors.NewDatabaseError(err).WithDetails("failed to delete project")
+		return errors.NewDatabaseError("Failed to delete project", err)
 	}
 
 	logger.Info("Successfully deleted project and all associated resources", map[string]interface{}{

@@ -5,7 +5,7 @@ import (
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
-	apierrors "github.com/flow/internal/errors"
+	"github.com/flow/internal/errors"
 )
 
 type TableHandler struct {
@@ -21,22 +21,22 @@ func NewTableHandler(tableService services.TableServiceInterface) *TableHandler 
 func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	var req entities.TableCreateRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	table, err := h.tableService.CreateTable(r.Context(), &req, projectID)
 	if err != nil {
 		if isValidationError(err) {
-			writeError(w, r, apierrors.NewValidationError(err.Error()))
+			errors.WriteError(w, errors.NewValidationError(err.Error()))
 		} else {
-			writeError(w, r, apierrors.NewInternalError(err))
+			errors.WriteError(w, errors.NewInternalError(err))
 		}
 		return
 	}
@@ -47,19 +47,19 @@ func (h *TableHandler) CreateTable(w http.ResponseWriter, r *http.Request) {
 func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid table ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
 		return
 	}
 
 	table, err := h.tableService.GetTableByID(r.Context(), tableID, projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Table"))
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -69,13 +69,13 @@ func (h *TableHandler) GetTable(w http.ResponseWriter, r *http.Request) {
 func (h *TableHandler) GetTables(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tables, err := h.tableService.GetTablesByProjectID(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -85,25 +85,25 @@ func (h *TableHandler) GetTables(w http.ResponseWriter, r *http.Request) {
 func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid table ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
 		return
 	}
 
 	var req entities.TableUpdateRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	table, err := h.tableService.UpdateTable(r.Context(), tableID, &req, projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -113,18 +113,18 @@ func (h *TableHandler) UpdateTable(w http.ResponseWriter, r *http.Request) {
 func (h *TableHandler) DeleteTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid table ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
 		return
 	}
 
 	if err := h.tableService.DeleteTable(r.Context(), tableID, projectID); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 

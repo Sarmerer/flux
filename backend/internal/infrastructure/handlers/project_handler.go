@@ -39,7 +39,7 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		errors.WriteError(w, errors.NewUnauthorizedError())
+		errors.WriteError(w, errors.NewUnauthorizedError("User not authenticated"))
 		return
 	}
 
@@ -54,9 +54,7 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(project)
+	writeJSON(w, http.StatusCreated, project)
 }
 
 func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
@@ -74,24 +72,23 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 		if apiErr, ok := err.(*errors.APIError); ok {
 			errors.WriteError(w, apiErr)
 		} else {
-			errors.WriteError(w, errors.NewNotFoundError("Project"))
+			errors.WriteError(w, errors.NewNotFoundError("Project not found"))
 		}
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(project)
+	writeJSON(w, http.StatusOK, project)
 }
 
 func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		errors.WriteError(w, errors.NewUnauthorizedError())
+		errors.WriteError(w, errors.NewUnauthorizedError("User not authenticated"))
 		return
 	}
 
-	projects, err := h.projectService.GetProjectsByOwnerID(r.Context(), userID)
+	projects, err := h.projectService.GetProjectsByMemberID(r.Context(), userID)
 	if err != nil {
 
 		if apiErr, ok := err.(*errors.APIError); ok {
@@ -102,8 +99,7 @@ func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(projects)
+	writeJSON(w, http.StatusOK, projects)
 }
 
 func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -138,8 +134,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(project)
+	writeJSON(w, http.StatusOK, project)
 }
 
 func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {

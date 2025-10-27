@@ -26,7 +26,7 @@ func (s *ConnectionService) GetCoreDB() *pgxpool.Pool {
 func (s *ConnectionService) ExecuteWithProjectDB(ctx context.Context, database *entities.Database, fn func(*pgxpool.Pool) error) error {
 	pool, err := s.createPool(ctx, database.GetConnectionString())
 	if err != nil {
-		return errors.NewDatabaseError(err).WithDetails(fmt.Sprintf("failed to connect to database %s", database.Name))
+		return errors.NewDatabaseError(fmt.Sprintf("Failed to connect to database %s", database.Name), err)
 	}
 	defer pool.Close()
 
@@ -43,7 +43,7 @@ func (s *ConnectionService) ExecuteWithPostgreSQLServer(ctx context.Context, dat
 
 	pool, err := s.createPool(ctx, serverDSN)
 	if err != nil {
-		return errors.NewDatabaseError(err).WithDetails("failed to connect to PostgreSQL server")
+		return errors.NewDatabaseError("Failed to connect to PostgreSQL server", err)
 	}
 	defer pool.Close()
 
@@ -75,7 +75,7 @@ func (s *ConnectionService) createPool(ctx context.Context, dsn string) (*pgxpoo
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+		return nil, fmt.Errorf("Failed to create connection pool: %w", err)
 	}
 
 	return pool, nil

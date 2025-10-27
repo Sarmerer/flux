@@ -43,12 +43,12 @@ func (s *UserService) Register(ctx context.Context, req *entities.UserCreateRequ
 
 	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
-		return nil, errors.NewAlreadyExistsError("User with this email")
+		return nil, errors.NewAlreadyExistsError("User with this email already exists")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, errors.NewInternalError(fmt.Errorf("failed to hash password: %w", err))
+		return nil, errors.NewInternalError(fmt.Errorf("Failed to hash password: %w", err))
 	}
 
 	user := &entities.User{
@@ -61,7 +61,7 @@ func (s *UserService) Register(ctx context.Context, req *entities.UserCreateRequ
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, errors.NewDatabaseError(err)
+		return nil, errors.NewDatabaseError("Failed to create user", err)
 	}
 
 	response := user.ToResponse()
@@ -80,11 +80,11 @@ func (s *UserService) Login(ctx context.Context, req *entities.UserLoginRequest)
 
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
-		return "", errors.NewUnauthorizedError().WithDetails("Invalid credentials")
+		return "", errors.NewUnauthorizedError("Invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		return "", errors.NewUnauthorizedError().WithDetails("Invalid credentials")
+		return "", errors.NewUnauthorizedError("Invalid credentials")
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -95,7 +95,7 @@ func (s *UserService) Login(ctx context.Context, req *entities.UserLoginRequest)
 
 	tokenString, err := token.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return "", errors.NewInternalError(fmt.Errorf("failed to generate token: %w", err))
+		return "", errors.NewInternalError(fmt.Errorf("Failed to generate token: %w", err))
 	}
 
 	return tokenString, nil
@@ -104,7 +104,7 @@ func (s *UserService) Login(ctx context.Context, req *entities.UserLoginRequest)
 func (s *UserService) GetUserByID(ctx context.Context, id uuid.UUID) (*entities.UserResponse, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, errors.NewNotFoundError("User")
+		return nil, errors.NewNotFoundError("User not found")
 	}
 
 	response := user.ToResponse()

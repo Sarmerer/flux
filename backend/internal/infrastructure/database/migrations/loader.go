@@ -23,7 +23,7 @@ type SQLMigration struct {
 func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 	entries, err := migrationFiles.ReadDir(".")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read migrations directory: %w", err)
+		return nil, fmt.Errorf("Failed to read migrations directory: %w", err)
 	}
 
 	migrationMap := make(map[int64]*SQLMigration)
@@ -50,7 +50,7 @@ func LoadMigrationsFromSQL() ([]*SQLMigration, error) {
 
 		content, err := migrationFiles.ReadFile(filename)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read migration file %s: %w", filename, err)
+			return nil, fmt.Errorf("Failed to read migration file %s: %w", filename, err)
 		}
 
 		migration, exists := migrationMap[version]

@@ -7,7 +7,7 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
-	apierrors "github.com/flow/internal/errors"
+	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/validation"
 
@@ -48,7 +48,7 @@ func (h *TableSchemaMutationHandler) getProjectDatabase(ctx context.Context, pro
 func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
@@ -57,33 +57,33 @@ func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter
 		Schema    TableSchema `json:"schema" validate:"required"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	if req.TableName == "" {
-		writeError(w, r, apierrors.NewValidationError("table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
 	if !validation.IsValidTableName(req.TableName) {
-		writeError(w, r, apierrors.NewValidationError("invalid table name"))
+		errors.WriteError(w, errors.NewValidationError("Invalid table name"))
 		return
 	}
 
 	if err := validation.ValidateTableSchema(&req.Schema); err != nil {
-		writeError(w, r, apierrors.NewValidationError("schema validation failed"))
+		errors.WriteError(w, errors.NewValidationError("Schema validation failed").WithDetails(err.Error()))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.CreateTable(r.Context(), database, req.TableName, req.Schema); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -93,24 +93,24 @@ func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter
 func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		writeError(w, r, apierrors.NewValidationError("Table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.DropTable(r.Context(), database, tableName); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -120,13 +120,13 @@ func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter
 func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		writeError(w, r, apierrors.NewValidationError("Table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
@@ -134,18 +134,18 @@ func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *
 		Column ColumnDefinition `json:"column" validate:"required"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.AddColumn(r.Context(), database, tableName, req.Column); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -155,13 +155,13 @@ func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *
 func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		writeError(w, r, apierrors.NewValidationError("Table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
@@ -169,18 +169,18 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 		ColumnName string `json:"column_name" validate:"required"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.RemoveColumn(r.Context(), database, tableName, req.ColumnName); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -190,13 +190,13 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		writeError(w, r, apierrors.NewValidationError("Table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
@@ -205,18 +205,18 @@ func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, 
 		Column     ColumnDefinition `json:"column" validate:"required"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.ModifyColumn(r.Context(), database, tableName, req.ColumnName, req.Column); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -226,13 +226,13 @@ func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, 
 func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		writeError(w, r, apierrors.NewValidationError("Table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
@@ -240,18 +240,18 @@ func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter,
 		ForeignKey ForeignKeyDefinition `json:"foreign_key" validate:"required"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.AddForeignKey(r.Context(), database, tableName, req.ForeignKey); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -261,13 +261,13 @@ func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter,
 func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	tableName := chi.URLParam(r, "tableName")
 	if tableName == "" {
-		writeError(w, r, apierrors.NewValidationError("Table name is required"))
+		errors.WriteError(w, errors.NewValidationError("Table name is required"))
 		return
 	}
 
@@ -275,18 +275,18 @@ func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWr
 		ForeignKeyName string `json:"foreign_key_name" validate:"required"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	database, err := h.getProjectDatabase(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Project database"))
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
 		return
 	}
 
 	if err := h.schemaSvc.RemoveForeignKey(r.Context(), database, tableName, req.ForeignKeyName); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 

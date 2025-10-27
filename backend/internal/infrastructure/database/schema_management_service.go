@@ -56,20 +56,20 @@ func (s *SchemaManagementService) CreateTable(ctx context.Context, database *ent
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, createSQL); err != nil {
-			return fmt.Errorf("failed to create table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to create table %s: %w", tableName, err)
 		}
 
 		for _, index := range schema.Indexes {
 			indexSQL := s.buildCreateIndexSQL(tableName, index)
 			if _, err := pool.Exec(ctx, indexSQL); err != nil {
-				return fmt.Errorf("failed to create index %s: %w", index.Name, err)
+				return fmt.Errorf("Failed to create index %s: %w", index.Name, err)
 			}
 		}
 
 		for _, fk := range schema.ForeignKeys {
 			fkSQL := s.buildAddForeignKeySQL(tableName, fk)
 			if _, err := pool.Exec(ctx, fkSQL); err != nil {
-				return fmt.Errorf("failed to create foreign key %s: %w", fk.Name, err)
+				return fmt.Errorf("Failed to create foreign key %s: %w", fk.Name, err)
 			}
 		}
 
@@ -82,7 +82,7 @@ func (s *SchemaManagementService) DropTable(ctx context.Context, database *entit
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropSQL); err != nil {
-			return fmt.Errorf("failed to drop table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to drop table %s: %w", tableName, err)
 		}
 		return nil
 	})
@@ -93,7 +93,7 @@ func (s *SchemaManagementService) AddColumn(ctx context.Context, database *entit
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, addColumnSQL); err != nil {
-			return fmt.Errorf("failed to add column %s to table %s: %w", column.Name, tableName, err)
+			return fmt.Errorf("Failed to add column %s to table %s: %w", column.Name, tableName, err)
 		}
 		return nil
 	})
@@ -106,7 +106,7 @@ func (s *SchemaManagementService) RemoveColumn(ctx context.Context, database *en
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropColumnSQL); err != nil {
-			return fmt.Errorf("failed to remove column %s from table %s: %w", columnName, tableName, err)
+			return fmt.Errorf("Failed to remove column %s from table %s: %w", columnName, tableName, err)
 		}
 		return nil
 	})
@@ -117,7 +117,7 @@ func (s *SchemaManagementService) ModifyColumn(ctx context.Context, database *en
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, modifyColumnSQL); err != nil {
-			return fmt.Errorf("failed to modify column %s in table %s: %w", oldColumnName, tableName, err)
+			return fmt.Errorf("Failed to modify column %s in table %s: %w", oldColumnName, tableName, err)
 		}
 		return nil
 	})
@@ -128,7 +128,7 @@ func (s *SchemaManagementService) AddForeignKey(ctx context.Context, database *e
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, fkSQL); err != nil {
-			return fmt.Errorf("failed to add foreign key %s to table %s: %w", fk.Name, tableName, err)
+			return fmt.Errorf("Failed to add foreign key %s to table %s: %w", fk.Name, tableName, err)
 		}
 		return nil
 	})
@@ -141,7 +141,7 @@ func (s *SchemaManagementService) RemoveForeignKey(ctx context.Context, database
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropFKSQL); err != nil {
-			return fmt.Errorf("failed to remove foreign key %s from table %s: %w", foreignKeyName, tableName, err)
+			return fmt.Errorf("Failed to remove foreign key %s from table %s: %w", foreignKeyName, tableName, err)
 		}
 		return nil
 	})

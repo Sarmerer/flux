@@ -5,7 +5,7 @@ import (
 
 	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
-	apierrors "github.com/flow/internal/errors"
+	"github.com/flow/internal/errors"
 )
 
 type WorkflowHandler struct {
@@ -21,19 +21,19 @@ func NewWorkflowHandler(workflowService services.WorkflowServiceInterface) *Work
 func (h *WorkflowHandler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	var req entities.WorkflowCreateRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	workflow, err := h.workflowService.CreateWorkflow(r.Context(), &req, projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -43,19 +43,19 @@ func (h *WorkflowHandler) CreateWorkflow(w http.ResponseWriter, r *http.Request)
 func (h *WorkflowHandler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	workflowID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid workflow ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid workflow ID"))
 		return
 	}
 
 	workflow, err := h.workflowService.GetWorkflowByID(r.Context(), workflowID, projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewNotFoundError("Workflow"))
+		errors.WriteError(w, errors.NewNotFoundError("Workflow not found"))
 		return
 	}
 
@@ -65,13 +65,13 @@ func (h *WorkflowHandler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 func (h *WorkflowHandler) GetWorkflows(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	workflows, err := h.workflowService.GetWorkflowsByProjectID(r.Context(), projectID)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -81,25 +81,25 @@ func (h *WorkflowHandler) GetWorkflows(w http.ResponseWriter, r *http.Request) {
 func (h *WorkflowHandler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	workflowID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid workflow ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid workflow ID"))
 		return
 	}
 
 	var req entities.WorkflowUpdateRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	workflow, err := h.workflowService.UpdateWorkflow(r.Context(), workflowID, projectID, &req)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -109,18 +109,18 @@ func (h *WorkflowHandler) UpdateWorkflow(w http.ResponseWriter, r *http.Request)
 func (h *WorkflowHandler) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	workflowID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid workflow ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid workflow ID"))
 		return
 	}
 
 	if err := h.workflowService.DeleteWorkflow(r.Context(), workflowID, projectID); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -130,13 +130,13 @@ func (h *WorkflowHandler) DeleteWorkflow(w http.ResponseWriter, r *http.Request)
 func (h *WorkflowHandler) ToggleWorkflowActive(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	workflowID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid workflow ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid workflow ID"))
 		return
 	}
 
@@ -144,13 +144,13 @@ func (h *WorkflowHandler) ToggleWorkflowActive(w http.ResponseWriter, r *http.Re
 		IsActive bool `json:"is_active"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid request body"))
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
 		return
 	}
 
 	workflow, err := h.workflowService.ToggleWorkflowActive(r.Context(), workflowID, projectID, req.IsActive)
 	if err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 
@@ -160,18 +160,18 @@ func (h *WorkflowHandler) ToggleWorkflowActive(w http.ResponseWriter, r *http.Re
 func (h *WorkflowHandler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid project ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
 	workflowID, err := parseUUIDParam(r, "id")
 	if err != nil {
-		writeError(w, r, apierrors.NewValidationError("Invalid workflow ID"))
+		errors.WriteError(w, errors.NewValidationError("Invalid workflow ID"))
 		return
 	}
 
 	if err := h.workflowService.ExecuteWorkflow(r.Context(), workflowID, projectID); err != nil {
-		writeError(w, r, apierrors.NewInternalError(err))
+		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
 

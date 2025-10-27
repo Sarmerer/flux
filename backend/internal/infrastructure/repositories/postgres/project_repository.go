@@ -52,13 +52,13 @@ func (r *ProjectRepository) GetByID(ctx context.Context, id uuid.UUID) (*entitie
 	return &project, nil
 }
 
-func (r *ProjectRepository) GetByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*entities.Project, error) {
+func (r *ProjectRepository) GetByMemberID(ctx context.Context, memberID uuid.UUID) ([]*entities.Project, error) {
 	query := `
 		SELECT id, name, description, owner_id, database_url, api_key, created_at, updated_at
 		FROM projects WHERE owner_id = $1
 		ORDER BY created_at DESC
 	`
-	rows, err := r.db.Query(ctx, query, ownerID)
+	rows, err := r.db.Query(ctx, query, memberID)
 	if err != nil {
 		return nil, err
 	}

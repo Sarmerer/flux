@@ -31,12 +31,12 @@ func NewService(databaseURL string, config Config) (*Service, error) {
 
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
+		return nil, fmt.Errorf("Failed to open database connection: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("Failed to ping database: %w", err)
 	}
 
 	listenerConfig := pglistener.Config{
@@ -46,7 +46,7 @@ func NewService(databaseURL string, config Config) (*Service, error) {
 	listener, err := pglistener.NewListener(db, listenerConfig)
 	if err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to create pglistener: %w", err)
+		return nil, fmt.Errorf("Failed to create pglistener: %w", err)
 	}
 
 	triggerMgr := pglistener.NewTriggerManager(db)
@@ -66,7 +66,7 @@ func (s *Service) Start(ctx context.Context) error {
 
 	err := s.listener.Start()
 	if err != nil {
-		return fmt.Errorf("failed to start listener: %w", err)
+		return fmt.Errorf("Failed to start listener: %w", err)
 	}
 
 	log.Println("[realtime] Realtime service started")
@@ -78,7 +78,7 @@ func (s *Service) Stop() error {
 
 	err := s.listener.Stop()
 	if err != nil {
-		return fmt.Errorf("failed to stop listener: %w", err)
+		return fmt.Errorf("Failed to stop listener: %w", err)
 	}
 
 	log.Println("[realtime] Realtime service stopped")
@@ -106,7 +106,7 @@ func (s *Service) EnableRealtimeForTable(ctx context.Context, schema, table stri
 
 	err := s.triggerMgr.EnableTriggersForTable(ctx, schema, table, channel)
 	if err != nil {
-		return fmt.Errorf("failed to enable triggers: %w", err)
+		return fmt.Errorf("Failed to enable triggers: %w", err)
 	}
 
 	handler := func(event pglistener.Event) {
@@ -129,7 +129,7 @@ func (s *Service) EnableRealtimeForTable(ctx context.Context, schema, table stri
 
 	err = s.listener.Subscribe(channel, handler)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to channel: %w", err)
+		return fmt.Errorf("Failed to subscribe to channel: %w", err)
 	}
 
 	log.Printf("[realtime] Enabled realtime for %s.%s on channel %s", schema, table, channel)
@@ -141,12 +141,12 @@ func (s *Service) DisableRealtimeForTable(ctx context.Context, schema, table str
 
 	err := s.triggerMgr.DisableTriggersForTable(ctx, schema, table)
 	if err != nil {
-		return fmt.Errorf("failed to disable triggers: %w", err)
+		return fmt.Errorf("Failed to disable triggers: %w", err)
 	}
 
 	err = s.listener.Unsubscribe(channel)
 	if err != nil {
-		return fmt.Errorf("failed to unsubscribe from channel: %w", err)
+		return fmt.Errorf("Failed to unsubscribe from channel: %w", err)
 	}
 
 	log.Printf("[realtime] Disabled realtime for %s.%s", schema, table)

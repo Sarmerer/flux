@@ -17,7 +17,7 @@ type UserServiceInterface interface {
 type ProjectServiceInterface interface {
 	CreateProject(ctx context.Context, req *entities.ProjectCreateRequest, ownerID uuid.UUID) (*entities.ProjectResponse, error)
 	GetProjectByID(ctx context.Context, id uuid.UUID) (*entities.ProjectResponse, error)
-	GetProjectsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*entities.ProjectResponse, error)
+	GetProjectsByMemberID(ctx context.Context, memberID uuid.UUID) ([]*entities.ProjectResponse, error)
 	UpdateProject(ctx context.Context, id uuid.UUID, req *entities.ProjectCreateRequest) (*entities.ProjectResponse, error)
 	DeleteProject(ctx context.Context, id uuid.UUID) error
 }

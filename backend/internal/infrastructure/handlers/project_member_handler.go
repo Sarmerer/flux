@@ -32,24 +32,24 @@ func NewProjectMemberHandler(
 }
 
 type AddMemberRequest struct {
-	Email       string              `json:"email"`
-	Role        entities.Role       `json:"role"`
+	Email       string               `json:"email"`
+	Role        entities.Role        `json:"role"`
 	Permissions entities.Permissions `json:"permissions"`
 }
 
 type UpdateMemberRequest struct {
-	Role        entities.Role       `json:"role"`
+	Role        entities.Role        `json:"role"`
 	Permissions entities.Permissions `json:"permissions"`
 }
 
 type ProjectMemberWithUser struct {
-	ID          uuid.UUID            `json:"id"`
-	ProjectID   uuid.UUID            `json:"project_id"`
+	ID          uuid.UUID             `json:"id"`
+	ProjectID   uuid.UUID             `json:"project_id"`
 	User        entities.UserResponse `json:"user"`
-	Role        entities.Role        `json:"role"`
-	Permissions entities.Permissions `json:"permissions"`
-	CreatedAt   time.Time            `json:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at"`
+	Role        entities.Role         `json:"role"`
+	Permissions entities.Permissions  `json:"permissions"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
 }
 
 func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +62,7 @@ func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.
 
 	members, err := h.memberRepo.GetByProjectID(r.Context(), projectID)
 	if err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to get project members", err))
 		return
 	}
 
@@ -89,8 +89,7 @@ func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.Request) {
@@ -108,19 +107,19 @@ func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.R
 	}
 
 	if _, err := h.projectRepo.GetByID(r.Context(), projectID); err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("Project"))
+		errors.WriteError(w, errors.NewNotFoundError("Project not found"))
 		return
 	}
 
 	user, err := h.userRepo.GetByEmail(r.Context(), req.Email)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("User"))
+		errors.WriteError(w, errors.NewNotFoundError("User not found"))
 		return
 	}
 
 	existingMember, _ := h.memberRepo.GetByProjectAndUser(r.Context(), projectID, user.ID)
 	if existingMember != nil {
-		errors.WriteError(w, errors.NewAlreadyExistsError("User is already a member of this project"))
+		errors.WriteError(w, errors.NewAlreadyExistsError("User is already a member of this project already exists"))
 		return
 	}
 
@@ -140,7 +139,7 @@ func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.R
 	}
 
 	if err := h.memberRepo.Create(r.Context(), member); err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to add project member", err))
 		return
 	}
 
@@ -159,9 +158,7 @@ func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.R
 		UpdatedAt:   member.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusCreated, response)
 }
 
 func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *http.Request) {
@@ -187,7 +184,7 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 
 	member, err := h.memberRepo.GetByID(r.Context(), memberID)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("Project member"))
+		errors.WriteError(w, errors.NewNotFoundError("Project member not found"))
 		return
 	}
 
@@ -206,13 +203,13 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 	member.UpdatedAt = time.Now()
 
 	if err := h.memberRepo.Update(r.Context(), member); err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to update project member", err))
 		return
 	}
 
 	user, err := h.userRepo.GetByID(r.Context(), member.UserID)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("User"))
+		errors.WriteError(w, errors.NewNotFoundError("User not found"))
 		return
 	}
 
@@ -231,8 +228,7 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 		UpdatedAt:   member.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *ProjectMemberHandler) RemoveProjectMember(w http.ResponseWriter, r *http.Request) {
@@ -252,7 +248,7 @@ func (h *ProjectMemberHandler) RemoveProjectMember(w http.ResponseWriter, r *htt
 
 	member, err := h.memberRepo.GetByID(r.Context(), memberID)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("Project member"))
+		errors.WriteError(w, errors.NewNotFoundError("Project member not found"))
 		return
 	}
 
@@ -268,7 +264,7 @@ func (h *ProjectMemberHandler) RemoveProjectMember(w http.ResponseWriter, r *htt
 	}
 
 	if err := h.memberRepo.Delete(r.Context(), memberID); err != nil {
-		errors.WriteError(w, errors.NewDatabaseError(err))
+		errors.WriteError(w, errors.NewDatabaseError("Failed to remove project member", err))
 		return
 	}
 
@@ -285,17 +281,16 @@ func (h *ProjectMemberHandler) GetMyProjectRole(w http.ResponseWriter, r *http.R
 
 	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		errors.WriteError(w, errors.NewUnauthorizedError())
+		errors.WriteError(w, errors.NewUnauthorizedError("User not authenticated"))
 		return
 	}
 
 	member, err := h.memberRepo.GetByProjectAndUser(r.Context(), projectID, userID)
 	if err != nil {
-		errors.WriteError(w, errors.NewNotFoundError("Project member"))
+		errors.WriteError(w, errors.NewNotFoundError("Project member not found"))
 		return
 	}
 
 	response := member.ToResponse()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }

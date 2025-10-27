@@ -43,25 +43,25 @@ type Container struct {
 	WorkflowService *services.WorkflowService
 	DatabaseService *services.DatabaseService
 
-	UserHandler                     *handlers.UserHandler
-	ProjectHandler                  *handlers.ProjectHandler
-	ProjectMemberHandler            *handlers.ProjectMemberHandler
-	TableHandler                    *handlers.TableHandler
-	DbMutationProgressHandler       *handlers.DatabaseMutationProgressHandler
-	TableSchemaMutationHandler      *handlers.TableSchemaMutationHandler
-	WorkflowHandler                 *handlers.WorkflowHandler
-	LogHandler                      *handlers.LogHandler
+	UserHandler                *handlers.UserHandler
+	ProjectHandler             *handlers.ProjectHandler
+	ProjectMemberHandler       *handlers.ProjectMemberHandler
+	TableHandler               *handlers.TableHandler
+	DbMutationProgressHandler  *handlers.RealtimeHandler
+	TableSchemaMutationHandler *handlers.TableSchemaMutationHandler
+	WorkflowHandler            *handlers.WorkflowHandler
+	LogHandler                 *handlers.LogHandler
 }
 
 func NewContainer(ctx context.Context, cfg *config.Config) (*Container, error) {
 	c := &Container{Config: cfg}
 
 	if err := c.initDatabase(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize database: %w", err)
+		return nil, fmt.Errorf("Failed to initialize database: %w", err)
 	}
 
 	if err := c.initInfrastructure(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initialize infrastructure: %w", err)
+		return nil, fmt.Errorf("Failed to initialize infrastructure: %w", err)
 	}
 
 	c.initRepositories()
@@ -91,7 +91,7 @@ func (c *Container) initDatabase(ctx context.Context) error {
 	migrationLogger := logging.NewDevelopmentLogger(logStorage, nil, logging.VerbosityNormal)
 
 	if err := database.AutoMigrate(ctx, db, migrationLogger); err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
+		return fmt.Errorf("Failed to run migrations: %w", err)
 	}
 
 	return nil
@@ -114,11 +114,11 @@ func (c *Container) initInfrastructure(ctx context.Context) error {
 		JWTSecret:   c.Config.JWT.Secret,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create realtime service: %w", err)
+		return fmt.Errorf("Failed to create realtime service: %w", err)
 	}
 
 	if err := realtimeService.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start realtime service: %w", err)
+		return fmt.Errorf("Failed to start realtime service: %w", err)
 	}
 	c.RealtimeService = realtimeService
 
@@ -206,12 +206,7 @@ func (c *Container) initHandlers() {
 	c.ProjectMemberHandler = handlers.NewProjectMemberHandler(c.ProjectMemberRepo, c.UserRepo, c.ProjectRepo)
 	c.TableHandler = handlers.NewTableHandler(c.TableService)
 
-	c.DbMutationProgressHandler = handlers.NewDatabaseMutationProgressHandler(
-		c.DatabaseService,
-		c.ProgressTracker,
-		wsHub,
-		c.Config.JWT.Secret,
-	)
+	c.DbMutationProgressHandler = handlers.NewRealtimeHandler(wsHub, c.Config.JWT.Secret)
 
 	c.TableSchemaMutationHandler = handlers.NewTableSchemaMutationHandler(
 		c.DatabaseRepo,

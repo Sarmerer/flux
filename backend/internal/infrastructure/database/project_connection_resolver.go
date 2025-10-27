@@ -40,7 +40,7 @@ func (r *ProjectConnectionResolver) GetProjectDB(ctx context.Context, projectID 
 
 	databases, err := r.dbRepository.GetByProjectID(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database config for project %s: %w", projectID, err)
+		return nil, fmt.Errorf("Failed to get database config for project %s: %w", projectID, err)
 	}
 
 	if len(databases) == 0 {
@@ -52,12 +52,12 @@ func (r *ProjectConnectionResolver) GetProjectDB(ctx context.Context, projectID 
 	connectionString := database.GetConnectionString()
 	newPool, err := pgxpool.New(ctx, connectionString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool for project %s: %w", projectID, err)
+		return nil, fmt.Errorf("Failed to create connection pool for project %s: %w", projectID, err)
 	}
 
 	if err := newPool.Ping(ctx); err != nil {
 		newPool.Close()
-		return nil, fmt.Errorf("failed to ping project database for project %s: %w", projectID, err)
+		return nil, fmt.Errorf("Failed to ping project database for project %s: %w", projectID, err)
 	}
 
 	r.mutex.Lock()
@@ -70,7 +70,7 @@ func (r *ProjectConnectionResolver) GetProjectDB(ctx context.Context, projectID 
 func (r *ProjectConnectionResolver) GetDatabaseEntity(ctx context.Context, projectID uuid.UUID) (*entities.Database, error) {
 	databases, err := r.dbRepository.GetByProjectID(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database config for project %s: %w", projectID, err)
+		return nil, fmt.Errorf("Failed to get database config for project %s: %w", projectID, err)
 	}
 
 	if len(databases) == 0 {

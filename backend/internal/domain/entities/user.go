@@ -20,18 +20,21 @@ const (
 type Permission string
 
 const (
-	PermProjectsCreate  Permission = "projects.create"
-	PermProjectsEdit    Permission = "projects.edit"
-	PermProjectsDelete  Permission = "projects.delete"
-	PermProjectsView    Permission = "projects.view"
-	PermWorkflowsCreate Permission = "workflows.create"
-	PermWorkflowsEdit   Permission = "workflows.edit"
-	PermWorkflowsDelete Permission = "workflows.delete"
-	PermTablesCreate    Permission = "tables.create"
-	PermTablesEdit      Permission = "tables.edit"
-	PermTablesDelete    Permission = "tables.delete"
-	PermSettingsManage  Permission = "settings.manage"
-	PermUsersManage     Permission = "users.manage"
+	PermProjectCreate Permission = "project.create"
+	PermProjectEdit   Permission = "project.edit"
+	PermProjectDelete Permission = "project.delete"
+	PermProjectView   Permission = "project.view"
+
+	PermWorkflowCreate Permission = "workflow.create"
+	PermWorkflowEdit   Permission = "workflow.edit"
+	PermWorkflowDelete Permission = "workflow.delete"
+
+	PermTableCreate Permission = "table.create"
+	PermTableEdit   Permission = "table.edit"
+	PermTableDelete Permission = "table.delete"
+
+	PermSettingManage Permission = "setting.manage"
+	PermUserManage    Permission = "user.manage"
 )
 
 type Permissions []Permission

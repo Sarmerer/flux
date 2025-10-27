@@ -15,7 +15,7 @@ const (
 	StatusPending   OperationStatus = "pending"
 	StatusRunning   OperationStatus = "running"
 	StatusCompleted OperationStatus = "completed"
-	StatusFailed    OperationStatus = "failed"
+	StatusFailed    OperationStatus = "Failed"
 	StatusCancelled OperationStatus = "cancelled"
 )
 

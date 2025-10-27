@@ -42,7 +42,7 @@ func (s *DataManipulationService) UpdateRow(ctx context.Context, database *entit
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, args...); err != nil {
-			return fmt.Errorf("failed to update row in table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to update row in table %s: %w", tableName, err)
 		}
 		return nil
 	})
@@ -73,7 +73,7 @@ func (s *DataManipulationService) CreateRow(ctx context.Context, database *entit
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, args...); err != nil {
-			return fmt.Errorf("failed to insert row into table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to insert row into table %s: %w", tableName, err)
 		}
 		return nil
 	})
@@ -84,7 +84,7 @@ func (s *DataManipulationService) DeleteRow(ctx context.Context, database *entit
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, query, rowID); err != nil {
-			return fmt.Errorf("failed to delete row from table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to delete row from table %s: %w", tableName, err)
 		}
 		return nil
 	})

@@ -23,7 +23,7 @@ func (s *PostgresLogStorage) Store(ctx context.Context, entry *LogEntry) error {
 
 	fieldsJSON, err := json.Marshal(entry.Fields)
 	if err != nil {
-		return fmt.Errorf("failed to marshal fields: %w", err)
+		return fmt.Errorf("Failed to marshal fields: %w", err)
 	}
 
 	query := `
@@ -52,7 +52,7 @@ func (s *PostgresLogStorage) Store(ctx context.Context, entry *LogEntry) error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to store log entry: %w", err)
+		return fmt.Errorf("Failed to store log entry: %w", err)
 	}
 
 	return nil
@@ -141,7 +141,7 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 
 	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query logs: %w", err)
+		return nil, fmt.Errorf("Failed to query logs: %w", err)
 	}
 	defer rows.Close()
 
@@ -166,12 +166,12 @@ func (s *PostgresLogStorage) Query(ctx context.Context, filter *LogFilter) ([]*L
 		)
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan log entry: %w", err)
+			return nil, fmt.Errorf("Failed to scan log entry: %w", err)
 		}
 
 		if len(fieldsJSON) > 0 {
 			if err := json.Unmarshal(fieldsJSON, &entry.Fields); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal fields: %w", err)
+				return nil, fmt.Errorf("Failed to unmarshal fields: %w", err)
 			}
 		}
 
@@ -251,7 +251,7 @@ func (s *PostgresLogStorage) Count(ctx context.Context, filter *LogFilter) (int6
 	var count int64
 	err := s.db.QueryRow(ctx, query, args...).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("failed to count logs: %w", err)
+		return 0, fmt.Errorf("Failed to count logs: %w", err)
 	}
 
 	return count, nil
@@ -264,7 +264,7 @@ func (s *PostgresLogStorage) DeleteOlderThan(ctx context.Context, duration time.
 
 	result, err := s.db.Exec(ctx, query, cutoffTime)
 	if err != nil {
-		return 0, fmt.Errorf("failed to delete old logs: %w", err)
+		return 0, fmt.Errorf("Failed to delete old logs: %w", err)
 	}
 
 	return result.RowsAffected(), nil
@@ -304,7 +304,7 @@ func MigrateLogsTable(ctx context.Context, db *pgxpool.Pool) error {
 
 	_, err := db.Exec(ctx, query)
 	if err != nil {
-		return fmt.Errorf("failed to create logs table: %w", err)
+		return fmt.Errorf("Failed to create logs table: %w", err)
 	}
 
 	return nil

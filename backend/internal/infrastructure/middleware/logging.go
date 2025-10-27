@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const LoggerKey contextKey = "logger"
-
 func LoggingMiddleware(appLogger *logging.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +35,7 @@ func LoggingMiddleware(appLogger *logging.Logger) func(next http.Handler) http.H
 
 			ctxLogger := appLogger.WithContext(logCtx)
 
-			ctx := context.WithValue(r.Context(), LoggerKey, ctxLogger)
+			ctx := context.WithValue(r.Context(), logging.LoggerKey, ctxLogger)
 			r = r.WithContext(ctx)
 
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
@@ -92,12 +90,6 @@ func LoggingMiddleware(appLogger *logging.Logger) func(next http.Handler) http.H
 	}
 }
 
-func GetLogger(ctx context.Context) *logging.ContextLogger {
-	if logger, ok := ctx.Value(LoggerKey).(*logging.ContextLogger); ok {
-		return logger
-	}
-	return nil
-}
 
 func getVerbosity(logger *logging.ContextLogger) logging.LogVerbosity {
 	return logger.GetVerbosity()

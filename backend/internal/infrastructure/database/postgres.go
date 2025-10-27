@@ -27,16 +27,16 @@ func NewConnection(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse database config: %w", err)
+		return nil, fmt.Errorf("Failed to parse database config: %w", err)
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+		return nil, fmt.Errorf("Failed to create connection pool: %w", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("Failed to ping database: %w", err)
 	}
 
 	log.Println("Successfully connected to PostgreSQL database")

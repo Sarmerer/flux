@@ -24,17 +24,17 @@ func NewRunner(db *pgxpool.Pool, logger *logging.Logger) *Runner {
 func (r *Runner) Up(ctx context.Context) error {
 
 	if err := CreateMigrationsTable(ctx, r.db); err != nil {
-		return fmt.Errorf("failed to create migrations table: %w", err)
+		return fmt.Errorf("Failed to create migrations table: %w", err)
 	}
 
 	applied, err := GetAppliedMigrations(ctx, r.db)
 	if err != nil {
-		return fmt.Errorf("failed to get applied migrations: %w", err)
+		return fmt.Errorf("Failed to get applied migrations: %w", err)
 	}
 
 	sqlMigrations, err := LoadMigrationsFromSQL()
 	if err != nil {
-		return fmt.Errorf("failed to load migrations: %w", err)
+		return fmt.Errorf("Failed to load migrations: %w", err)
 	}
 
 	migrations := make([]*Migration, 0, len(sqlMigrations))
@@ -85,7 +85,7 @@ func (r *Runner) Up(ctx context.Context) error {
 			r.logger.Error("Failed to begin transaction", err, map[string]interface{}{
 				"version": m.Version,
 			})
-			return fmt.Errorf("failed to begin transaction for migration %d: %w", m.Version, err)
+			return fmt.Errorf("Failed to begin transaction for migration %d: %w", m.Version, err)
 		}
 
 		if err := m.Up(ctx, r.db); err != nil {
@@ -94,7 +94,7 @@ func (r *Runner) Up(ctx context.Context) error {
 				"version": m.Version,
 				"name":    m.Name,
 			})
-			return fmt.Errorf("failed to run migration %d (%s): %w", m.Version, m.Name, err)
+			return fmt.Errorf("Failed to run migration %d (%s): %w", m.Version, m.Name, err)
 		}
 
 		if err := RecordMigration(ctx, r.db, m.Version, m.Name); err != nil {
@@ -102,14 +102,14 @@ func (r *Runner) Up(ctx context.Context) error {
 			r.logger.Error("Failed to record migration", err, map[string]interface{}{
 				"version": m.Version,
 			})
-			return fmt.Errorf("failed to record migration %d: %w", m.Version, err)
+			return fmt.Errorf("Failed to record migration %d: %w", m.Version, err)
 		}
 
 		if err := tx.Commit(ctx); err != nil {
 			r.logger.Error("Failed to commit migration", err, map[string]interface{}{
 				"version": m.Version,
 			})
-			return fmt.Errorf("failed to commit migration %d: %w", m.Version, err)
+			return fmt.Errorf("Failed to commit migration %d: %w", m.Version, err)
 		}
 
 		r.logger.Info(fmt.Sprintf("Migration %d applied successfully", m.Version), map[string]interface{}{
@@ -128,7 +128,7 @@ func (r *Runner) Down(ctx context.Context) error {
 
 	latestVersion, err := GetLatestVersion(ctx, r.db)
 	if err != nil {
-		return fmt.Errorf("failed to get latest version: %w", err)
+		return fmt.Errorf("Failed to get latest version: %w", err)
 	}
 
 	if latestVersion == 0 {
@@ -138,7 +138,7 @@ func (r *Runner) Down(ctx context.Context) error {
 
 	sqlMigrations, err := LoadMigrationsFromSQL()
 	if err != nil {
-		return fmt.Errorf("failed to load migrations: %w", err)
+		return fmt.Errorf("Failed to load migrations: %w", err)
 	}
 
 	var migration *Migration
@@ -164,7 +164,7 @@ func (r *Runner) Down(ctx context.Context) error {
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
 	if err := migration.Down(ctx, r.db); err != nil {
@@ -172,16 +172,16 @@ func (r *Runner) Down(ctx context.Context) error {
 		r.logger.Error("Failed to rollback migration", err, map[string]interface{}{
 			"version": migration.Version,
 		})
-		return fmt.Errorf("failed to rollback migration %d: %w", migration.Version, err)
+		return fmt.Errorf("Failed to rollback migration %d: %w", migration.Version, err)
 	}
 
 	if err := RemoveMigration(ctx, r.db, migration.Version); err != nil {
 		tx.Rollback(ctx)
-		return fmt.Errorf("failed to remove migration record: %w", err)
+		return fmt.Errorf("Failed to remove migration record: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit rollback: %w", err)
+		return fmt.Errorf("Failed to commit rollback: %w", err)
 	}
 
 	r.logger.Info(fmt.Sprintf("Migration %d rolled back successfully", migration.Version), map[string]interface{}{
@@ -194,17 +194,17 @@ func (r *Runner) Down(ctx context.Context) error {
 func (r *Runner) Status(ctx context.Context) error {
 
 	if err := CreateMigrationsTable(ctx, r.db); err != nil {
-		return fmt.Errorf("failed to create migrations table: %w", err)
+		return fmt.Errorf("Failed to create migrations table: %w", err)
 	}
 
 	applied, err := GetAppliedMigrations(ctx, r.db)
 	if err != nil {
-		return fmt.Errorf("failed to get applied migrations: %w", err)
+		return fmt.Errorf("Failed to get applied migrations: %w", err)
 	}
 
 	sqlMigrations, err := LoadMigrationsFromSQL()
 	if err != nil {
-		return fmt.Errorf("failed to load migrations: %w", err)
+		return fmt.Errorf("Failed to load migrations: %w", err)
 	}
 
 	migrations := make([]*Migration, 0, len(sqlMigrations))
