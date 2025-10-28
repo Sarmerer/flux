@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
+import { useProjectMemberStore } from '@/stores/projectMember'
 import type { Permission, Role } from '@/types/auth'
 
 declare module 'vue-router' {
@@ -133,6 +134,7 @@ export const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
   const activeProjectStore = useActiveProjectStore()
+  const projectMemberStore = useProjectMemberStore()
 
   if (to.meta.requiresAuth) {
     if (!authStore.isAuthenticated) {
@@ -145,9 +147,31 @@ router.beforeEach(async (to, _from, next) => {
 
     const projectIdFromRoute = to.params.projectId as string
     if (projectIdFromRoute && activeProjectStore.activeProject?.id !== projectIdFromRoute) {
-      await activeProjectStore.loadById(projectIdFromRoute)
+      try {
+        await activeProjectStore.loadById(projectIdFromRoute)
+        await projectMemberStore.loadMyProjectRole(projectIdFromRoute)
+      } catch (error) {
+        console.error('Failed to load project context:', error)
+        next({ name: 'Dashboard' })
+        return
+      }
     } else if (!projectIdFromRoute) {
       activeProjectStore.clear()
+      projectMemberStore.clearCurrentProject()
+    }
+
+    if (to.meta.permissions && projectIdFromRoute) {
+      if (!projectMemberStore.hasPermission(to.meta.permissions)) {
+        next({ name: 'Dashboard' })
+        return
+      }
+    }
+
+    if (to.meta.roles && projectIdFromRoute) {
+      if (!projectMemberStore.hasRole(to.meta.roles)) {
+        next({ name: 'Dashboard' })
+        return
+      }
     }
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
     next('/')

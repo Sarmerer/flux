@@ -1,4 +1,5 @@
 import type { User } from '@/types/auth'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 import { http } from '../http-client'
 
@@ -9,12 +10,12 @@ export const authService = {
 
   async login(data: { email: string; password: string }) {
     const res = await http.post<{ token: string }>('/auth/login', data)
-    localStorage.setItem('auth_token', res.token)
+    localStorage.setItem(AUTH_TOKEN_KEY, res.token)
     return res
   },
 
   logout() {
-    localStorage.removeItem('auth_token')
+    localStorage.removeItem(AUTH_TOKEN_KEY)
   },
 
   getActiveUser() {

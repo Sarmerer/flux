@@ -1,8 +1,8 @@
 import { computed, onMounted, ref } from 'vue'
+import { THEME_KEY } from '@/constants/auth'
 
 type Theme = 'dark' | 'light' | 'system'
 
-const THEME_KEY = 'flow-theme'
 const currentTheme = ref<Theme>('dark')
 
 export function useTheme() {

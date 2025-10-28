@@ -1,4 +1,5 @@
 import { computed, onUnmounted, ref } from 'vue'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 interface SubscriptionOptions {
   resourceId?: string
@@ -109,7 +110,7 @@ class SmartWebSocketManager {
     console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
 
     setTimeout(() => {
-      const token = localStorage.getItem('auth_token')
+      const token = localStorage.getItem(AUTH_TOKEN_KEY)
       this.connect(token || undefined)
     }, delay)
   }
@@ -252,7 +253,7 @@ export function useWebSocket(autoConnect = false) {
   const subscriptions = ref<(() => void)[]>([])
 
   if (autoConnect) {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (token && !wsManager.isConnected()) {
       wsManager.connect(token)
     }
@@ -272,7 +273,7 @@ export function useWebSocket(autoConnect = false) {
   }
 
   const connect = () => {
-    const token = localStorage.getItem('auth_token')
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
     wsManager?.connect(token || undefined)
   }
 

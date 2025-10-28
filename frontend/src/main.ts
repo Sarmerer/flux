@@ -7,8 +7,9 @@ import { createPinia } from 'pinia'
 import './index.css'
 import { router } from './router'
 import { useAuthStore } from './stores/auth'
+import { THEME_KEY } from './constants/auth'
 
-const savedTheme = localStorage.getItem('flow-theme') || 'dark'
+const savedTheme = localStorage.getItem(THEME_KEY) || 'dark'
 if (
   savedTheme === 'dark' ||
   (savedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)

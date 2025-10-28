@@ -3,8 +3,7 @@ import { computed, ref } from 'vue'
 import { authService } from '@/api/services/auth'
 import type { User } from '@/types/auth'
 import { defineStore } from 'pinia'
-
-const TOKEN_KEY = 'auth_token'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -12,7 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
 
   const isAuthenticated = computed(() => !!user.value)
-  const hasToken = computed(() => !!localStorage.getItem(TOKEN_KEY))
+  const hasToken = computed(() => !!localStorage.getItem(AUTH_TOKEN_KEY))
 
   const login = async (email: string, password: string): Promise<void> => {
     isLoading.value = true

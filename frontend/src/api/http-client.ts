@@ -1,4 +1,5 @@
 import { safeJson } from '@/lib/utils'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -10,7 +11,7 @@ export interface RequestOptions extends RequestInit {
 
 async function request<T = unknown>(url: string, options: RequestOptions = {}): Promise<T> {
   url = url.startsWith('/') ? `${BASE_URL}${url}` : url
-  const token = localStorage.getItem('auth_token')
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -27,6 +28,16 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
   })
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      const wasAuthenticated = !!localStorage.getItem(AUTH_TOKEN_KEY)
+      localStorage.removeItem(AUTH_TOKEN_KEY)
+
+      if (wasAuthenticated && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login'
+      }
+      throw new Error('Session expired. Please login again.')
+    }
+
     const body = await safeJson<{ message?: string }>(response)
     throw new Error(body?.message || `HTTP ${response.status}: ${response.statusText}`)
   }

@@ -1,4 +1,5 @@
 import mitt from 'mitt'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 export type ServerMessage =
   | {
@@ -33,7 +34,7 @@ class WebSocketClient {
     this.socket = new WebSocket(WS_URL)
     this.connectionPromise = new Promise((resolve, reject) => {
       this.socket!.onopen = () => {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem(AUTH_TOKEN_KEY)
         if (token) {
           const authMsg = { type: 'auth', token: `Bearer ${token}` }
           this.socket!.send(JSON.stringify(authMsg))
