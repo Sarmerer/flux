@@ -22,7 +22,7 @@ const Settings = () => import('@/pages/Settings.vue')
 
 const NewProject = () => import('@/pages/project/New.vue')
 const ProjectList = () => import('@/pages/project/List.vue')
-const ProjectOverview = () => import('@/pages/project/overview/index.vue')
+const ProjectOverview = () => import('@/pages/project/Overview.vue')
 const Members = () => import('@/pages/project/Members.vue')
 
 const Tables = () => import('@/pages/project/Tables.vue')

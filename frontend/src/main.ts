@@ -4,10 +4,10 @@ import { createI18n } from 'vue-i18n'
 
 import { createPinia } from 'pinia'
 
+import { THEME_KEY } from './constants/auth'
 import './index.css'
 import { router } from './router'
 import { useAuthStore } from './stores/auth'
-import { THEME_KEY } from './constants/auth'
 
 const savedTheme = localStorage.getItem(THEME_KEY) || 'dark'
 if (
