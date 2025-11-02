@@ -20,6 +20,7 @@ func SetupRoutes(
 	projectHandler *handlers.ProjectHandler,
 	projectMemberHandler *handlers.ProjectMemberHandler,
 	tableHandler *handlers.TableHandler,
+	tableDataHandler *handlers.TableDataHandler,
 	realtimeHandler *handlers.RealtimeHandler,
 	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
 	workflowHandler *handlers.WorkflowHandler,
@@ -128,11 +129,26 @@ func SetupRoutes(
 
 						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)
 						r.Delete("/drop", tableSchemaMutationHandler.DropTableFromDatabase)
+						r.Put("/update", tableSchemaMutationHandler.UpdateTableSchema)
 						r.Post("/columns/add", tableSchemaMutationHandler.AddColumnToTable)
 						r.Delete("/columns/remove", tableSchemaMutationHandler.RemoveColumnFromTable)
 						r.Put("/columns/modify", tableSchemaMutationHandler.ModifyColumnInTable)
 						r.Post("/foreign-keys/add", tableSchemaMutationHandler.AddForeignKeyToTable)
 						r.Delete("/foreign-keys/remove", tableSchemaMutationHandler.RemoveForeignKeyFromTable)
+					})
+
+					r.Route("/{id}/data", func(r chi.Router) {
+						r.With(authMiddleware.RequireProjectMembership(projectMemberRepo)).
+							Get("/", tableDataHandler.GetTableData)
+
+						r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit)).
+							Post("/", tableDataHandler.InsertRow)
+
+						r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit)).
+							Put("/{rowId}", tableDataHandler.UpdateRow)
+
+						r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit)).
+							Delete("/{rowId}", tableDataHandler.DeleteRow)
 					})
 				})
 

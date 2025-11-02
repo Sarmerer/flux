@@ -349,3 +349,49 @@ func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWr
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *TableSchemaMutationHandler) UpdateTableSchema(w http.ResponseWriter, r *http.Request) {
+	projectID, err := parseUUIDParam(r, "projectId")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
+		return
+	}
+
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
+		return
+	}
+
+	var req struct {
+		Schema TableSchema `json:"schema" validate:"required"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid request body"))
+		return
+	}
+
+	if err := validation.ValidateTableSchema(&req.Schema); err != nil {
+		errors.WriteError(w, errors.NewValidationError("Schema validation failed").WithDetails(err.Error()))
+		return
+	}
+
+	database, err := h.getProjectDatabase(r.Context(), projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Project database not found"))
+		return
+	}
+
+	if err := h.schemaSvc.UpdateTableSchema(r.Context(), database, table, req.Schema); err != nil {
+		errors.WriteError(w, errors.NewInternalError(err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "schema updated"})
+}

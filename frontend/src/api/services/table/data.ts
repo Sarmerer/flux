@@ -8,7 +8,7 @@ export const tableDataService = {
   },
 
   insert(projectId: string, tableId: string, data: Record<string, any>) {
-    return http.post<{ status: string }>(`/projects/${projectId}/tables/${tableId}/data`, data)
+    return http.post<Record<string, any>>(`/projects/${projectId}/tables/${tableId}/data`, data)
   },
 
   update(projectId: string, tableId: string, id: string, data: Record<string, any>) {

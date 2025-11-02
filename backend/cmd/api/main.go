@@ -42,6 +42,7 @@ func main() {
 		container.ProjectHandler,
 		container.ProjectMemberHandler,
 		container.TableHandler,
+		container.TableDataHandler,
 		container.DbMutationProgressHandler,
 		container.TableSchemaMutationHandler,
 		container.WorkflowHandler,

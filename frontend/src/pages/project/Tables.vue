@@ -1,9 +1,23 @@
 <script setup lang="ts">
+import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
+import EditRowDialog from '@/components/tables/EditRowDialog.vue'
+import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
 import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
-import { Database, Plus, Search, Settings2, Table as TableIcon } from 'lucide-vue-next'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  Pencil,
+  Plus,
+  Search,
+  Settings2,
+  Table as TableIcon,
+  Trash2,
+} from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { tableDataService } from '@/api/services/table/data'
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 import { Button } from '@/components/ui/button'
@@ -60,6 +74,16 @@ const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const activeTab = ref('data')
+
+const isInsertDialogOpen = ref(false)
+const isEditDialogOpen = ref(false)
+const isDeleteDialogOpen = ref(false)
+const selectedRow = ref<Record<string, any> | null>(null)
+const selectedRowId = ref<string | null>(null)
+
+const currentPage = ref(1)
+const pageLimit = ref(50)
+const totalRows = ref(0)
 
 const newTable = ref<{
   name: string
@@ -142,9 +166,7 @@ const handleCreateTable = async () => {
         nullable: col.nullable,
         default: col.default_value || undefined,
       })),
-      primary_key: newTable.value.columns
-        .filter((col) => col.primary_key)
-        .map((col) => col.name),
+      primary_key: newTable.value.columns.filter((col) => col.primary_key).map((col) => col.name),
       indexes: [],
       foreign_keys: [],
     }
@@ -186,8 +208,94 @@ const removeColumn = (index: number) => {
   newTable.value.columns.splice(index, 1)
 }
 
+const handleInsertRow = async (data: Record<string, any>) => {
+  await tableDataService.insert(projectId.value, tableId.value!, data)
+  await refreshTableDetail()
+}
+
+const handleEditRow = (row: Record<string, any>) => {
+  const idColumn = tableColumns.value.find((col) => col.is_primary_key)
+  if (idColumn) {
+    selectedRowId.value = row[idColumn.name]
+    selectedRow.value = row
+    isEditDialogOpen.value = true
+  } else {
+    toast.error('Error', 'No primary key found for this table')
+  }
+}
+
+const handleUpdateRow = async (rowId: string, data: Record<string, any>) => {
+  await tableDataService.update(projectId.value, tableId.value!, rowId, data)
+  await refreshTableDetail()
+}
+
+const handleDeleteRow = (row: Record<string, any>) => {
+  const idColumn = tableColumns.value.find((col) => col.is_primary_key)
+  if (idColumn) {
+    selectedRowId.value = row[idColumn.name]
+    selectedRow.value = row
+    isDeleteDialogOpen.value = true
+  } else {
+    toast.error('Error', 'No primary key found for this table')
+  }
+}
+
+const handleDeleteConfirm = async (rowId: string) => {
+  await tableDataService.delete(projectId.value, tableId.value!, rowId)
+  await refreshTableDetail()
+}
+
+const totalPages = computed(() => Math.ceil(totalRows.value / pageLimit.value))
+
+const canGoToPreviousPage = computed(() => currentPage.value > 1)
+const canGoToNextPage = computed(() => currentPage.value < totalPages.value)
+
+const goToPreviousPage = () => {
+  if (canGoToPreviousPage.value) {
+    currentPage.value--
+    refreshTableDetail()
+  }
+}
+
+const goToNextPage = () => {
+  if (canGoToNextPage.value) {
+    currentPage.value++
+    refreshTableDetail()
+  }
+}
+
+const formatCellValue = (value: any, columnType: string): string => {
+  if (value === null || value === undefined) return '-'
+
+  const upperType = columnType.toUpperCase()
+
+  if (upperType === 'JSON' || upperType === 'JSONB') {
+    if (typeof value === 'object') {
+      const str = JSON.stringify(value)
+      return str.length > 50 ? str.substring(0, 50) + '...' : str
+    }
+  }
+
+  if (upperType === 'BOOLEAN' || upperType === 'BOOL') {
+    return value ? 'true' : 'false'
+  }
+
+  if (upperType.includes('TIMESTAMP') || upperType === 'DATE') {
+    try {
+      const date = new Date(value)
+      return date.toLocaleString()
+    } catch {
+      return String(value)
+    }
+  }
+
+  const str = String(value)
+  return str.length > 100 ? str.substring(0, 100) + '...' : str
+}
+
 watch(tableId, () => {
   if (tableId.value) {
+    currentPage.value = 1
     refreshTableDetail()
   }
 })
@@ -204,7 +312,9 @@ watch(tableId, () => {
           </Button>
         </div>
         <div class="relative">
-          <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Search
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"
+          />
           <Input v-model="searchQuery" placeholder="Search tables..." class="pl-9 h-9" />
         </div>
       </div>
@@ -220,7 +330,7 @@ watch(tableId, () => {
                 'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
                 tableId === table.id
                   ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                  : 'hover:bg-muted text-muted-foreground hover:text-foreground',
               ]"
             >
               <TableIcon class="w-4 h-4 flex-shrink-0" />
@@ -228,7 +338,10 @@ watch(tableId, () => {
             </button>
           </div>
 
-          <div v-if="!isLoading && filteredTables.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+          <div
+            v-if="!isLoading && filteredTables.length === 0"
+            class="p-4 text-center text-sm text-muted-foreground"
+          >
             <p>No tables found</p>
           </div>
         </div>
@@ -245,7 +358,9 @@ watch(tableId, () => {
           </div>
           <div>
             <h3 class="text-lg font-semibold mb-1">Select a table</h3>
-            <p class="text-sm text-muted-foreground">Choose a table from the list to view its data and schema</p>
+            <p class="text-sm text-muted-foreground">
+              Choose a table from the list to view its data and schema
+            </p>
           </div>
           <Button @click="isCreateDialogOpen = true">
             <Plus class="w-4 h-4 mr-2" />
@@ -259,7 +374,9 @@ watch(tableId, () => {
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-2xl font-bold">{{ selectedTable?.name }}</h1>
-              <p class="text-sm text-muted-foreground mt-1">{{ selectedTable?.description || 'No description' }}</p>
+              <p class="text-sm text-muted-foreground mt-1">
+                {{ selectedTable?.description || 'No description' }}
+              </p>
             </div>
             <div class="flex items-center gap-2">
               <Button variant="outline" size="sm">
@@ -283,11 +400,9 @@ watch(tableId, () => {
               <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
                 <div class="space-y-4">
                   <div class="flex items-center justify-between">
-                    <div class="text-sm text-muted-foreground">
-                      {{ tableRows.length }} rows
-                    </div>
+                    <div class="text-sm text-muted-foreground">{{ tableRows.length }} rows</div>
                     <div class="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" @click="isInsertDialogOpen = true">
                         <Plus class="w-4 h-4 mr-2" />
                         Insert Row
                       </Button>
@@ -306,25 +421,88 @@ watch(tableId, () => {
                             >
                               {{ column.name }}
                             </th>
+                            <th
+                              class="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-24"
+                            >
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-border bg-background">
-                          <tr v-for="(row, idx) in tableRows" :key="idx" class="hover:bg-muted/30 transition-colors">
+                          <tr
+                            v-for="(row, idx) in tableRows"
+                            :key="idx"
+                            class="hover:bg-muted/30 transition-colors group"
+                          >
                             <td
                               v-for="column in tableColumns"
                               :key="column.name"
-                              class="px-4 py-3 text-sm text-foreground whitespace-nowrap"
+                              class="px-4 py-3 text-sm text-foreground"
                             >
-                              {{ row[column.name] ?? '-' }}
+                              <div
+                                class="max-w-xs truncate"
+                                :title="String(row[column.name] ?? '-')"
+                              >
+                                {{ formatCellValue(row[column.name], column.type) }}
+                              </div>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                              <div
+                                class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  @click="handleEditRow(row)"
+                                  class="h-8 w-8 p-0"
+                                >
+                                  <Pencil class="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  @click="handleDeleteRow(row)"
+                                  class="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 class="w-4 h-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                           <tr v-if="tableRows.length === 0">
-                            <td :colspan="tableColumns.length" class="px-4 py-8 text-center text-sm text-muted-foreground">
+                            <td
+                              :colspan="tableColumns.length + 1"
+                              class="px-4 py-8 text-center text-sm text-muted-foreground"
+                            >
                               No data yet
                             </td>
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+
+                  <div v-if="tableRows.length > 0" class="flex items-center justify-between pt-4">
+                    <div class="text-sm text-muted-foreground">
+                      Page {{ currentPage }} of {{ totalPages || 1 }}
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        @click="goToPreviousPage"
+                        :disabled="!canGoToPreviousPage"
+                      >
+                        <ChevronLeft class="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        @click="goToNextPage"
+                        :disabled="!canGoToNextPage"
+                      >
+                        <ChevronRight class="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -351,22 +529,34 @@ watch(tableId, () => {
                       <table class="w-full">
                         <thead class="bg-muted/50">
                           <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <th
+                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            >
                               Name
                             </th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <th
+                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            >
                               Type
                             </th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <th
+                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            >
                               Nullable
                             </th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <th
+                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            >
                               Default
                             </th>
                           </tr>
                         </thead>
                         <tbody class="divide-y divide-border bg-background">
-                          <tr v-for="column in tableColumns" :key="column.name" class="hover:bg-muted/30 transition-colors">
+                          <tr
+                            v-for="column in tableColumns"
+                            :key="column.name"
+                            class="hover:bg-muted/30 transition-colors"
+                          >
                             <td class="px-4 py-3 text-sm font-medium text-foreground">
                               {{ column.name }}
                             </td>
@@ -425,9 +615,7 @@ watch(tableId, () => {
             <div class="flex items-center justify-between">
               <div>
                 <Label>Columns</Label>
-                <p class="text-xs text-muted-foreground mt-1">
-                  At least one column is required
-                </p>
+                <p class="text-xs text-muted-foreground mt-1">At least one column is required</p>
               </div>
               <Button type="button" variant="outline" size="sm" @click="addColumn">
                 <Plus class="w-4 h-4 mr-1" />
@@ -479,5 +667,29 @@ watch(tableId, () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <InsertRowDialog
+      :open="isInsertDialogOpen"
+      @update:open="isInsertDialogOpen = $event"
+      :columns="tableColumns"
+      :on-insert="handleInsertRow"
+    />
+
+    <EditRowDialog
+      :open="isEditDialogOpen"
+      @update:open="isEditDialogOpen = $event"
+      :columns="tableColumns"
+      :row-data="selectedRow"
+      :row-id="selectedRowId"
+      :on-update="handleUpdateRow"
+    />
+
+    <DeleteRowDialog
+      :open="isDeleteDialogOpen"
+      @update:open="isDeleteDialogOpen = $event"
+      :row-data="selectedRow"
+      :row-id="selectedRowId"
+      :on-delete="handleDeleteConfirm"
+    />
   </div>
 </template>

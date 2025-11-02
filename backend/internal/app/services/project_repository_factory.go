@@ -35,3 +35,11 @@ func (f *ProjectRepositoryFactory) GetWorkflowRepository(ctx context.Context, pr
 	}
 	return postgresRepos.NewWorkflowRepository(pool), nil
 }
+
+func (f *ProjectRepositoryFactory) GetTableDataRepository(ctx context.Context, projectID uuid.UUID) (repositories.TableDataRepository, error) {
+	pool, err := f.resolver.GetProjectDB(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get project database connection: %w", err)
+	}
+	return postgresRepos.NewTableDataRepository(pool), nil
+}

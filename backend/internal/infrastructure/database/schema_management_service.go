@@ -147,6 +147,71 @@ func (s *SchemaManagementService) RemoveForeignKey(ctx context.Context, database
 	})
 }
 
+func (s *SchemaManagementService) UpdateTableSchema(ctx context.Context, database *entities.Database, table *entities.Table, schema TableSchema) error {
+	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer tx.Rollback(ctx)
+
+		tempTableName := fmt.Sprintf("%s_new", table.Name)
+		createSQL := s.buildCreateTableSQL(tempTableName, schema)
+
+		if _, err := tx.Exec(ctx, createSQL); err != nil {
+			return fmt.Errorf("failed to create temporary table: %w", err)
+		}
+
+		for _, index := range schema.Indexes {
+			indexSQL := s.buildCreateIndexSQL(tempTableName, index)
+			if _, err := tx.Exec(ctx, indexSQL); err != nil {
+				return fmt.Errorf("failed to create index %s: %w", index.Name, err)
+			}
+		}
+
+		columnNames := make([]string, len(schema.Columns))
+		for i, col := range schema.Columns {
+			columnNames[i] = pgx.Identifier{col.Name}.Sanitize()
+		}
+		columnsStr := strings.Join(columnNames, ", ")
+
+		copySQL := fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM %s",
+			pgx.Identifier{tempTableName}.Sanitize(),
+			columnsStr,
+			columnsStr,
+			pgx.Identifier{table.Name}.Sanitize())
+
+		if _, err := tx.Exec(ctx, copySQL); err != nil {
+			return fmt.Errorf("failed to copy data to temporary table: %w", err)
+		}
+
+		dropSQL := fmt.Sprintf("DROP TABLE %s CASCADE", pgx.Identifier{table.Name}.Sanitize())
+		if _, err := tx.Exec(ctx, dropSQL); err != nil {
+			return fmt.Errorf("failed to drop original table: %w", err)
+		}
+
+		renameSQL := fmt.Sprintf("ALTER TABLE %s RENAME TO %s",
+			pgx.Identifier{tempTableName}.Sanitize(),
+			pgx.Identifier{table.Name}.Sanitize())
+		if _, err := tx.Exec(ctx, renameSQL); err != nil {
+			return fmt.Errorf("failed to rename temporary table: %w", err)
+		}
+
+		for _, fk := range schema.ForeignKeys {
+			fkSQL := s.buildAddForeignKeySQL(table.Name, fk)
+			if _, err := tx.Exec(ctx, fkSQL); err != nil {
+				return fmt.Errorf("failed to create foreign key %s: %w", fk.Name, err)
+			}
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
+
+		return nil
+	})
+}
+
 func (s *SchemaManagementService) buildCreateTableSQL(tableName string, schema TableSchema) string {
 	var columns []string
 

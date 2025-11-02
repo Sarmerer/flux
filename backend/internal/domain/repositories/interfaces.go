@@ -73,3 +73,12 @@ type ProjectMemberRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	DeleteTx(ctx context.Context, tx types.Executor, id uuid.UUID) error
 }
+
+type TableDataRepository interface {
+	Query(ctx context.Context, tableName string, limit, offset int) ([]map[string]interface{}, error)
+	Count(ctx context.Context, tableName string) (int64, error)
+	GetByID(ctx context.Context, tableName string, id interface{}) (map[string]interface{}, error)
+	Insert(ctx context.Context, tableName string, data map[string]interface{}) (map[string]interface{}, error)
+	Update(ctx context.Context, tableName string, id interface{}, data map[string]interface{}) error
+	Delete(ctx context.Context, tableName string, id interface{}) error
+}

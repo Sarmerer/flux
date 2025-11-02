@@ -37,16 +37,17 @@ type Container struct {
 	ProjectConnResolver     *database.ProjectConnectionResolver
 	MigrationRunner         *database.ProjectMigrationRunner
 
-	UserService     *services.UserService
-	ProjectService  *services.ProjectService
-	TableService    *services.TableService
-	WorkflowService *services.WorkflowService
-	DatabaseService *services.DatabaseService
+	UserService      *services.UserService
+	ProjectService   *services.ProjectService
+	TableService     *services.TableService
+	TableDataService *services.TableDataService
+	WorkflowService  *services.WorkflowService
 
 	UserHandler                *handlers.UserHandler
 	ProjectHandler             *handlers.ProjectHandler
 	ProjectMemberHandler       *handlers.ProjectMemberHandler
 	TableHandler               *handlers.TableHandler
+	TableDataHandler           *handlers.TableDataHandler
 	DbMutationProgressHandler  *handlers.RealtimeHandler
 	TableSchemaMutationHandler *handlers.TableSchemaMutationHandler
 	WorkflowHandler            *handlers.WorkflowHandler
@@ -151,17 +152,6 @@ func (c *Container) initRepositories() {
 func (c *Container) initServices() {
 	repoFactory := services.NewProjectRepositoryFactory(c.ProjectConnResolver)
 
-	wsHub := c.RealtimeService.GetHub()
-
-	c.DatabaseService = services.NewDatabaseService(
-		c.DatabaseRepo,
-		c.ProjectRepo,
-		c.PgManagementService,
-		c.ConnService,
-		c.ProgressTracker,
-		wsHub,
-	)
-
 	c.UserService = services.NewUserService(c.UserRepo, c.Config.JWT.Secret)
 
 	c.ProjectService = services.NewProjectService(
@@ -187,6 +177,11 @@ func (c *Container) initServices() {
 		c.SchemaManagementService,
 	)
 
+	c.TableDataService = services.NewTableDataService(
+		repoFactory,
+		c.TableService,
+	)
+
 	c.WorkflowService = services.NewWorkflowService(
 		repoFactory,
 		c.ProjectRepo,
@@ -206,6 +201,7 @@ func (c *Container) initHandlers() {
 	c.ProjectHandler = handlers.NewProjectHandler(c.ProjectService)
 	c.ProjectMemberHandler = handlers.NewProjectMemberHandler(c.ProjectMemberRepo, c.UserRepo, c.ProjectRepo)
 	c.TableHandler = handlers.NewTableHandler(c.TableService)
+	c.TableDataHandler = handlers.NewTableDataHandler(c.TableDataService)
 
 	c.DbMutationProgressHandler = handlers.NewRealtimeHandler(wsHub, c.Config.JWT.Secret)
 
