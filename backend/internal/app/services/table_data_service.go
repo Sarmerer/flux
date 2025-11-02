@@ -4,24 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/domain/repositories"
 	"github.com/flow/internal/errors"
 	"github.com/google/uuid"
 )
-
-type TableDataServiceInterface interface {
-	GetTableData(ctx context.Context, projectID, tableID uuid.UUID, page, limit int) (*TableDataResponse, error)
-	GetRowByID(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}) (map[string]interface{}, error)
-	InsertRow(ctx context.Context, projectID, tableID uuid.UUID, data map[string]interface{}) (map[string]interface{}, error)
-	UpdateRow(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}, data map[string]interface{}) error
-	DeleteRow(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}) error
-}
-
-type TableDataResponse struct {
-	Data  []map[string]interface{} `json:"data"`
-	Total int64                    `json:"total"`
-	Page  int                      `json:"page"`
-	Limit int                      `json:"limit"`
-}
 
 type TableDataService struct {
 	repoFactory  *ProjectRepositoryFactory
@@ -38,15 +25,37 @@ func NewTableDataService(
 	}
 }
 
-func (s *TableDataService) GetTableData(ctx context.Context, projectID, tableID uuid.UUID, page, limit int) (*TableDataResponse, error) {
+func (s *TableDataService) getDataRepo(ctx context.Context, projectID uuid.UUID) (repositories.TableDataRepository, error) {
+	repo, err := s.repoFactory.GetTableDataRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewInternalError(fmt.Errorf("failed to get data repository: %w", err))
+	}
+	return repo, nil
+}
+
+type tableDataContext struct {
+	repo  repositories.TableDataRepository
+	table *entities.TableResponse
+}
+
+func (s *TableDataService) prepareTableDataOp(ctx context.Context, projectID, tableID uuid.UUID) (*tableDataContext, error) {
 	table, err := s.tableService.GetTableByID(ctx, tableID, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, projectID)
+	repo, err := s.getDataRepo(ctx, projectID)
 	if err != nil {
-		return nil, errors.NewInternalError(fmt.Errorf("failed to get data repository: %w", err))
+		return nil, err
+	}
+
+	return &tableDataContext{repo, table}, nil
+}
+
+func (s *TableDataService) GetTableData(ctx context.Context, projectID, tableID uuid.UUID, page, limit int) (*TableDataResponse, error) {
+	dataCtx, err := s.prepareTableDataOp(ctx, projectID, tableID)
+	if err != nil {
+		return nil, err
 	}
 
 	if page < 1 {
@@ -58,12 +67,12 @@ func (s *TableDataService) GetTableData(ctx context.Context, projectID, tableID 
 
 	offset := (page - 1) * limit
 
-	data, err := dataRepo.Query(ctx, table.Name, limit, offset)
+	data, err := dataCtx.repo.Query(ctx, dataCtx.table.Name, limit, offset)
 	if err != nil {
 		return nil, errors.NewInternalError(fmt.Errorf("failed to query table data: %w", err))
 	}
 
-	total, err := dataRepo.Count(ctx, table.Name)
+	total, err := dataCtx.repo.Count(ctx, dataCtx.table.Name)
 	if err != nil {
 		return nil, errors.NewInternalError(fmt.Errorf("failed to count table rows: %w", err))
 	}
@@ -81,17 +90,12 @@ func (s *TableDataService) GetTableData(ctx context.Context, projectID, tableID 
 }
 
 func (s *TableDataService) GetRowByID(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}) (map[string]interface{}, error) {
-	table, err := s.tableService.GetTableByID(ctx, tableID, projectID)
+	dataCtx, err := s.prepareTableDataOp(ctx, projectID, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, projectID)
-	if err != nil {
-		return nil, errors.NewInternalError(fmt.Errorf("failed to get data repository: %w", err))
-	}
-
-	row, err := dataRepo.GetByID(ctx, table.Name, rowID)
+	row, err := dataCtx.repo.GetByID(ctx, dataCtx.table.Name, rowID)
 	if err != nil {
 		return nil, errors.NewNotFoundError("Row not found")
 	}
@@ -104,17 +108,12 @@ func (s *TableDataService) InsertRow(ctx context.Context, projectID, tableID uui
 		return nil, errors.NewValidationError("No data provided")
 	}
 
-	table, err := s.tableService.GetTableByID(ctx, tableID, projectID)
+	dataCtx, err := s.prepareTableDataOp(ctx, projectID, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, projectID)
-	if err != nil {
-		return nil, errors.NewInternalError(fmt.Errorf("failed to get data repository: %w", err))
-	}
-
-	row, err := dataRepo.Insert(ctx, table.Name, data)
+	row, err := dataCtx.repo.Insert(ctx, dataCtx.table.Name, data)
 	if err != nil {
 		return nil, errors.NewInternalError(fmt.Errorf("failed to insert row: %w", err))
 	}
@@ -127,17 +126,12 @@ func (s *TableDataService) UpdateRow(ctx context.Context, projectID, tableID uui
 		return errors.NewValidationError("No data provided")
 	}
 
-	table, err := s.tableService.GetTableByID(ctx, tableID, projectID)
+	dataCtx, err := s.prepareTableDataOp(ctx, projectID, tableID)
 	if err != nil {
 		return err
 	}
 
-	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, projectID)
-	if err != nil {
-		return errors.NewInternalError(fmt.Errorf("failed to get data repository: %w", err))
-	}
-
-	if err := dataRepo.Update(ctx, table.Name, rowID, data); err != nil {
+	if err := dataCtx.repo.Update(ctx, dataCtx.table.Name, rowID, data); err != nil {
 		if err.Error() == "row not found" {
 			return errors.NewNotFoundError("Row not found")
 		}
@@ -148,17 +142,12 @@ func (s *TableDataService) UpdateRow(ctx context.Context, projectID, tableID uui
 }
 
 func (s *TableDataService) DeleteRow(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}) error {
-	table, err := s.tableService.GetTableByID(ctx, tableID, projectID)
+	dataCtx, err := s.prepareTableDataOp(ctx, projectID, tableID)
 	if err != nil {
 		return err
 	}
 
-	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, projectID)
-	if err != nil {
-		return errors.NewInternalError(fmt.Errorf("failed to get data repository: %w", err))
-	}
-
-	if err := dataRepo.Delete(ctx, table.Name, rowID); err != nil {
+	if err := dataCtx.repo.Delete(ctx, dataCtx.table.Name, rowID); err != nil {
 		if err.Error() == "row not found" {
 			return errors.NewNotFoundError("Row not found")
 		}

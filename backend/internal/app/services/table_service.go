@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/flow/internal/domain/entities"
+	"github.com/flow/internal/domain/repositories"
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/validation"
@@ -30,6 +31,69 @@ func NewTableService(
 		resolver:      resolver,
 		schemaService: schemaService,
 	}
+}
+
+func (s *TableService) getTableRepo(ctx context.Context, projectID uuid.UUID) (repositories.TableRepository, error) {
+	repo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
+	}
+	return repo, nil
+}
+
+func (s *TableService) getDatabaseEntity(ctx context.Context, projectID uuid.UUID) (*entities.Database, error) {
+	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
+	}
+	return db, nil
+}
+
+func (s *TableService) parseTableSchema(table *entities.Table) (*database.TableSchema, error) {
+	var schema database.TableSchema
+	if err := json.Unmarshal([]byte(table.Schema), &schema); err != nil {
+		return nil, errors.NewInternalError(err).WithDetails("Failed to parse table schema")
+	}
+	return &schema, nil
+}
+
+func (s *TableService) updateTableWithSchema(ctx context.Context, table *entities.Table, schema *database.TableSchema, repo repositories.TableRepository) error {
+	schemaBytes, err := json.Marshal(schema)
+	if err != nil {
+		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
+	}
+	table.Schema = string(schemaBytes)
+	table.UpdatedAt = time.Now()
+
+	if err := repo.Update(ctx, table); err != nil {
+		return errors.NewDatabaseError("Failed to update table metadata", err)
+	}
+	return nil
+}
+
+type tableMutationContext struct {
+	repo  repositories.TableRepository
+	table *entities.Table
+	db    *entities.Database
+}
+
+func (s *TableService) prepareTableMutation(ctx context.Context, tableID, projectID uuid.UUID) (*tableMutationContext, error) {
+	repo, err := s.getTableRepo(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	table, err := repo.GetByID(ctx, tableID)
+	if err != nil {
+		return nil, errors.NewNotFoundError("Table not found")
+	}
+
+	db, err := s.getDatabaseEntity(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tableMutationContext{repo, table, db}, nil
 }
 
 func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreateRequest, projectID uuid.UUID) (*entities.TableResponse, error) {
@@ -154,15 +218,6 @@ func (s *TableService) UpdateTable(ctx context.Context, id uuid.UUID, req *entit
 	if req.Description != "" {
 		table.Description = req.Description
 	}
-	if req.Schema != nil {
-		schemaJSON, err := json.Marshal(req.Schema)
-		if err != nil {
-			return nil, errors.NewValidationError("Invalid schema format").
-				WithField("schema").
-				WithDetails(err.Error())
-		}
-		table.Schema = string(schemaJSON)
-	}
 
 	table.UpdatedAt = time.Now()
 
@@ -202,69 +257,37 @@ func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID, projectID 
 }
 
 func (s *TableService) AddColumn(ctx context.Context, id uuid.UUID, projectID uuid.UUID, column database.ColumnDefinition) error {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	mutCtx, err := s.prepareTableMutation(ctx, id, projectID)
 	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
+		return err
 	}
 
-	table, err := tableRepo.GetByID(ctx, id)
-	if err != nil {
-		return errors.NewNotFoundError("Table not found")
-	}
-
-	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
-	if err != nil {
-		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
-	}
-
-	if err := s.schemaService.AddColumn(ctx, db, table, column); err != nil {
+	if err := s.schemaService.AddColumn(ctx, mutCtx.db, mutCtx.table, column); err != nil {
 		return errors.NewDatabaseError("Failed to add column", err)
 	}
 
-	var tableSchema database.TableSchema
-	if err := json.Unmarshal([]byte(table.Schema), &tableSchema); err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to parse table schema")
+	tableSchema, err := s.parseTableSchema(mutCtx.table)
+	if err != nil {
+		return err
 	}
 
 	tableSchema.Columns = append(tableSchema.Columns, column)
-	schemaBytes, err := json.Marshal(tableSchema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := tableRepo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-
-	return nil
+	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
 }
 
 func (s *TableService) RemoveColumn(ctx context.Context, id uuid.UUID, projectID uuid.UUID, columnName string) error {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	mutCtx, err := s.prepareTableMutation(ctx, id, projectID)
 	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
+		return err
 	}
 
-	table, err := tableRepo.GetByID(ctx, id)
-	if err != nil {
-		return errors.NewNotFoundError("Table not found")
-	}
-
-	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
-	if err != nil {
-		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
-	}
-
-	if err := s.schemaService.RemoveColumn(ctx, db, table, columnName); err != nil {
+	if err := s.schemaService.RemoveColumn(ctx, mutCtx.db, mutCtx.table, columnName); err != nil {
 		return errors.NewDatabaseError("Failed to remove column", err)
 	}
 
-	var tableSchema database.TableSchema
-	if err := json.Unmarshal([]byte(table.Schema), &tableSchema); err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to parse table schema")
+	tableSchema, err := s.parseTableSchema(mutCtx.table)
+	if err != nil {
+		return err
 	}
 
 	for i, col := range tableSchema.Columns {
@@ -274,44 +297,22 @@ func (s *TableService) RemoveColumn(ctx context.Context, id uuid.UUID, projectID
 		}
 	}
 
-	schemaBytes, err := json.Marshal(tableSchema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := tableRepo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-
-	return nil
+	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
 }
 
 func (s *TableService) ModifyColumn(ctx context.Context, id uuid.UUID, projectID uuid.UUID, oldColumnName string, newColumn database.ColumnDefinition) error {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	mutCtx, err := s.prepareTableMutation(ctx, id, projectID)
 	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
+		return err
 	}
 
-	table, err := tableRepo.GetByID(ctx, id)
-	if err != nil {
-		return errors.NewNotFoundError("Table not found")
-	}
-
-	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
-	if err != nil {
-		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
-	}
-
-	if err := s.schemaService.ModifyColumn(ctx, db, table, oldColumnName, newColumn); err != nil {
+	if err := s.schemaService.ModifyColumn(ctx, mutCtx.db, mutCtx.table, oldColumnName, newColumn); err != nil {
 		return errors.NewDatabaseError("Failed to modify column", err)
 	}
 
-	var tableSchema database.TableSchema
-	if err := json.Unmarshal([]byte(table.Schema), &tableSchema); err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to parse table schema")
+	tableSchema, err := s.parseTableSchema(mutCtx.table)
+	if err != nil {
+		return err
 	}
 
 	for i, col := range tableSchema.Columns {
@@ -321,85 +322,41 @@ func (s *TableService) ModifyColumn(ctx context.Context, id uuid.UUID, projectID
 		}
 	}
 
-	schemaBytes, err := json.Marshal(tableSchema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := tableRepo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-
-	return nil
+	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
 }
 
 func (s *TableService) AddForeignKey(ctx context.Context, id uuid.UUID, projectID uuid.UUID, fk database.ForeignKeyDefinition) error {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	mutCtx, err := s.prepareTableMutation(ctx, id, projectID)
 	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
+		return err
 	}
 
-	table, err := tableRepo.GetByID(ctx, id)
-	if err != nil {
-		return errors.NewNotFoundError("Table not found")
-	}
-
-	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
-	if err != nil {
-		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
-	}
-
-	if err := s.schemaService.AddForeignKey(ctx, db, table, fk); err != nil {
+	if err := s.schemaService.AddForeignKey(ctx, mutCtx.db, mutCtx.table, fk); err != nil {
 		return errors.NewDatabaseError("Failed to add foreign key", err)
 	}
 
-	var tableSchema database.TableSchema
-	if err := json.Unmarshal([]byte(table.Schema), &tableSchema); err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to parse table schema")
+	tableSchema, err := s.parseTableSchema(mutCtx.table)
+	if err != nil {
+		return err
 	}
 
 	tableSchema.ForeignKeys = append(tableSchema.ForeignKeys, fk)
-	schemaBytes, err := json.Marshal(tableSchema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := tableRepo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-
-	return nil
+	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
 }
 
 func (s *TableService) RemoveForeignKey(ctx context.Context, id uuid.UUID, projectID uuid.UUID, foreignKeyName string) error {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	mutCtx, err := s.prepareTableMutation(ctx, id, projectID)
 	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
+		return err
 	}
 
-	table, err := tableRepo.GetByID(ctx, id)
-	if err != nil {
-		return errors.NewNotFoundError("Table not found")
-	}
-
-	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
-	if err != nil {
-		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
-	}
-
-	if err := s.schemaService.RemoveForeignKey(ctx, db, table, foreignKeyName); err != nil {
+	if err := s.schemaService.RemoveForeignKey(ctx, mutCtx.db, mutCtx.table, foreignKeyName); err != nil {
 		return errors.NewDatabaseError("Failed to remove foreign key", err)
 	}
 
-	var tableSchema database.TableSchema
-	if err := json.Unmarshal([]byte(table.Schema), &tableSchema); err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to parse table schema")
+	tableSchema, err := s.parseTableSchema(mutCtx.table)
+	if err != nil {
+		return err
 	}
 
 	for i, fkDef := range tableSchema.ForeignKeys {
@@ -409,52 +366,18 @@ func (s *TableService) RemoveForeignKey(ctx context.Context, id uuid.UUID, proje
 		}
 	}
 
-	schemaBytes, err := json.Marshal(tableSchema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := tableRepo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-
-	return nil
+	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
 }
 
 func (s *TableService) UpdateTableSchema(ctx context.Context, id uuid.UUID, projectID uuid.UUID, schema database.TableSchema) error {
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	mutCtx, err := s.prepareTableMutation(ctx, id, projectID)
 	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to get table repository")
+		return err
 	}
 
-	table, err := tableRepo.GetByID(ctx, id)
-	if err != nil {
-		return errors.NewNotFoundError("Table not found")
-	}
-
-	db, err := s.resolver.GetDatabaseEntity(ctx, projectID)
-	if err != nil {
-		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
-	}
-
-	if err := s.schemaService.UpdateTableSchema(ctx, db, table, schema); err != nil {
+	if err := s.schemaService.UpdateTableSchema(ctx, mutCtx.db, mutCtx.table, schema); err != nil {
 		return errors.NewDatabaseError("Failed to update table schema", err)
 	}
 
-	schemaBytes, err := json.Marshal(schema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := tableRepo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-
-	return nil
+	return s.updateTableWithSchema(ctx, mutCtx.table, &schema, mutCtx.repo)
 }

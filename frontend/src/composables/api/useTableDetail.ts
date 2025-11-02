@@ -29,9 +29,11 @@ export function useTableDetail(projectId: string, tableId: string) {
 
       const tableDataResponse = await tableDataService.get(projectId, tableId, 1, 50)
 
+      const columns = extractColumnsFromSchema(table.schema)
+
       data.value = {
         table,
-        columns: inferColumnsFromData(tableDataResponse.data),
+        columns,
         rows: tableDataResponse.data,
         total: tableDataResponse.total,
       }
@@ -43,16 +45,24 @@ export function useTableDetail(projectId: string, tableId: string) {
     }
   }
 
-  const inferColumnsFromData = (rows: any[]): TableColumn[] => {
-    if (rows.length === 0) return []
+  const extractColumnsFromSchema = (schemaJson: string): TableColumn[] => {
+    try {
+      const schema = JSON.parse(schemaJson)
+      if (!schema.columns || !Array.isArray(schema.columns)) {
+        return []
+      }
 
-    const firstRow = rows[0]
-    return Object.keys(firstRow).map((key) => ({
-      name: key,
-      type: inferType(firstRow[key]),
-      is_nullable: true,
-      is_primary_key: key === 'id',
-    }))
+      return schema.columns.map((col: any) => ({
+        name: col.name,
+        type: col.type || 'varchar',
+        is_nullable: col.nullable !== false,
+        is_primary_key: schema.primary_key?.includes(col.name) || false,
+        default_value: col.default_value,
+      }))
+    } catch (err) {
+      console.error('Failed to parse table schema:', err)
+      return []
+    }
   }
 
   const inferType = (value: any): string => {

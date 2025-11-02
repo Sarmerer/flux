@@ -23,9 +23,8 @@ type TableCreateRequest struct {
 }
 
 type TableUpdateRequest struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Schema      map[string]interface{} `json:"schema"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type TableResponse struct {

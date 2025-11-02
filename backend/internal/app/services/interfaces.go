@@ -46,3 +46,18 @@ type WorkflowServiceInterface interface {
 	ToggleWorkflowActive(ctx context.Context, id uuid.UUID, projectID uuid.UUID, isActive bool) (*entities.WorkflowResponse, error)
 	ExecuteWorkflow(ctx context.Context, id uuid.UUID, projectID uuid.UUID) error
 }
+
+type TableDataServiceInterface interface {
+	GetTableData(ctx context.Context, projectID, tableID uuid.UUID, page, limit int) (*TableDataResponse, error)
+	GetRowByID(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}) (map[string]interface{}, error)
+	InsertRow(ctx context.Context, projectID, tableID uuid.UUID, data map[string]interface{}) (map[string]interface{}, error)
+	UpdateRow(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}, data map[string]interface{}) error
+	DeleteRow(ctx context.Context, projectID, tableID uuid.UUID, rowID interface{}) error
+}
+
+type TableDataResponse struct {
+	Data  []map[string]interface{} `json:"data"`
+	Total int64                    `json:"total"`
+	Page  int                      `json:"page"`
+	Limit int                      `json:"limit"`
+}

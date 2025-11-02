@@ -52,7 +52,7 @@ const sidebarStore = useSidebarItemsStore()
 const projectId = computed(() => route.params.projectId as string)
 const tableId = computed(() => route.params.tableId as string | undefined)
 
-const { tables, loading: isLoading, createTable } = useTables(projectId.value)
+const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
 
 const {
   data: tableDetail,
@@ -78,8 +78,18 @@ const activeTab = ref('data')
 const isInsertDialogOpen = ref(false)
 const isEditDialogOpen = ref(false)
 const isDeleteDialogOpen = ref(false)
+const isDeleteTableDialogOpen = ref(false)
+const isAddColumnDialogOpen = ref(false)
 const selectedRow = ref<Record<string, any> | null>(null)
 const selectedRowId = ref<string | null>(null)
+const tableToDelete = ref<string | null>(null)
+
+const newColumn = ref({
+  name: '',
+  type: 'VARCHAR',
+  nullable: true,
+  default_value: '',
+})
 
 const currentPage = ref(1)
 const pageLimit = ref(50)
@@ -164,7 +174,7 @@ const handleCreateTable = async () => {
         name: col.name,
         type: col.type,
         nullable: col.nullable,
-        default: col.default_value || undefined,
+        default_value: col.default_value || undefined,
       })),
       primary_key: newTable.value.columns.filter((col) => col.primary_key).map((col) => col.name),
       indexes: [],
@@ -293,6 +303,67 @@ const formatCellValue = (value: any, columnType: string): string => {
   return str.length > 100 ? str.substring(0, 100) + '...' : str
 }
 
+const openAddColumnDialog = () => {
+  newColumn.value = {
+    name: '',
+    type: 'VARCHAR',
+    nullable: true,
+    default_value: '',
+  }
+  isAddColumnDialogOpen.value = true
+}
+
+const handleAddColumn = async () => {
+  if (!newColumn.value.name.trim()) {
+    toast.error('Validation Error', 'Column name is required')
+    return
+  }
+
+  if (!tableId.value) return
+
+  try {
+    const { tableSchemaService } = await import('@/api/services/table/schema')
+    await tableSchemaService.addColumn(projectId.value, tableId.value, {
+      column: {
+        name: newColumn.value.name,
+        type: newColumn.value.type,
+        nullable: newColumn.value.nullable,
+        default_value: newColumn.value.default_value || undefined,
+      },
+    })
+
+    toast.success('Success', 'Column added successfully')
+    isAddColumnDialogOpen.value = false
+    await refreshTableDetail()
+  } catch (error: any) {
+    console.error('Failed to add column:', error)
+    toast.error('Error', error.message || 'Failed to add column')
+  }
+}
+
+const handleDeleteTable = (id: string) => {
+  tableToDelete.value = id
+  isDeleteTableDialogOpen.value = true
+}
+
+const confirmDeleteTable = async () => {
+  if (!tableToDelete.value) return
+
+  try {
+    await deleteTable(tableToDelete.value)
+    toast.success('Success', 'Table deleted successfully')
+    isDeleteTableDialogOpen.value = false
+    tableToDelete.value = null
+
+    if (tableId.value === tableToDelete.value) {
+      router.push(`/projects/${projectId.value}/tables`)
+    }
+  } catch (error: any) {
+    console.error('Failed to delete table:', error)
+    toast.error('Error', error.message || 'Failed to delete table')
+  }
+}
+
 watch(tableId, () => {
   if (tableId.value) {
     currentPage.value = 1
@@ -322,20 +393,32 @@ watch(tableId, () => {
       <LoadingWrapper :is-loading="isLoading" loading-text="Loading tables...">
         <div class="flex-1 overflow-y-auto">
           <div class="p-2 space-y-1">
-            <button
+            <div
               v-for="table in filteredTables"
               :key="table.id"
-              @click="handleSelectTable(table.id)"
               :class="[
-                'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                'group relative w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
                 tableId === table.id
                   ? 'bg-primary/10 text-primary font-medium'
                   : 'hover:bg-muted text-muted-foreground hover:text-foreground',
               ]"
             >
-              <TableIcon class="w-4 h-4 flex-shrink-0" />
-              <span class="flex-1 text-left truncate">{{ table.name }}</span>
-            </button>
+              <button
+                @click="handleSelectTable(table.id)"
+                class="flex items-center gap-3 flex-1 min-w-0"
+              >
+                <TableIcon class="w-4 h-4 flex-shrink-0" />
+                <span class="flex-1 text-left truncate">{{ table.name }}</span>
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                @click.stop="handleDeleteTable(table.id)"
+                class="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
 
           <div
@@ -382,6 +465,15 @@ watch(tableId, () => {
               <Button variant="outline" size="sm">
                 <Settings2 class="w-4 h-4 mr-2" />
                 Settings
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                @click="handleDeleteTable(selectedTable!.id)"
+                class="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 class="w-4 h-4 mr-2" />
+                Delete
               </Button>
             </div>
           </div>
@@ -517,7 +609,7 @@ watch(tableId, () => {
                       {{ tableColumns.length }} columns
                     </div>
                     <div class="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" @click="openAddColumnDialog">
                         <Plus class="w-4 h-4 mr-2" />
                         Add Column
                       </Button>
@@ -691,5 +783,70 @@ watch(tableId, () => {
       :row-id="selectedRowId"
       :on-delete="handleDeleteConfirm"
     />
+
+    <Dialog v-model:open="isDeleteTableDialogOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Table</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this table? This action cannot be undone and all data
+            will be permanently deleted.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="isDeleteTableDialogOpen = false">Cancel</Button>
+          <Button variant="destructive" @click="confirmDeleteTable">Delete Table</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="isAddColumnDialogOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Column</DialogTitle>
+          <DialogDescription>Add a new column to the table.</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label for="column-name">Column Name</Label>
+            <Input id="column-name" v-model="newColumn.name" placeholder="e.g., email, age" />
+          </div>
+          <div class="space-y-2">
+            <Label for="column-type">Type</Label>
+            <Select v-model="newColumn.type">
+              <SelectTrigger id="column-type">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="type in columnTypes" :key="type" :value="type">
+                  {{ type }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-2">
+            <Label for="column-default">Default Value (optional)</Label>
+            <Input
+              id="column-default"
+              v-model="newColumn.default_value"
+              placeholder="e.g., 0, 'N/A'"
+            />
+          </div>
+          <div class="flex items-center space-x-2">
+            <input
+              id="column-nullable"
+              v-model="newColumn.nullable"
+              type="checkbox"
+              class="rounded"
+            />
+            <Label for="column-nullable">Allow NULL values</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isAddColumnDialogOpen = false">Cancel</Button>
+          <Button @click="handleAddColumn" :disabled="!newColumn.name.trim()">Add Column</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
