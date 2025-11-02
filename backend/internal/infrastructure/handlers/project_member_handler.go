@@ -8,7 +8,6 @@ import (
 	"github.com/flow/internal/domain/repositories"
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/middleware"
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -52,8 +51,7 @@ type ProjectMemberWithUser struct {
 }
 
 func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
@@ -92,8 +90,7 @@ func (h *ProjectMemberHandler) GetProjectMembers(w http.ResponseWriter, r *http.
 }
 
 func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
@@ -161,15 +158,13 @@ func (h *ProjectMemberHandler) AddProjectMember(w http.ResponseWriter, r *http.R
 }
 
 func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
-	memberIDStr := chi.URLParam(r, "memberId")
-	memberID, err := uuid.Parse(memberIDStr)
+	memberID, err := parseUUIDParam(r, "memberId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid member ID"))
 		return
@@ -231,15 +226,13 @@ func (h *ProjectMemberHandler) UpdateProjectMember(w http.ResponseWriter, r *htt
 }
 
 func (h *ProjectMemberHandler) RemoveProjectMember(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return
 	}
 
-	memberIDStr := chi.URLParam(r, "memberId")
-	memberID, err := uuid.Parse(memberIDStr)
+	memberID, err := parseUUIDParam(r, "memberId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid member ID"))
 		return
@@ -271,8 +264,7 @@ func (h *ProjectMemberHandler) RemoveProjectMember(w http.ResponseWriter, r *htt
 }
 
 func (h *ProjectMemberHandler) GetMyProjectRole(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "projectId")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "projectId")
 	if err != nil {
 		errors.WriteError(w, errors.NewValidationError("Invalid project ID"))
 		return

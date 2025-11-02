@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/flow/internal/app/services"
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/domain/repositories"
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/database"
 	"github.com/flow/internal/validation"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -19,6 +19,7 @@ type TableSchemaMutationHandler struct {
 	dbRepo      repositories.DatabaseRepository
 	projectRepo repositories.ProjectRepository
 	schemaSvc   *database.SchemaManagementService
+	repoFactory *services.ProjectRepositoryFactory
 }
 
 type ColumnDefinition = database.ColumnDefinition
@@ -29,11 +30,13 @@ func NewTableSchemaMutationHandler(
 	dbRepo repositories.DatabaseRepository,
 	projectRepo repositories.ProjectRepository,
 	schemaSvc *database.SchemaManagementService,
+	repoFactory *services.ProjectRepositoryFactory,
 ) *TableSchemaMutationHandler {
 	return &TableSchemaMutationHandler{
 		dbRepo:      dbRepo,
 		projectRepo: projectRepo,
 		schemaSvc:   schemaSvc,
+		repoFactory: repoFactory,
 	}
 }
 
@@ -43,6 +46,20 @@ func (h *TableSchemaMutationHandler) getProjectDatabase(ctx context.Context, pro
 		return nil, fmt.Errorf("no database found for project")
 	}
 	return databases[0], nil
+}
+
+func (h *TableSchemaMutationHandler) getTableByID(ctx context.Context, tableID uuid.UUID, projectID uuid.UUID) (*entities.Table, error) {
+	tableRepo, err := h.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table repository: %w", err)
+	}
+
+	table, err := tableRepo.GetByID(ctx, tableID)
+	if err != nil {
+		return nil, fmt.Errorf("table not found: %w", err)
+	}
+
+	return table, nil
 }
 
 func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter, r *http.Request) {
@@ -97,9 +114,15 @@ func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter
 		return
 	}
 
-	tableName := chi.URLParam(r, "tableName")
-	if tableName == "" {
-		errors.WriteError(w, errors.NewValidationError("Table name is required"))
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -109,7 +132,7 @@ func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter
 		return
 	}
 
-	if err := h.schemaSvc.DropTable(r.Context(), database, tableName); err != nil {
+	if err := h.schemaSvc.DropTable(r.Context(), database, table.Name); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -124,9 +147,15 @@ func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *
 		return
 	}
 
-	tableName := chi.URLParam(r, "tableName")
-	if tableName == "" {
-		errors.WriteError(w, errors.NewValidationError("Table name is required"))
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -144,7 +173,7 @@ func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *
 		return
 	}
 
-	if err := h.schemaSvc.AddColumn(r.Context(), database, tableName, req.Column); err != nil {
+	if err := h.schemaSvc.AddColumn(r.Context(), database, table.Name, req.Column); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -159,9 +188,15 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 		return
 	}
 
-	tableName := chi.URLParam(r, "tableName")
-	if tableName == "" {
-		errors.WriteError(w, errors.NewValidationError("Table name is required"))
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -179,7 +214,7 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 		return
 	}
 
-	if err := h.schemaSvc.RemoveColumn(r.Context(), database, tableName, req.ColumnName); err != nil {
+	if err := h.schemaSvc.RemoveColumn(r.Context(), database, table.Name, req.ColumnName); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -194,9 +229,15 @@ func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, 
 		return
 	}
 
-	tableName := chi.URLParam(r, "tableName")
-	if tableName == "" {
-		errors.WriteError(w, errors.NewValidationError("Table name is required"))
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -215,7 +256,7 @@ func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, 
 		return
 	}
 
-	if err := h.schemaSvc.ModifyColumn(r.Context(), database, tableName, req.ColumnName, req.Column); err != nil {
+	if err := h.schemaSvc.ModifyColumn(r.Context(), database, table.Name, req.ColumnName, req.Column); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -230,9 +271,15 @@ func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter,
 		return
 	}
 
-	tableName := chi.URLParam(r, "tableName")
-	if tableName == "" {
-		errors.WriteError(w, errors.NewValidationError("Table name is required"))
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -250,7 +297,7 @@ func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter,
 		return
 	}
 
-	if err := h.schemaSvc.AddForeignKey(r.Context(), database, tableName, req.ForeignKey); err != nil {
+	if err := h.schemaSvc.AddForeignKey(r.Context(), database, table.Name, req.ForeignKey); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -265,9 +312,15 @@ func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWr
 		return
 	}
 
-	tableName := chi.URLParam(r, "tableName")
-	if tableName == "" {
-		errors.WriteError(w, errors.NewValidationError("Table name is required"))
+	tableID, err := parseUUIDParam(r, "id")
+	if err != nil {
+		errors.WriteError(w, errors.NewValidationError("Invalid table ID"))
+		return
+	}
+
+	table, err := h.getTableByID(r.Context(), tableID, projectID)
+	if err != nil {
+		errors.WriteError(w, errors.NewNotFoundError("Table not found"))
 		return
 	}
 
@@ -285,7 +338,7 @@ func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWr
 		return
 	}
 
-	if err := h.schemaSvc.RemoveForeignKey(r.Context(), database, tableName, req.ForeignKeyName); err != nil {
+	if err := h.schemaSvc.RemoveForeignKey(r.Context(), database, table.Name, req.ForeignKeyName); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}

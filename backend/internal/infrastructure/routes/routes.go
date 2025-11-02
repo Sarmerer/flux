@@ -123,7 +123,7 @@ func SetupRoutes(
 					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableDelete)).
 						Delete("/{id}", tableHandler.DeleteTable)
 
-					r.Route("/{tableName}/schema", func(r chi.Router) {
+					r.Route("/{id}/schema", func(r chi.Router) {
 						r.Use(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit))
 
 						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)

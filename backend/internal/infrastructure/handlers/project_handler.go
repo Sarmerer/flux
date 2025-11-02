@@ -8,9 +8,6 @@ import (
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/middleware"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 )
 
 type ProjectHandler struct {
@@ -52,8 +49,7 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "id")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "id")
 	if err != nil {
 		apiErr := errors.NewValidationError("Invalid project ID").WithField("id").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
@@ -87,8 +83,7 @@ func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "id")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "id")
 	if err != nil {
 		apiErr := errors.NewValidationError("Invalid project ID").WithField("id").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)
@@ -117,8 +112,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
-	projectIDStr := chi.URLParam(r, "id")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseUUIDParam(r, "id")
 	if err != nil {
 		apiErr := errors.NewValidationError("Invalid project ID").WithField("id").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)

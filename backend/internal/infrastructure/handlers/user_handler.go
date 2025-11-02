@@ -9,7 +9,6 @@ import (
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/middleware"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -81,8 +80,7 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userIDStr := chi.URLParam(r, "id")
-	userID, err := uuid.Parse(userIDStr)
+	userID, err := parseUUIDParam(r, "id")
 	if err != nil {
 		apiErr := errors.NewValidationError("Invalid user ID").WithField("id").WithDetails(err.Error())
 		errors.WriteError(w, apiErr)

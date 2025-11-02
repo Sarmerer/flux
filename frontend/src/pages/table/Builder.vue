@@ -161,11 +161,16 @@ const saveTable = async () => {
         description: tableDescription.value,
       })
 
-      await tableSchemaService.createTable(projectId.value, tableName.value, {
-        columns: tableColumns,
-        primary_keys: primaryKeys,
-        foreign_keys: foreignKeys,
-      })
+      await tableSchemaService.createTable(
+        projectId.value,
+        newTable.id,
+        tableName.value,
+        {
+          columns: tableColumns,
+          primary_keys: primaryKeys,
+          foreign_keys: foreignKeys,
+        }
+      )
     }
 
     router.push(`/projects/${projectId.value}/tables`)

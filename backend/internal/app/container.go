@@ -200,6 +200,7 @@ func (c *Container) initHandlers() {
 	wsHub := c.RealtimeService.GetHub()
 	logStorage := logging.NewPostgresLogStorage(c.DB)
 	logStreamer := logging.NewWebSocketLogStreamer(wsHub)
+	repoFactory := services.NewProjectRepositoryFactory(c.ProjectConnResolver)
 
 	c.UserHandler = handlers.NewUserHandler(c.UserService)
 	c.ProjectHandler = handlers.NewProjectHandler(c.ProjectService)
@@ -212,6 +213,7 @@ func (c *Container) initHandlers() {
 		c.DatabaseRepo,
 		c.ProjectRepo,
 		c.SchemaManagementService,
+		repoFactory,
 	)
 
 	c.WorkflowHandler = handlers.NewWorkflowHandler(c.WorkflowService)
