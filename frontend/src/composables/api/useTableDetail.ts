@@ -27,7 +27,7 @@ export function useTableDetail(projectId: string, tableId: string) {
         throw new Error('Table not found')
       }
 
-      const tableDataResponse = await tableDataService.get(projectId, table.name, 1, 50)
+      const tableDataResponse = await tableDataService.get(projectId, tableId, 1, 50)
 
       data.value = {
         table,

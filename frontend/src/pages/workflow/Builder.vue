@@ -15,8 +15,9 @@ import type { Component } from 'vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { tableService } from '@/api/services/table/index'
 import { workflowService } from '@/api/services/workflow'
-import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
+import type { Table, WorkflowAction, WorkflowTrigger } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -53,7 +54,7 @@ const workflow = ref<WorkflowState>({
   description: '',
   trigger: {
     type: 'on_row_created',
-    table_name: '',
+    table_id: '',
     conditions: {},
   },
   actions: [],
@@ -63,6 +64,8 @@ const workflow = ref<WorkflowState>({
 const isSaving = ref(false)
 const isRunning = ref(false)
 const showPreview = ref(true)
+const tables = ref<Table[]>([])
+const isLoadingTables = ref(false)
 
 interface TypeOption {
   value: string
@@ -118,6 +121,17 @@ const moveAction = (fromIndex: number, toIndex: number) => {
   }
 }
 
+const loadTables = async () => {
+  isLoadingTables.value = true
+  try {
+    tables.value = await tableService.getAll(projectId.value)
+  } catch (error) {
+    console.error('Failed to load tables:', error)
+  } finally {
+    isLoadingTables.value = false
+  }
+}
+
 const loadWorkflowForEdit = async () => {
   if (!isEditMode.value || !workflowId.value) return
 
@@ -148,8 +162,8 @@ const saveWorkflow = async () => {
     return
   }
 
-  if (workflow.value.trigger.type.startsWith('on_row_') && !workflow.value.trigger.table_name) {
-    alert('Please specify a table name for the trigger')
+  if (workflow.value.trigger.type.startsWith('on_row_') && !workflow.value.trigger.table_id) {
+    alert('Please select a table for the trigger')
     return
   }
 
@@ -201,6 +215,7 @@ const runWorkflow = async () => {
 }
 
 onMounted(() => {
+  loadTables()
   loadWorkflowForEdit()
 })
 
@@ -300,12 +315,27 @@ const getTriggerIcon = (triggerType: string): Component => {
           </div>
 
           <div v-if="workflow.trigger.type.startsWith('on_row_')" class="space-y-2">
-            <Label for="table-name">Table Name</Label>
-            <Input
-              id="table-name"
-              v-model="workflow.trigger.table_name"
-              placeholder="Enter table name"
-            />
+            <Label for="table-id">Table</Label>
+            <Select
+              :model-value="'table_id' in workflow.trigger ? workflow.trigger.table_id : ''"
+              @update:model-value="
+                (value) => {
+                  if ('table_id' in workflow.trigger && typeof value === 'string') {
+                    workflow.trigger.table_id = value
+                  }
+                }
+              "
+              :disabled="isLoadingTables"
+            >
+              <SelectTrigger id="table-id">
+                <SelectValue :placeholder="isLoadingTables ? 'Loading tables...' : 'Select a table'" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="table in tables" :key="table.id" :value="table.id">
+                  {{ table.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div v-if="workflow.trigger.type === 'scheduled'" class="space-y-2">

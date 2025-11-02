@@ -8,8 +8,6 @@ import (
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/errors"
 	"github.com/flow/internal/infrastructure/middleware"
-
-	"github.com/google/uuid"
 )
 
 type UserHandler struct {

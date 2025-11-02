@@ -1,24 +1,24 @@
 import { http } from '../../http-client'
 
 export const tableDataService = {
-  get(projectId: string, tableName: string, page = 1, limit = 50) {
+  get(projectId: string, tableId: string, page = 1, limit = 50) {
     return http.get<{ data: any[]; total: number; page: number; limit: number }>(
-      `/projects/${projectId}/tables/${tableName}/data?page=${page}&limit=${limit}`
+      `/projects/${projectId}/tables/${tableId}/data?page=${page}&limit=${limit}`
     )
   },
 
-  insert(projectId: string, tableName: string, data: Record<string, any>) {
-    return http.post<{ status: string }>(`/projects/${projectId}/tables/${tableName}/data`, data)
+  insert(projectId: string, tableId: string, data: Record<string, any>) {
+    return http.post<{ status: string }>(`/projects/${projectId}/tables/${tableId}/data`, data)
   },
 
-  update(projectId: string, tableName: string, id: string, data: Record<string, any>) {
+  update(projectId: string, tableId: string, id: string, data: Record<string, any>) {
     return http.put<{ status: string }>(
-      `/projects/${projectId}/tables/${tableName}/data/${id}`,
+      `/projects/${projectId}/tables/${tableId}/data/${id}`,
       data
     )
   },
 
-  delete(projectId: string, tableName: string, id: string) {
-    return http.delete<void>(`/projects/${projectId}/tables/${tableName}/data/${id}`)
+  delete(projectId: string, tableId: string, id: string) {
+    return http.delete<void>(`/projects/${projectId}/tables/${tableId}/data/${id}`)
   },
 }

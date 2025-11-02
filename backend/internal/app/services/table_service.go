@@ -67,19 +67,6 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 		return nil, errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
 	}
 
-	if err := s.schemaService.CreateTable(ctx, db, req.Name, tableSchema); err != nil {
-		return nil, errors.NewDatabaseError("Failed to create table", err)
-	}
-
-	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
-	if err != nil {
-		if dropErr := s.schemaService.DropTable(ctx, db, req.Name); dropErr != nil {
-			return nil, errors.NewInternalError(err).
-				WithDetails("Failed to get table repository and failed to rollback physical table: " + dropErr.Error())
-		}
-		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
-	}
-
 	table := &entities.Table{
 		ID:          uuid.New(),
 		ProjectID:   projectID,
@@ -90,8 +77,21 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 		UpdatedAt:   time.Now(),
 	}
 
+	if err := s.schemaService.CreateTable(ctx, db, table, tableSchema); err != nil {
+		return nil, errors.NewDatabaseError("Failed to create table", err)
+	}
+
+	tableRepo, err := s.repoFactory.GetTableRepository(ctx, projectID)
+	if err != nil {
+		if dropErr := s.schemaService.DropTable(ctx, db, table); dropErr != nil {
+			return nil, errors.NewInternalError(err).
+				WithDetails("Failed to get table repository and failed to rollback physical table: " + dropErr.Error())
+		}
+		return nil, errors.NewInternalError(err).WithDetails("Failed to get table repository")
+	}
+
 	if err := tableRepo.Create(ctx, table); err != nil {
-		if dropErr := s.schemaService.DropTable(ctx, db, req.Name); dropErr != nil {
+		if dropErr := s.schemaService.DropTable(ctx, db, table); dropErr != nil {
 			return nil, errors.NewDatabaseError("Failed to create table metadata", err).
 				WithDetails("Additionally failed to rollback physical table: " + dropErr.Error())
 		}
@@ -190,7 +190,7 @@ func (s *TableService) DeleteTable(ctx context.Context, id uuid.UUID, projectID 
 		return errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
 	}
 
-	if err := s.schemaService.DropTable(ctx, db, table.Name); err != nil {
+	if err := s.schemaService.DropTable(ctx, db, table); err != nil {
 		return errors.NewDatabaseError("Failed to drop physical table", err)
 	}
 

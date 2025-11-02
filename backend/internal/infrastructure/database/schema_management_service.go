@@ -51,23 +51,23 @@ func NewSchemaManagementService(connService *ConnectionService) *SchemaManagemen
 	}
 }
 
-func (s *SchemaManagementService) CreateTable(ctx context.Context, database *entities.Database, tableName string, schema TableSchema) error {
-	createSQL := s.buildCreateTableSQL(tableName, schema)
+func (s *SchemaManagementService) CreateTable(ctx context.Context, database *entities.Database, table *entities.Table, schema TableSchema) error {
+	createSQL := s.buildCreateTableSQL(table.Name, schema)
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, createSQL); err != nil {
-			return fmt.Errorf("Failed to create table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to create table %s: %w", table.Name, err)
 		}
 
 		for _, index := range schema.Indexes {
-			indexSQL := s.buildCreateIndexSQL(tableName, index)
+			indexSQL := s.buildCreateIndexSQL(table.Name, index)
 			if _, err := pool.Exec(ctx, indexSQL); err != nil {
 				return fmt.Errorf("Failed to create index %s: %w", index.Name, err)
 			}
 		}
 
 		for _, fk := range schema.ForeignKeys {
-			fkSQL := s.buildAddForeignKeySQL(tableName, fk)
+			fkSQL := s.buildAddForeignKeySQL(table.Name, fk)
 			if _, err := pool.Exec(ctx, fkSQL); err != nil {
 				return fmt.Errorf("Failed to create foreign key %s: %w", fk.Name, err)
 			}
@@ -77,71 +77,71 @@ func (s *SchemaManagementService) CreateTable(ctx context.Context, database *ent
 	})
 }
 
-func (s *SchemaManagementService) DropTable(ctx context.Context, database *entities.Database, tableName string) error {
-	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", pgx.Identifier{tableName}.Sanitize())
+func (s *SchemaManagementService) DropTable(ctx context.Context, database *entities.Database, table *entities.Table) error {
+	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", pgx.Identifier{table.Name}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropSQL); err != nil {
-			return fmt.Errorf("Failed to drop table %s: %w", tableName, err)
+			return fmt.Errorf("Failed to drop table %s: %w", table.Name, err)
 		}
 		return nil
 	})
 }
 
-func (s *SchemaManagementService) AddColumn(ctx context.Context, database *entities.Database, tableName string, column ColumnDefinition) error {
-	addColumnSQL := s.buildAddColumnSQL(tableName, column)
+func (s *SchemaManagementService) AddColumn(ctx context.Context, database *entities.Database, table *entities.Table, column ColumnDefinition) error {
+	addColumnSQL := s.buildAddColumnSQL(table.Name, column)
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, addColumnSQL); err != nil {
-			return fmt.Errorf("Failed to add column %s to table %s: %w", column.Name, tableName, err)
+			return fmt.Errorf("Failed to add column %s to table %s: %w", column.Name, table.Name, err)
 		}
 		return nil
 	})
 }
 
-func (s *SchemaManagementService) RemoveColumn(ctx context.Context, database *entities.Database, tableName string, columnName string) error {
+func (s *SchemaManagementService) RemoveColumn(ctx context.Context, database *entities.Database, table *entities.Table, columnName string) error {
 	dropColumnSQL := fmt.Sprintf("ALTER TABLE %s DROP COLUMN IF EXISTS %s",
-		pgx.Identifier{tableName}.Sanitize(),
+		pgx.Identifier{table.Name}.Sanitize(),
 		pgx.Identifier{columnName}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropColumnSQL); err != nil {
-			return fmt.Errorf("Failed to remove column %s from table %s: %w", columnName, tableName, err)
+			return fmt.Errorf("Failed to remove column %s from table %s: %w", columnName, table.Name, err)
 		}
 		return nil
 	})
 }
 
-func (s *SchemaManagementService) ModifyColumn(ctx context.Context, database *entities.Database, tableName string, oldColumnName string, newColumn ColumnDefinition) error {
-	modifyColumnSQL := s.buildModifyColumnSQL(tableName, oldColumnName, newColumn)
+func (s *SchemaManagementService) ModifyColumn(ctx context.Context, database *entities.Database, table *entities.Table, oldColumnName string, newColumn ColumnDefinition) error {
+	modifyColumnSQL := s.buildModifyColumnSQL(table.Name, oldColumnName, newColumn)
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, modifyColumnSQL); err != nil {
-			return fmt.Errorf("Failed to modify column %s in table %s: %w", oldColumnName, tableName, err)
+			return fmt.Errorf("Failed to modify column %s in table %s: %w", oldColumnName, table.Name, err)
 		}
 		return nil
 	})
 }
 
-func (s *SchemaManagementService) AddForeignKey(ctx context.Context, database *entities.Database, tableName string, fk ForeignKeyDefinition) error {
-	fkSQL := s.buildAddForeignKeySQL(tableName, fk)
+func (s *SchemaManagementService) AddForeignKey(ctx context.Context, database *entities.Database, table *entities.Table, fk ForeignKeyDefinition) error {
+	fkSQL := s.buildAddForeignKeySQL(table.Name, fk)
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, fkSQL); err != nil {
-			return fmt.Errorf("Failed to add foreign key %s to table %s: %w", fk.Name, tableName, err)
+			return fmt.Errorf("Failed to add foreign key %s to table %s: %w", fk.Name, table.Name, err)
 		}
 		return nil
 	})
 }
 
-func (s *SchemaManagementService) RemoveForeignKey(ctx context.Context, database *entities.Database, tableName string, foreignKeyName string) error {
+func (s *SchemaManagementService) RemoveForeignKey(ctx context.Context, database *entities.Database, table *entities.Table, foreignKeyName string) error {
 	dropFKSQL := fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s",
-		pgx.Identifier{tableName}.Sanitize(),
+		pgx.Identifier{table.Name}.Sanitize(),
 		pgx.Identifier{foreignKeyName}.Sanitize())
 
 	return s.connService.ExecuteWithProjectDB(ctx, database, func(pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, dropFKSQL); err != nil {
-			return fmt.Errorf("Failed to remove foreign key %s from table %s: %w", foreignKeyName, tableName, err)
+			return fmt.Errorf("Failed to remove foreign key %s from table %s: %w", foreignKeyName, table.Name, err)
 		}
 		return nil
 	})

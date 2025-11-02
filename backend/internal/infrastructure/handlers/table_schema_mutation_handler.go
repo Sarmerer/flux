@@ -99,7 +99,11 @@ func (h *TableSchemaMutationHandler) CreateTableInDatabase(w http.ResponseWriter
 		return
 	}
 
-	if err := h.schemaSvc.CreateTable(r.Context(), database, req.TableName, req.Schema); err != nil {
+	table := &entities.Table{
+		Name: req.TableName,
+	}
+
+	if err := h.schemaSvc.CreateTable(r.Context(), database, table, req.Schema); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -132,7 +136,7 @@ func (h *TableSchemaMutationHandler) DropTableFromDatabase(w http.ResponseWriter
 		return
 	}
 
-	if err := h.schemaSvc.DropTable(r.Context(), database, table.Name); err != nil {
+	if err := h.schemaSvc.DropTable(r.Context(), database, table); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -173,7 +177,7 @@ func (h *TableSchemaMutationHandler) AddColumnToTable(w http.ResponseWriter, r *
 		return
 	}
 
-	if err := h.schemaSvc.AddColumn(r.Context(), database, table.Name, req.Column); err != nil {
+	if err := h.schemaSvc.AddColumn(r.Context(), database, table, req.Column); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -214,7 +218,7 @@ func (h *TableSchemaMutationHandler) RemoveColumnFromTable(w http.ResponseWriter
 		return
 	}
 
-	if err := h.schemaSvc.RemoveColumn(r.Context(), database, table.Name, req.ColumnName); err != nil {
+	if err := h.schemaSvc.RemoveColumn(r.Context(), database, table, req.ColumnName); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -256,7 +260,7 @@ func (h *TableSchemaMutationHandler) ModifyColumnInTable(w http.ResponseWriter, 
 		return
 	}
 
-	if err := h.schemaSvc.ModifyColumn(r.Context(), database, table.Name, req.ColumnName, req.Column); err != nil {
+	if err := h.schemaSvc.ModifyColumn(r.Context(), database, table, req.ColumnName, req.Column); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -297,7 +301,7 @@ func (h *TableSchemaMutationHandler) AddForeignKeyToTable(w http.ResponseWriter,
 		return
 	}
 
-	if err := h.schemaSvc.AddForeignKey(r.Context(), database, table.Name, req.ForeignKey); err != nil {
+	if err := h.schemaSvc.AddForeignKey(r.Context(), database, table, req.ForeignKey); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}
@@ -338,7 +342,7 @@ func (h *TableSchemaMutationHandler) RemoveForeignKeyFromTable(w http.ResponseWr
 		return
 	}
 
-	if err := h.schemaSvc.RemoveForeignKey(r.Context(), database, table.Name, req.ForeignKeyName); err != nil {
+	if err := h.schemaSvc.RemoveForeignKey(r.Context(), database, table, req.ForeignKeyName); err != nil {
 		errors.WriteError(w, errors.NewInternalError(err))
 		return
 	}

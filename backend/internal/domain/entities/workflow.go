@@ -22,7 +22,7 @@ type Workflow struct {
 
 type WorkflowTrigger struct {
 	Type       string                 `json:"type"`
-	TableName  string                 `json:"table_name,omitempty"`
+	TableID    uuid.UUID              `json:"table_id,omitempty"`
 	Conditions map[string]interface{} `json:"conditions,omitempty"`
 	Schedule   string                 `json:"schedule,omitempty"`
 }

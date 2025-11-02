@@ -6,6 +6,7 @@ import (
 
 	"github.com/flow/internal/domain/entities"
 	"github.com/flow/internal/errors"
+	"github.com/google/uuid"
 )
 
 func ValidateTrigger(trigger *entities.WorkflowTrigger) error {
@@ -24,9 +25,9 @@ func ValidateTrigger(trigger *entities.WorkflowTrigger) error {
 	}
 
 	if trigger.Type == "on_row_created" || trigger.Type == "on_row_updated" || trigger.Type == "on_row_deleted" {
-		if trigger.TableName == "" {
-			return errors.NewValidationError("Table name is required").
-				WithField("trigger.table_name").
+		if trigger.TableID == uuid.Nil {
+			return errors.NewValidationError("Table ID is required").
+				WithField("trigger.table_id").
 				WithDetails(fmt.Sprintf("Required for trigger type '%s'", trigger.Type))
 		}
 	}

@@ -80,9 +80,9 @@ export interface Workflow {
 }
 
 export type WorkflowTrigger =
-  | { type: 'on_row_created'; table_name: string; conditions?: Record<string, unknown> }
-  | { type: 'on_row_updated'; table_name: string; conditions?: Record<string, unknown> }
-  | { type: 'on_row_deleted'; table_name: string; conditions?: Record<string, unknown> }
+  | { type: 'on_row_created'; table_id: string; conditions?: Record<string, unknown> }
+  | { type: 'on_row_updated'; table_id: string; conditions?: Record<string, unknown> }
+  | { type: 'on_row_deleted'; table_id: string; conditions?: Record<string, unknown> }
   | { type: 'scheduled'; schedule: string }
   | { type: 'webhook'; webhook_url?: string }
 
