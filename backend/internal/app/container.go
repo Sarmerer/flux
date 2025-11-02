@@ -30,12 +30,11 @@ type Container struct {
 	DatabaseRepo      repositories.DatabaseRepository
 	ProjectMemberRepo repositories.ProjectMemberRepository
 
-	ConnService             *database.ConnectionService
-	PgManagementService     *database.PostgreSQLManagementService
-	DataManipulationService *database.DataManipulationService
+	ConnService         *database.ConnectionService
+	PgManagementService *database.PostgreSQLManagementService
 	SchemaManagementService *database.SchemaManagementService
-	ProjectConnResolver     *database.ProjectConnectionResolver
-	MigrationRunner         *database.ProjectMigrationRunner
+	ProjectConnResolver *database.ProjectConnectionResolver
+	MigrationRunner     *database.ProjectMigrationRunner
 
 	UserService      *services.UserService
 	ProjectService   *services.ProjectService
@@ -43,15 +42,14 @@ type Container struct {
 	TableDataService *services.TableDataService
 	WorkflowService  *services.WorkflowService
 
-	UserHandler                *handlers.UserHandler
-	ProjectHandler             *handlers.ProjectHandler
-	ProjectMemberHandler       *handlers.ProjectMemberHandler
-	TableHandler               *handlers.TableHandler
-	TableDataHandler           *handlers.TableDataHandler
-	DbMutationProgressHandler  *handlers.RealtimeHandler
-	TableSchemaMutationHandler *handlers.TableSchemaMutationHandler
-	WorkflowHandler            *handlers.WorkflowHandler
-	LogHandler                 *handlers.LogHandler
+	UserHandler          *handlers.UserHandler
+	ProjectHandler       *handlers.ProjectHandler
+	ProjectMemberHandler *handlers.ProjectMemberHandler
+	TableHandler         *handlers.TableHandler
+	TableDataHandler     *handlers.TableDataHandler
+	RealtimeHub          *realtime.Hub
+	WorkflowHandler      *handlers.WorkflowHandler
+	LogHandler           *handlers.LogHandler
 }
 
 func NewContainer(ctx context.Context, cfg *config.Config) (*Container, error) {
@@ -133,7 +131,6 @@ func (c *Container) initInfrastructure(ctx context.Context) error {
 
 	c.ConnService = database.NewConnectionService(c.DB)
 	c.PgManagementService = database.NewPostgreSQLManagementService(c.ConnService)
-	c.DataManipulationService = database.NewDataManipulationService(c.ConnService)
 	c.SchemaManagementService = database.NewSchemaManagementService(c.ConnService)
 
 	return nil
@@ -186,7 +183,7 @@ func (c *Container) initServices() {
 		repoFactory,
 		c.ProjectRepo,
 		c.DatabaseRepo,
-		c.DataManipulationService,
+		c.ProjectConnResolver,
 		c.Logger,
 	)
 }
@@ -195,23 +192,13 @@ func (c *Container) initHandlers() {
 	wsHub := c.RealtimeService.GetHub()
 	logStorage := logging.NewPostgresLogStorage(c.DB)
 	logStreamer := logging.NewWebSocketLogStreamer(wsHub)
-	repoFactory := services.NewProjectRepositoryFactory(c.ProjectConnResolver)
 
 	c.UserHandler = handlers.NewUserHandler(c.UserService)
 	c.ProjectHandler = handlers.NewProjectHandler(c.ProjectService)
 	c.ProjectMemberHandler = handlers.NewProjectMemberHandler(c.ProjectMemberRepo, c.UserRepo, c.ProjectRepo)
 	c.TableHandler = handlers.NewTableHandler(c.TableService)
 	c.TableDataHandler = handlers.NewTableDataHandler(c.TableDataService)
-
-	c.DbMutationProgressHandler = handlers.NewRealtimeHandler(wsHub, c.Config.JWT.Secret)
-
-	c.TableSchemaMutationHandler = handlers.NewTableSchemaMutationHandler(
-		c.DatabaseRepo,
-		c.ProjectRepo,
-		c.SchemaManagementService,
-		repoFactory,
-	)
-
+	c.RealtimeHub = wsHub
 	c.WorkflowHandler = handlers.NewWorkflowHandler(c.WorkflowService)
 	c.LogHandler = handlers.NewLogHandler(logStorage, logStreamer)
 }

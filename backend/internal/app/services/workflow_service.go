@@ -22,26 +22,26 @@ import (
 )
 
 type WorkflowService struct {
-	repoFactory         *ProjectRepositoryFactory
-	projectRepo         repositories.ProjectRepository
-	dbRepo              repositories.DatabaseRepository
-	dataManipulationSvc *database.DataManipulationService
-	httpClient          *http.Client
-	logger              *logging.Logger
+	repoFactory *ProjectRepositoryFactory
+	projectRepo repositories.ProjectRepository
+	dbRepo      repositories.DatabaseRepository
+	connResolver *database.ProjectConnectionResolver
+	httpClient  *http.Client
+	logger      *logging.Logger
 }
 
 func NewWorkflowService(
 	repoFactory *ProjectRepositoryFactory,
 	projectRepo repositories.ProjectRepository,
 	dbRepo repositories.DatabaseRepository,
-	dataManipulationSvc *database.DataManipulationService,
+	connResolver *database.ProjectConnectionResolver,
 	logger *logging.Logger,
 ) *WorkflowService {
 	return &WorkflowService{
-		repoFactory:         repoFactory,
-		projectRepo:         projectRepo,
-		dbRepo:              dbRepo,
-		dataManipulationSvc: dataManipulationSvc,
+		repoFactory:  repoFactory,
+		projectRepo:  projectRepo,
+		dbRepo:       dbRepo,
+		connResolver: connResolver,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -458,14 +458,12 @@ func (s *WorkflowService) executeUpdateRow(ctx context.Context, workflow *entiti
 			WithField("action.config.updates")
 	}
 
-	databases, err := s.dbRepo.GetByProjectID(ctx, workflow.ProjectID)
-	if err != nil || len(databases) == 0 {
-		return errors.NewNotFoundError("Project database not found")
+	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, workflow.ProjectID)
+	if err != nil {
+		return errors.NewInternalError(err).WithDetails("Failed to get data repository")
 	}
 
-	database := databases[0]
-
-	return s.dataManipulationSvc.UpdateRow(ctx, database, tableName, rowID, updates)
+	return dataRepo.Update(ctx, tableName, rowID, updates)
 }
 
 func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
@@ -487,14 +485,13 @@ func (s *WorkflowService) executeCreateRow(ctx context.Context, workflow *entiti
 			WithField("action.config.data")
 	}
 
-	databases, err := s.dbRepo.GetByProjectID(ctx, workflow.ProjectID)
-	if err != nil || len(databases) == 0 {
-		return errors.NewNotFoundError("Project database not found")
+	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, workflow.ProjectID)
+	if err != nil {
+		return errors.NewInternalError(err).WithDetails("Failed to get data repository")
 	}
 
-	database := databases[0]
-
-	return s.dataManipulationSvc.CreateRow(ctx, database, tableName, data)
+	_, err = dataRepo.Insert(ctx, tableName, data)
+	return err
 }
 
 func (s *WorkflowService) executeDeleteRow(ctx context.Context, workflow *entities.Workflow, action *entities.WorkflowAction) error {
@@ -516,12 +513,10 @@ func (s *WorkflowService) executeDeleteRow(ctx context.Context, workflow *entiti
 			WithField("action.config.row_id")
 	}
 
-	databases, err := s.dbRepo.GetByProjectID(ctx, workflow.ProjectID)
-	if err != nil || len(databases) == 0 {
-		return errors.NewNotFoundError("Project database not found")
+	dataRepo, err := s.repoFactory.GetTableDataRepository(ctx, workflow.ProjectID)
+	if err != nil {
+		return errors.NewInternalError(err).WithDetails("Failed to get data repository")
 	}
 
-	database := databases[0]
-
-	return s.dataManipulationSvc.DeleteRow(ctx, database, tableName, rowID)
+	return dataRepo.Delete(ctx, tableName, rowID)
 }

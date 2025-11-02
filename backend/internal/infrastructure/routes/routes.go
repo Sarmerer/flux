@@ -9,6 +9,7 @@ import (
 	"github.com/flow/internal/infrastructure/handlers"
 	"github.com/flow/internal/infrastructure/logging"
 	authMiddleware "github.com/flow/internal/infrastructure/middleware"
+	"github.com/flow/internal/infrastructure/realtime"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,8 +22,7 @@ func SetupRoutes(
 	projectMemberHandler *handlers.ProjectMemberHandler,
 	tableHandler *handlers.TableHandler,
 	tableDataHandler *handlers.TableDataHandler,
-	realtimeHandler *handlers.RealtimeHandler,
-	tableSchemaMutationHandler *handlers.TableSchemaMutationHandler,
+	realtimeHub *realtime.Hub,
 	workflowHandler *handlers.WorkflowHandler,
 	logHandler *handlers.LogHandler,
 	projectMemberRepo repositories.ProjectMemberRepository,
@@ -127,14 +127,12 @@ func SetupRoutes(
 					r.Route("/{id}/schema", func(r chi.Router) {
 						r.Use(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermTableEdit))
 
-						r.Post("/create", tableSchemaMutationHandler.CreateTableInDatabase)
-						r.Delete("/drop", tableSchemaMutationHandler.DropTableFromDatabase)
-						r.Put("/update", tableSchemaMutationHandler.UpdateTableSchema)
-						r.Post("/columns/add", tableSchemaMutationHandler.AddColumnToTable)
-						r.Delete("/columns/remove", tableSchemaMutationHandler.RemoveColumnFromTable)
-						r.Put("/columns/modify", tableSchemaMutationHandler.ModifyColumnInTable)
-						r.Post("/foreign-keys/add", tableSchemaMutationHandler.AddForeignKeyToTable)
-						r.Delete("/foreign-keys/remove", tableSchemaMutationHandler.RemoveForeignKeyFromTable)
+						r.Put("/update", tableHandler.UpdateTableSchema)
+						r.Post("/columns", tableHandler.AddColumn)
+						r.Delete("/columns", tableHandler.RemoveColumn)
+						r.Put("/columns", tableHandler.ModifyColumn)
+						r.Post("/foreign-keys", tableHandler.AddForeignKey)
+						r.Delete("/foreign-keys", tableHandler.RemoveForeignKey)
 					})
 
 					r.Route("/{id}/data", func(r chi.Router) {
@@ -175,7 +173,9 @@ func SetupRoutes(
 						Delete("/{id}", workflowHandler.DeleteWorkflow)
 				})
 
-				r.Get("/ws", realtimeHandler.WebSocketHandler)
+				r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
+					realtime.HandleWebSocket(realtimeHub, jwtSecret)(w, r)
+				})
 			})
 		})
 	})
