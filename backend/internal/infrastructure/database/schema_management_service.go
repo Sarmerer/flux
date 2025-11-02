@@ -17,6 +17,7 @@ type ColumnDefinition struct {
 	DefaultValue string `json:"default_value,omitempty"`
 	PrimaryKey   bool   `json:"primary_key,omitempty"`
 	Unique       bool   `json:"unique,omitempty"`
+	IsIdentity   bool   `json:"is_identity,omitempty"`
 }
 
 type TableSchema struct {
@@ -217,14 +218,24 @@ func (s *SchemaManagementService) buildCreateTableSQL(tableName string, schema T
 
 	for _, col := range schema.Columns {
 		colName := pgx.Identifier{col.Name}.Sanitize()
-		colDef := fmt.Sprintf("%s %s", colName, col.Type)
+		colType := col.Type
 
-		if !col.Nullable {
-			colDef += " NOT NULL"
+		if col.IsIdentity {
+			colType = s.getIdentityType(col.Type)
 		}
 
-		if col.DefaultValue != "" {
-			colDef += " DEFAULT " + col.DefaultValue
+		colDef := fmt.Sprintf("%s %s", colName, colType)
+
+		if col.IsIdentity {
+			colDef += " GENERATED ALWAYS AS IDENTITY"
+		} else {
+			if !col.Nullable {
+				colDef += " NOT NULL"
+			}
+
+			if col.DefaultValue != "" {
+				colDef += " DEFAULT " + col.DefaultValue
+			}
 		}
 
 		if col.Unique {
@@ -246,17 +257,27 @@ func (s *SchemaManagementService) buildCreateTableSQL(tableName string, schema T
 }
 
 func (s *SchemaManagementService) buildAddColumnSQL(tableName string, column ColumnDefinition) string {
+	colType := column.Type
+
+	if column.IsIdentity {
+		colType = s.getIdentityType(column.Type)
+	}
+
 	colDef := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
 		pgx.Identifier{tableName}.Sanitize(),
 		pgx.Identifier{column.Name}.Sanitize(),
-		column.Type)
+		colType)
 
-	if !column.Nullable {
-		colDef += " NOT NULL"
-	}
+	if column.IsIdentity {
+		colDef += " GENERATED ALWAYS AS IDENTITY"
+	} else {
+		if !column.Nullable {
+			colDef += " NOT NULL"
+		}
 
-	if column.DefaultValue != "" {
-		colDef += " DEFAULT " + column.DefaultValue
+		if column.DefaultValue != "" {
+			colDef += " DEFAULT " + column.DefaultValue
+		}
 	}
 
 	return colDef
@@ -324,4 +345,18 @@ func (s *SchemaManagementService) buildAddForeignKeySQL(tableName string, fk For
 	}
 
 	return sql
+}
+
+func (s *SchemaManagementService) getIdentityType(columnType string) string {
+	upperType := strings.ToUpper(columnType)
+	switch upperType {
+	case "SMALLINT", "INT2":
+		return "SMALLINT"
+	case "INTEGER", "INT", "INT4":
+		return "INTEGER"
+	case "BIGINT", "INT8":
+		return "BIGINT"
+	default:
+		return "BIGINT"
+	}
 }

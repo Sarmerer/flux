@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ColumnEditorDialog from '@/components/tables/ColumnEditorDialog.vue'
 import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
 import EditRowDialog from '@/components/tables/EditRowDialog.vue'
 import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
@@ -7,10 +8,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  Key,
   Pencil,
   Plus,
   Search,
   Settings2,
+  Sparkles,
   Table as TableIcon,
   Trash2,
 } from 'lucide-vue-next'
@@ -20,6 +23,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { tableDataService } from '@/api/services/table/data'
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -86,9 +90,12 @@ const tableToDelete = ref<string | null>(null)
 
 const newColumn = ref({
   name: '',
-  type: 'VARCHAR',
+  type: 'TEXT',
   nullable: true,
   default_value: '',
+  is_identity: false,
+  unique: false,
+  is_primary_key: false,
 })
 
 const currentPage = ref(1)
@@ -104,6 +111,8 @@ const newTable = ref<{
     nullable: boolean
     primary_key: boolean
     default_value: string
+    is_identity: boolean
+    unique: boolean
   }>
 }>({
   name: '',
@@ -111,17 +120,20 @@ const newTable = ref<{
   columns: [],
 })
 
-const columnTypes = [
-  'VARCHAR',
+const existingColumnNames = computed(() => {
+  return tableColumns.value.map((col) => col.name.toLowerCase())
+})
+
+const simpleColumnTypes = [
+  'TEXT',
   'INTEGER',
   'BIGINT',
   'DECIMAL',
   'BOOLEAN',
   'DATE',
   'TIMESTAMP',
-  'TEXT',
-  'JSON',
   'UUID',
+  'JSON',
 ]
 
 const filteredTables = computed(() => {
@@ -207,11 +219,38 @@ const handleSelectTable = (id: string) => {
 const addColumn = () => {
   newTable.value.columns.push({
     name: '',
-    type: 'VARCHAR',
+    type: 'TEXT',
     nullable: true,
     primary_key: false,
     default_value: '',
+    is_identity: false,
+    unique: false,
   })
+}
+
+const handleSaveColumn = async (columnData: any) => {
+  if (!tableId.value) return
+
+  try {
+    const { tableSchemaService } = await import('@/api/services/table/schema')
+    await tableSchemaService.addColumn(projectId.value, tableId.value, {
+      column: {
+        name: columnData.name,
+        type: columnData.type,
+        nullable: columnData.nullable,
+        default_value: columnData.default_value || undefined,
+        is_identity: columnData.is_identity,
+        unique: columnData.unique,
+      },
+    })
+
+    toast.success('Success', 'Column added successfully')
+    isAddColumnDialogOpen.value = false
+    await refreshTableDetail()
+  } catch (error: any) {
+    console.error('Failed to add column:', error)
+    toast.error('Error', error.message || 'Failed to add column')
+  }
 }
 
 const removeColumn = (index: number) => {
@@ -306,39 +345,14 @@ const formatCellValue = (value: any, columnType: string): string => {
 const openAddColumnDialog = () => {
   newColumn.value = {
     name: '',
-    type: 'VARCHAR',
+    type: 'TEXT',
     nullable: true,
     default_value: '',
+    is_identity: false,
+    unique: false,
+    is_primary_key: false,
   }
   isAddColumnDialogOpen.value = true
-}
-
-const handleAddColumn = async () => {
-  if (!newColumn.value.name.trim()) {
-    toast.error('Validation Error', 'Column name is required')
-    return
-  }
-
-  if (!tableId.value) return
-
-  try {
-    const { tableSchemaService } = await import('@/api/services/table/schema')
-    await tableSchemaService.addColumn(projectId.value, tableId.value, {
-      column: {
-        name: newColumn.value.name,
-        type: newColumn.value.type,
-        nullable: newColumn.value.nullable,
-        default_value: newColumn.value.default_value || undefined,
-      },
-    })
-
-    toast.success('Success', 'Column added successfully')
-    isAddColumnDialogOpen.value = false
-    await refreshTableDetail()
-  } catch (error: any) {
-    console.error('Failed to add column:', error)
-    toast.error('Error', error.message || 'Failed to add column')
-  }
 }
 
 const handleDeleteTable = (id: string) => {
@@ -634,7 +648,7 @@ watch(tableId, () => {
                             <th
                               class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                             >
-                              Nullable
+                              Constraints
                             </th>
                             <th
                               class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
@@ -650,16 +664,38 @@ watch(tableId, () => {
                             class="hover:bg-muted/30 transition-colors"
                           >
                             <td class="px-4 py-3 text-sm font-medium text-foreground">
-                              {{ column.name }}
+                              <div class="flex items-center gap-2">
+                                {{ column.name }}
+                                <Key
+                                  v-if="column.is_primary_key"
+                                  class="w-3.5 h-3.5 text-amber-500"
+                                  title="Primary Key"
+                                />
+                              </div>
                             </td>
                             <td class="px-4 py-3 text-sm text-muted-foreground">
                               {{ column.type }}
                             </td>
-                            <td class="px-4 py-3 text-sm text-muted-foreground">
-                              {{ column.is_nullable ? 'Yes' : 'No' }}
+                            <td class="px-4 py-3 text-sm">
+                              <div class="flex flex-wrap gap-1">
+                                <Badge v-if="column.is_identity" variant="secondary" class="text-xs">
+                                  <Sparkles class="w-3 h-3 mr-1" />
+                                  Auto
+                                </Badge>
+                                <Badge v-if="!column.is_nullable" variant="outline" class="text-xs">
+                                  NOT NULL
+                                </Badge>
+                                <Badge v-if="column.unique" variant="outline" class="text-xs">
+                                  UNIQUE
+                                </Badge>
+                                <span v-if="column.is_nullable && !column.unique && !column.is_identity" class="text-muted-foreground">-</span>
+                              </div>
                             </td>
                             <td class="px-4 py-3 text-sm text-muted-foreground">
-                              {{ column.default_value ?? '-' }}
+                              <code v-if="column.default_value" class="text-xs bg-muted px-1.5 py-0.5 rounded">
+                                {{ column.default_value }}
+                              </code>
+                              <span v-else>-</span>
                             </td>
                           </tr>
                         </tbody>
@@ -728,7 +764,7 @@ watch(tableId, () => {
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem v-for="type in columnTypes" :key="type" :value="type">
+                      <SelectItem v-for="type in simpleColumnTypes" :key="type" :value="type">
                         {{ type }}
                       </SelectItem>
                     </SelectContent>
@@ -800,53 +836,12 @@ watch(tableId, () => {
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="isAddColumnDialogOpen">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Column</DialogTitle>
-          <DialogDescription>Add a new column to the table.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <Label for="column-name">Column Name</Label>
-            <Input id="column-name" v-model="newColumn.name" placeholder="e.g., email, age" />
-          </div>
-          <div class="space-y-2">
-            <Label for="column-type">Type</Label>
-            <Select v-model="newColumn.type">
-              <SelectTrigger id="column-type">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="type in columnTypes" :key="type" :value="type">
-                  {{ type }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="space-y-2">
-            <Label for="column-default">Default Value (optional)</Label>
-            <Input
-              id="column-default"
-              v-model="newColumn.default_value"
-              placeholder="e.g., 0, 'N/A'"
-            />
-          </div>
-          <div class="flex items-center space-x-2">
-            <input
-              id="column-nullable"
-              v-model="newColumn.nullable"
-              type="checkbox"
-              class="rounded"
-            />
-            <Label for="column-nullable">Allow NULL values</Label>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isAddColumnDialogOpen = false">Cancel</Button>
-          <Button @click="handleAddColumn" :disabled="!newColumn.name.trim()">Add Column</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ColumnEditorDialog
+      :open="isAddColumnDialogOpen"
+      @update:open="isAddColumnDialogOpen = $event"
+      @save="handleSaveColumn"
+      mode="create"
+      :existing-columns="existingColumnNames"
+    />
   </div>
 </template>

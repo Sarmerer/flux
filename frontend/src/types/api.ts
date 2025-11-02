@@ -35,6 +35,8 @@ export interface TableColumn {
   is_foreign_key?: boolean
   foreign_table?: string
   foreign_column?: string
+  is_identity?: boolean
+  unique?: boolean
 }
 
 export interface TableSchema {
