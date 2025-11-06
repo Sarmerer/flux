@@ -8,7 +8,7 @@ export interface ErrorStateProps {
   error: Error | string | null
   title?: string
   description?: string
-  onRetry?: () => void
+  handleRetry?: () => void
 }
 
 const props = withDefaults(defineProps<ErrorStateProps>(), {
@@ -34,7 +34,7 @@ const errorMessage =
         {{ description || errorMessage }}
       </p>
       <div class="flex items-center justify-center gap-3">
-        <Button v-if="onRetry" @click="onRetry" variant="outline" size="sm">
+        <Button v-if="handleRetry" @click="handleRetry" variant="outline" size="sm">
           <RefreshCw class="w-4 h-4 mr-2" />
           Retry
         </Button>

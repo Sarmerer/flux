@@ -22,7 +22,7 @@ const newProject = ref({
 const isCreating = ref(false)
 const error = ref<string | null>(null)
 
-const onCreateProjectClick = async () => {
+const handleProjectCreate = async () => {
   if (!newProject.value.name.trim()) return
 
   isCreating.value = true
@@ -43,13 +43,13 @@ const onCreateProjectClick = async () => {
   }
 }
 
-const onCancelClick = () => {
+const handleCancel = () => {
   router.back()
 }
 
-const onKeyDown = (event: KeyboardEvent) => {
+const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-    onCreateProjectClick()
+    handleProjectCreate()
   }
 }
 </script>
@@ -85,7 +85,7 @@ const onKeyDown = (event: KeyboardEvent) => {
             :disabled="isCreating"
             required
             autofocus
-            @keydown="onKeyDown"
+            @keydown="handleKeyDown"
           />
         </div>
 
@@ -101,7 +101,7 @@ const onKeyDown = (event: KeyboardEvent) => {
             rows="4"
             class="resize-none"
             :disabled="isCreating"
-            @keydown="onKeyDown"
+            @keydown="handleKeyDown"
           />
         </div>
 
@@ -113,8 +113,8 @@ const onKeyDown = (event: KeyboardEvent) => {
         </div>
 
         <div class="flex items-center justify-end space-x-3 pt-4">
-          <Button variant="outline" @click="onCancelClick" :disabled="isCreating"> Cancel </Button>
-          <Button @click="onCreateProjectClick" :disabled="!newProject.name.trim() || isCreating">
+          <Button variant="outline" @click="handleCancel" :disabled="isCreating"> Cancel </Button>
+          <Button @click="handleProjectCreate" :disabled="!newProject.name.trim() || isCreating">
             <Loader2 v-if="isCreating" class="h-4 w-4 mr-2 animate-spin" />
             <FolderOpen v-else class="h-4 w-4 mr-2" />
             {{ isCreating ? 'Creating...' : 'Create Project' }}

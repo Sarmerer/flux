@@ -5,6 +5,7 @@ import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { ROUTE_PATHS } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth'
 
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { useProjects } from '@/composables/api/useProjects'
-import { ROUTE_PATHS } from '@/constants/routes'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -28,14 +28,17 @@ const totalTables = computed(() => {
 
 const activeWorkflows = computed(() => {
   if (!projects.value) return 0
-  return projects.value.reduce((sum: number, project: any) => sum + (project.workflow_count || 0), 0)
+  return projects.value.reduce(
+    (sum: number, project: any) => sum + (project.workflow_count || 0),
+    0
+  )
 })
 
-const onCreateProjectClick = () => {
+const handleProjectCreate = () => {
   router.push('/projects/new')
 }
 
-const onProjectClick = (projectId: string) => {
+const handleProjectClick = (projectId: string) => {
   router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
 }
 </script>
@@ -49,7 +52,7 @@ const onProjectClick = (projectId: string) => {
           Welcome back, {{ authStore.user?.name || 'User' }}!
         </p>
       </div>
-      <Button @click="onCreateProjectClick" class="flex items-center space-x-2">
+      <Button @click="handleProjectCreate" class="flex items-center space-x-2">
         <Plus class="w-4 h-4" />
         <span>New Project</span>
       </Button>
@@ -102,14 +105,14 @@ const onProjectClick = (projectId: string) => {
               v-if="error"
               :error="error"
               title="Failed to load projects"
-              :on-retry="refresh"
+              :handleRetry="refresh"
             />
             <div v-else class="space-y-3">
               <div
                 v-for="project in projects?.slice(0, 5)"
                 :key="project.id"
                 class="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                @click="onProjectClick(project.id)"
+                @click="handleProjectClick(project.id)"
               >
                 <div class="flex items-center space-x-3">
                   <FolderOpen class="h-5 w-5 text-blue-600 dark:text-blue-400" />

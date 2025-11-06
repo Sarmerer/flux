@@ -5,6 +5,8 @@ import { Calendar, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { ROUTE_PATHS } from '@/constants/routes'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,11 +32,11 @@ const filteredProjects = computed(() => {
   })
 })
 
-const onProjectClick = (projectId: string) => {
-  router.push(`/projects/${projectId}`)
+const handleProjectClick = (projectId: string) => {
+  router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
 }
 
-const onProjectDelete = async (projectId: string, event: Event) => {
+const handleProjectDelete = async (projectId: string, event: Event) => {
   event.stopPropagation()
   if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
     try {
@@ -70,14 +72,14 @@ const onProjectDelete = async (projectId: string, event: Event) => {
         v-if="error"
         :error="error"
         title="Failed to load projects"
-        :on-retry="refresh"
+        :handleRetry="refresh"
       />
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card
           v-for="project in filteredProjects"
           :key="project.id"
           class="cursor-pointer hover:shadow-lg dark:hover:shadow-gray-800 transition-shadow duration-200"
-          @click="onProjectClick(project.id)"
+          @click="handleProjectClick(project.id)"
         >
           <CardHeader class="pb-3">
             <div class="flex items-start justify-between">
@@ -96,7 +98,7 @@ const onProjectDelete = async (projectId: string, event: Event) => {
                 <Button variant="ghost" size="sm">
                   <Settings class="h-4 w-4 mr-1" />
                 </Button>
-                <Button variant="ghost" size="sm" @click="onProjectDelete(project.id, $event)">
+                <Button variant="ghost" size="sm" @click="handleProjectDelete(project.id, $event)">
                   <Trash2 class="h-4 w-4" />
                 </Button>
               </div>

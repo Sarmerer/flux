@@ -124,7 +124,7 @@ const tableRows = computed(() => {
   return tableDetail.value.rows ?? []
 })
 
-const handleCreateTable = async (data: CreateTableData) => {
+const handleTableCreate = async (data: CreateTableData) => {
   try {
     const schema = {
       columns: data.columns.map((col) => ({
@@ -158,7 +158,7 @@ const handleSelectTable = (id: string) => {
   router.push(`/projects/${projectId.value}/tables/${id}`)
 }
 
-const handleSaveColumn = async (columnData: any) => {
+const handleColumnSave = async (columnData: any) => {
   if (!tableId.value) return
 
   try {
@@ -650,7 +650,7 @@ watch(tableId, () => {
     <CreateTableDialog
       :open="isCreateDialogOpen"
       @update:open="isCreateDialogOpen = $event"
-      @create="handleCreateTable"
+      @create="handleTableCreate"
     />
 
     <InsertRowDialog
@@ -696,7 +696,7 @@ watch(tableId, () => {
     <ColumnEditorDialog
       :open="isAddColumnDialogOpen"
       @update:open="isAddColumnDialogOpen = $event"
-      @save="handleSaveColumn"
+      @save="handleColumnSave"
       mode="create"
       :existing-columns="existingColumnNames"
     />

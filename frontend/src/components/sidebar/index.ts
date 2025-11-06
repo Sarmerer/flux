@@ -1,5 +1,4 @@
 export { default as AppSidebar } from './Sidebar.vue'
-export { default as ProjectSelector } from './ProjectSelector.vue'
 export { default as SidebarHeader } from './Header.vue'
 export { default as SidebarFooter } from './Footer.vue'
 export { default as HomeNavigation } from './HomeNavigation.vue'

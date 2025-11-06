@@ -33,7 +33,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'member-added': []
+  'member:add': []
 }>()
 
 const projectMemberStore = useProjectMemberStore()
@@ -144,7 +144,7 @@ const handleSubmit = async () => {
       selectedRole.value,
       selectedPermissions.value
     )
-    emit('member-added')
+    emit('member:add')
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to add member'
   } finally {

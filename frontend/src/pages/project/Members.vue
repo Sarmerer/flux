@@ -247,14 +247,14 @@ const formatDate = (date: string): string => {
     <AddMemberDialog
       v-model:open="isAddDialogOpen"
       :project-id="projectId"
-      @member-added="handleMemberAdded"
+      @member:add="handleMemberAdded"
     />
 
     <EditMemberDialog
       v-model:open="isEditDialogOpen"
       :project-id="projectId"
       :member="selectedMember"
-      @member-updated="handleMemberUpdated"
+      @member:update="handleMemberUpdated"
     />
   </div>
 </template>

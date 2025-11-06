@@ -4,6 +4,7 @@ import type { Component } from 'vue'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { WORKFLOW_ACTION_TYPES, WORKFLOW_TRIGGER_TYPES } from '@/constants/workflows'
 import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
@@ -21,12 +22,11 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
-import { useRouteContext } from '@/composables/routing'
-import { useWorkflows } from '@/composables/api/useWorkflows'
 import { useTables } from '@/composables/api/useTables'
+import { useWorkflows } from '@/composables/api/useWorkflows'
+import { useRouteContext } from '@/composables/routing'
 import { useToast } from '@/composables/ui'
 import { useWorkflowValidation } from '@/composables/useWorkflowValidation'
-import { WORKFLOW_TRIGGER_TYPES, WORKFLOW_ACTION_TYPES } from '@/constants/workflows'
 
 const router = useRouter()
 const toast = useToast()
@@ -82,11 +82,15 @@ const loadWorkflow = async () => {
   }
 }
 
-watch(workflowId, () => {
-  if (workflowId.value) {
-    loadWorkflow()
-  }
-}, { immediate: true })
+watch(
+  workflowId,
+  () => {
+    if (workflowId.value) {
+      loadWorkflow()
+    }
+  },
+  { immediate: true }
+)
 
 const addAction = () => {
   const newAction: WorkflowAction = {
@@ -143,7 +147,7 @@ const saveWorkflow = async () => {
   }
 }
 
-const handleBackToList = () => {
+const handleGoBack = () => {
   router.push(`/projects/${projectId.value}/workflows`)
 }
 
@@ -168,7 +172,7 @@ const getTriggerIcon = (triggerType: string): Component => {
   <div v-else class="p-6 space-y-6">
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" @click="handleBackToList">
+        <Button variant="ghost" size="sm" @click="handleGoBack">
           <ArrowLeft class="w-4 h-4 mr-2" />
           Back to Workflows
         </Button>
@@ -256,10 +260,7 @@ const getTriggerIcon = (triggerType: string): Component => {
             </Select>
           </div>
 
-          <div
-            v-if="currentWorkflow.trigger.type.startsWith('on_row_')"
-            class="space-y-2"
-          >
+          <div v-if="currentWorkflow.trigger.type.startsWith('on_row_')" class="space-y-2">
             <Label for="table-id">Table</Label>
             <Select
               :model-value="
@@ -291,8 +292,16 @@ const getTriggerIcon = (triggerType: string): Component => {
             <Label for="schedule">Schedule (Cron)</Label>
             <Input
               id="schedule"
-              :model-value="'schedule' in currentWorkflow.trigger ? currentWorkflow.trigger.schedule : ''"
-              @update:model-value="(value) => { if ('schedule' in currentWorkflow.trigger && typeof value === 'string') { currentWorkflow.trigger.schedule = value } }"
+              :model-value="
+                'schedule' in currentWorkflow.trigger ? currentWorkflow.trigger.schedule : ''
+              "
+              @update:model-value="
+                (value) => {
+                  if ('schedule' in currentWorkflow.trigger && typeof value === 'string') {
+                    currentWorkflow.trigger.schedule = value
+                  }
+                }
+              "
               placeholder="0 2 * * * (daily at 2 AM)"
             />
           </div>
@@ -301,8 +310,16 @@ const getTriggerIcon = (triggerType: string): Component => {
             <Label for="webhook-url">Webhook URL</Label>
             <Input
               id="webhook-url"
-              :model-value="'webhook_url' in currentWorkflow.trigger ? currentWorkflow.trigger.webhook_url : ''"
-              @update:model-value="(value) => { if ('webhook_url' in currentWorkflow.trigger && typeof value === 'string') { currentWorkflow.trigger.webhook_url = value } }"
+              :model-value="
+                'webhook_url' in currentWorkflow.trigger ? currentWorkflow.trigger.webhook_url : ''
+              "
+              @update:model-value="
+                (value) => {
+                  if ('webhook_url' in currentWorkflow.trigger && typeof value === 'string') {
+                    currentWorkflow.trigger.webhook_url = value
+                  }
+                }
+              "
               placeholder="https://api.example.com/webhook"
             />
           </div>
@@ -387,16 +404,22 @@ const getTriggerIcon = (triggerType: string): Component => {
                 <div>
                   <Label class="text-xs">Payload (JSON)</Label>
                   <Textarea
-                    :model-value="typeof action.config.payload === 'string' ? action.config.payload : JSON.stringify(action.config.payload || {})"
-                    @update:model-value="(val: string | number) => {
-                      if (typeof val === 'string') {
-                        try {
-                          action.config.payload = JSON.parse(val)
-                        } catch {
-                          action.config.payload = val as any
+                    :model-value="
+                      typeof action.config.payload === 'string'
+                        ? action.config.payload
+                        : JSON.stringify(action.config.payload || {})
+                    "
+                    @update:model-value="
+                      (val: string | number) => {
+                        if (typeof val === 'string') {
+                          try {
+                            action.config.payload = JSON.parse(val)
+                          } catch {
+                            action.config.payload = val as any
+                          }
                         }
                       }
-                    }"
+                    "
                     placeholder='{"message": "Hello from FlowDB!"}'
                     rows="3"
                   />
@@ -431,22 +454,35 @@ const getTriggerIcon = (triggerType: string): Component => {
                   </div>
                   <div v-if="'condition' in action.config">
                     <Label class="text-xs">Condition</Label>
-                    <Input :model-value="action.config.condition" @update:model-value="(val: string | number) => 'condition' in action.config && (action.config.condition = String(val))" placeholder="id = {{row.id}}" />
+                    <Input
+                      :model-value="action.config.condition"
+                      @update:model-value="
+                        (val: string | number) =>
+                          'condition' in action.config && (action.config.condition = String(val))
+                      "
+                      placeholder="id = {{row.id}}"
+                    />
                   </div>
                 </div>
                 <div v-if="'updates' in action.config">
                   <Label class="text-xs">Updates (JSON)</Label>
                   <Textarea
-                    :model-value="typeof action.config.updates === 'string' ? action.config.updates : JSON.stringify(action.config.updates || {})"
-                    @update:model-value="(val: string | number) => {
-                      if ('updates' in action.config && typeof val === 'string') {
-                        try {
-                          action.config.updates = JSON.parse(val)
-                        } catch {
-                          action.config.updates = val as any
+                    :model-value="
+                      typeof action.config.updates === 'string'
+                        ? action.config.updates
+                        : JSON.stringify(action.config.updates || {})
+                    "
+                    @update:model-value="
+                      (val: string | number) => {
+                        if ('updates' in action.config && typeof val === 'string') {
+                          try {
+                            action.config.updates = JSON.parse(val)
+                          } catch {
+                            action.config.updates = val as any
+                          }
                         }
                       }
-                    }"
+                    "
                     placeholder='{"status": "processed", "updated_at": "{{now}}"}'
                     rows="2"
                   />
@@ -481,8 +517,7 @@ const getTriggerIcon = (triggerType: string): Component => {
                 class="w-5 h-5 text-blue-600"
               />
               <span class="font-medium">{{
-                WORKFLOW_TRIGGER_TYPES.find((t) => t.value === currentWorkflow.trigger.type)
-                  ?.label
+                WORKFLOW_TRIGGER_TYPES.find((t) => t.value === currentWorkflow.trigger.type)?.label
               }}</span>
             </div>
             <div class="text-gray-400">→</div>

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import CreateWorkflowDialog from '@/components/workflows/CreateWorkflowDialog.vue'
+import type { CreateWorkflowData } from '@/components/workflows/CreateWorkflowDialog.vue'
 import { CheckCircle, Plus, Search, Workflow as WorkflowIcon, Zap } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import type { Workflow } from '@/types/api'
-import type { CreateWorkflowData } from '@/components/workflows/CreateWorkflowDialog.vue'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-import { useRouteContext } from '@/composables/routing'
-import { useWorkflows } from '@/composables/api/useWorkflows'
 import { useTables } from '@/composables/api/useTables'
+import { useWorkflows } from '@/composables/api/useWorkflows'
+import { useRouteContext } from '@/composables/routing'
 import { useToast } from '@/composables/ui'
 
 const router = useRouter()
@@ -36,7 +36,7 @@ const filteredWorkflows = computed(() => {
   )
 })
 
-const handleCreateWorkflow = async (data: CreateWorkflowData) => {
+const handleWorkflowCreate = async (data: CreateWorkflowData) => {
   try {
     const workflow = await createWorkflow(data)
     isCreateDialogOpen.value = false
@@ -48,7 +48,7 @@ const handleCreateWorkflow = async (data: CreateWorkflowData) => {
   }
 }
 
-const handleSelectWorkflow = (id: string) => {
+const handleWorkflowSelect = (id: string) => {
   router.push(`/projects/${projectId.value}/workflows/${id}`)
 }
 </script>
@@ -77,7 +77,7 @@ const handleSelectWorkflow = (id: string) => {
             <button
               v-for="workflow in filteredWorkflows"
               :key="workflow.id"
-              @click="handleSelectWorkflow(workflow.id)"
+              @click="handleWorkflowSelect(workflow.id)"
               class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
             >
               <Zap class="w-4 h-4 flex-shrink-0" />
@@ -124,7 +124,7 @@ const handleSelectWorkflow = (id: string) => {
       :tables="tables"
       :loading-tables="loadingTables"
       @update:open="isCreateDialogOpen = $event"
-      @create="handleCreateWorkflow"
+      @create="handleWorkflowCreate"
     />
   </div>
 </template>
