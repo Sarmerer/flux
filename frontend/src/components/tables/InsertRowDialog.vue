@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
+
+import type { TableColumn } from '@/types/table'
+
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -11,8 +14,8 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
 import { useToast } from '@/composables/ui'
-import type { TableColumn } from '@/types/table'
 
 const props = defineProps<{
   open: boolean
@@ -92,7 +95,12 @@ const convertValueByType = (value: any, type: string): any => {
     return parseInt(value, 10)
   }
 
-  if (upperType.includes('DECIMAL') || upperType.includes('NUMERIC') || upperType.includes('REAL') || upperType.includes('DOUBLE')) {
+  if (
+    upperType.includes('DECIMAL') ||
+    upperType.includes('NUMERIC') ||
+    upperType.includes('REAL') ||
+    upperType.includes('DOUBLE')
+  ) {
     return parseFloat(value)
   }
 
@@ -126,7 +134,12 @@ const getInputType = (columnType: string): string => {
     return 'number'
   }
 
-  if (upperType.includes('DECIMAL') || upperType.includes('NUMERIC') || upperType.includes('REAL') || upperType.includes('DOUBLE')) {
+  if (
+    upperType.includes('DECIMAL') ||
+    upperType.includes('NUMERIC') ||
+    upperType.includes('REAL') ||
+    upperType.includes('DOUBLE')
+  ) {
     return 'number'
   }
 
@@ -177,7 +190,10 @@ const isTextArea = (columnType: string): boolean => {
             class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
 
-          <div v-else-if="getInputType(column.type) === 'checkbox'" class="flex items-center space-x-2">
+          <div
+            v-else-if="getInputType(column.type) === 'checkbox'"
+            class="flex items-center space-x-2"
+          >
             <input
               :id="column.name"
               v-model="formData[column.name]"
@@ -199,9 +215,7 @@ const isTextArea = (columnType: string): boolean => {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" @click="handleClose" :disabled="isSubmitting">
-          Cancel
-        </Button>
+        <Button variant="outline" @click="handleClose" :disabled="isSubmitting"> Cancel </Button>
         <Button @click="handleSubmit" :disabled="isSubmitting">
           {{ isSubmitting ? 'Inserting...' : 'Insert Row' }}
         </Button>

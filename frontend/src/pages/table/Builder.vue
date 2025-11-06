@@ -2,10 +2,10 @@
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import ColumnEditorDialog from '@/components/tables/ColumnEditorDialog.vue'
 import CreateTableDialog from '@/components/tables/CreateTableDialog.vue'
+import type { CreateTableData } from '@/components/tables/CreateTableDialog.vue'
 import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
 import EditRowDialog from '@/components/tables/EditRowDialog.vue'
 import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
-import type { CreateTableData } from '@/components/tables/CreateTableDialog.vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,6 +27,14 @@ import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
