@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppHeader from '@/components/AppHeader.vue'
+import DrawerManager from '@/components/drawers/DrawerManager.vue'
 import Toaster from '@/components/ui/toast/Toaster.vue'
 
 import { AppSidebar } from '@/components/sidebar'
@@ -24,5 +25,6 @@ import { SidebarProvider } from '@/components/ui/sidebar'
     </div>
 
     <Toaster />
+    <DrawerManager />
   </SidebarProvider>
 </template>

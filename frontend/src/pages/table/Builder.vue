@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
-import ColumnEditorDialog from '@/components/tables/ColumnEditorDialog.vue'
-import CreateTableDialog from '@/components/tables/CreateTableDialog.vue'
-import type { CreateTableData } from '@/components/tables/CreateTableDialog.vue'
+import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
 import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
 import EditRowDialog from '@/components/tables/EditRowDialog.vue'
 import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
@@ -40,12 +38,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { useTables } from '@/composables/api'
 import { useTableDetail } from '@/composables/api/useTableDetail'
+import { useDrawers } from '@/composables/drawerRegistry'
 import { useRouteContext } from '@/composables/routing'
 import { useToast } from '@/composables/ui'
 
 const router = useRouter()
 const toast = useToast()
 const sidebarStore = useSidebarItemsStore()
+const { openTableEditor: openTableEditorDrawer } = useDrawers()
 
 const { projectId, tableId } = useRouteContext()
 
@@ -68,35 +68,19 @@ watch(
 )
 
 const searchQuery = ref('')
-const isCreateDialogOpen = ref(false)
 const activeTab = ref('data')
 
 const isInsertDialogOpen = ref(false)
 const isEditDialogOpen = ref(false)
 const isDeleteDialogOpen = ref(false)
 const isDeleteTableDialogOpen = ref(false)
-const isAddColumnDialogOpen = ref(false)
 const selectedRow = ref<Record<string, any> | null>(null)
 const selectedRowId = ref<string | null>(null)
 const tableToDelete = ref<string | null>(null)
 
-const newColumn = ref({
-  name: '',
-  type: 'TEXT',
-  nullable: true,
-  default_value: '',
-  is_identity: false,
-  unique: false,
-  is_primary_key: false,
-})
-
 const currentPage = ref(1)
 const pageLimit = ref(50)
 const totalRows = ref(0)
-
-const existingColumnNames = computed(() => {
-  return tableColumns.value.map((col) => col.name.toLowerCase())
-})
 
 const filteredTables = computed(() => {
   if (!tables.value || !Array.isArray(tables.value)) return []
@@ -124,63 +108,54 @@ const tableRows = computed(() => {
   return tableDetail.value.rows ?? []
 })
 
-const handleTableCreate = async (data: CreateTableData) => {
-  try {
-    const schema = {
-      columns: data.columns.map((col) => ({
-        name: col.name,
-        type: col.type,
-        nullable: col.nullable,
-        default_value: col.default_value || undefined,
-      })),
-      primary_key: data.columns.filter((col) => col.primary_key).map((col) => col.name),
-      indexes: [],
-      foreign_keys: [],
-    }
+const openTableEditor = () => {
+  openTableEditorDrawer({
+    props: { mode: 'create' },
+    width: 'w-[600px] sm:max-w-[600px]',
+    onSave: async (data: TableFormData) => {
+      try {
+        const schema = {
+          columns: data.columns.map((col) => ({
+            name: col.name,
+            type: col.type,
+            nullable: col.nullable,
+            default_value: col.default_value || undefined,
+          })),
+          primary_key: data.columns
+            .filter((col) => col.primary_key ?? col.is_primary_key)
+            .map((col) => col.name),
+          indexes: [],
+          foreign_keys: data.foreignKeys.map((fk) => ({
+            column: fk.column,
+            referenced_table: fk.referencedTable,
+            referenced_column: fk.referencedColumn,
+            on_update: fk.onUpdate,
+            on_delete: fk.onDelete,
+          })),
+        }
 
-    const createdTable = await createTable({
-      name: data.name,
-      description: data.description || undefined,
-      schema,
-    })
+        const createdTable = await createTable({
+          name: data.name,
+          description: data.description || undefined,
+          schema,
+        })
 
-    toast.success('Success', `Table "${createdTable.name}" has been created`)
-    isCreateDialogOpen.value = false
-
-    router.push(`/projects/${projectId.value}/tables/${createdTable.id}`)
-  } catch (error: any) {
-    console.error('Failed to create table:', error)
-    toast.error('Error', error.message || 'Failed to create table')
-  }
+        toast.success('Success', `Table "${createdTable.name}" has been created`)
+        router.push(`/projects/${projectId.value}/tables/${createdTable.id}`)
+      } catch (error: any) {
+        console.error('Failed to create table:', error)
+        toast.error('Error', error.message || 'Failed to create table')
+      }
+    },
+  })
 }
 
 const handleSelectTable = (id: string) => {
   router.push(`/projects/${projectId.value}/tables/${id}`)
 }
 
-const handleColumnSave = async (columnData: any) => {
-  if (!tableId.value) return
-
-  try {
-    const { tableSchemaService } = await import('@/api/services/table/schema')
-    await tableSchemaService.addColumn(projectId.value, tableId.value, {
-      column: {
-        name: columnData.name,
-        type: columnData.type,
-        nullable: columnData.nullable,
-        default_value: columnData.default_value || undefined,
-        is_identity: columnData.is_identity,
-        unique: columnData.unique,
-      },
-    })
-
-    toast.success('Success', 'Column added successfully')
-    isAddColumnDialogOpen.value = false
-    await refreshTableDetail()
-  } catch (error: any) {
-    console.error('Failed to add column:', error)
-    toast.error('Error', error.message || 'Failed to add column')
-  }
+const openAddColumnDrawer = () => {
+  toast.info('Info', 'Please use the table editor to add columns')
 }
 
 const handleInsertRow = async (data: Record<string, any>) => {
@@ -268,18 +243,6 @@ const formatCellValue = (value: any, columnType: string): string => {
   return str.length > 100 ? str.substring(0, 100) + '...' : str
 }
 
-const openAddColumnDialog = () => {
-  newColumn.value = {
-    name: '',
-    type: 'TEXT',
-    nullable: true,
-    default_value: '',
-    is_identity: false,
-    unique: false,
-    is_primary_key: false,
-  }
-  isAddColumnDialogOpen.value = true
-}
 
 const handleDeleteTable = (id: string) => {
   tableToDelete.value = id
@@ -318,7 +281,7 @@ watch(tableId, () => {
       <div class="p-4 border-b space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold">Tables</h2>
-          <Button size="sm" @click="isCreateDialogOpen = true">
+          <Button size="sm" @click="openTableEditor">
             <Plus class="w-4 h-4" />
           </Button>
         </div>
@@ -385,7 +348,7 @@ watch(tableId, () => {
               Choose a table from the list to view its data and schema
             </p>
           </div>
-          <Button @click="isCreateDialogOpen = true">
+          <Button @click="openTableEditor">
             <Plus class="w-4 h-4 mr-2" />
             Create New Table
           </Button>
@@ -549,7 +512,7 @@ watch(tableId, () => {
                       {{ tableColumns.length }} columns
                     </div>
                     <div class="flex items-center gap-2">
-                      <Button variant="outline" size="sm" @click="openAddColumnDialog">
+                      <Button variant="outline" size="sm" @click="openAddColumnDrawer">
                         <Plus class="w-4 h-4 mr-2" />
                         Add Column
                       </Button>
@@ -647,12 +610,6 @@ watch(tableId, () => {
       </div>
     </div>
 
-    <CreateTableDialog
-      :open="isCreateDialogOpen"
-      @update:open="isCreateDialogOpen = $event"
-      @create="handleTableCreate"
-    />
-
     <InsertRowDialog
       :open="isInsertDialogOpen"
       @update:open="isInsertDialogOpen = $event"
@@ -692,13 +649,5 @@ watch(tableId, () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-
-    <ColumnEditorDialog
-      :open="isAddColumnDialogOpen"
-      @update:open="isAddColumnDialogOpen = $event"
-      @save="handleColumnSave"
-      mode="create"
-      :existing-columns="existingColumnNames"
-    />
   </div>
 </template>

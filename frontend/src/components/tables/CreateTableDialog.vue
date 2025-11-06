@@ -2,9 +2,9 @@
 import { Plus, X } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
+import ColumnFormField from '@/components/tables/ColumnFormField.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -15,13 +15,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 interface Column {
   name: string
@@ -58,25 +51,6 @@ const formData = ref<CreateTableData>({
 })
 
 const validationErrors = ref<Record<string, string>>({})
-
-const columnTypes = [
-  'TEXT',
-  'VARCHAR',
-  'CHAR',
-  'INTEGER',
-  'BIGINT',
-  'SMALLINT',
-  'DECIMAL',
-  'REAL',
-  'DOUBLE PRECISION',
-  'BOOLEAN',
-  'DATE',
-  'TIMESTAMP',
-  'TIMESTAMPTZ',
-  'UUID',
-  'JSON',
-  'JSONB',
-]
 
 const hasValidationErrors = computed(() => Object.keys(validationErrors.value).length > 0)
 
@@ -240,42 +214,21 @@ const addDefaultIdColumn = () => {
             <div
               v-for="(column, index) in formData.columns"
               :key="index"
-              class="p-4 border rounded-lg space-y-3"
+              class="p-4 border rounded-lg"
             >
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 grid grid-cols-2 gap-3">
-                  <div class="space-y-1.5">
-                    <Label class="text-xs">
-                      Column Name <span class="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      v-model="column.name"
-                      placeholder="e.g., email, created_at"
-                      :class="validationErrors[`column_${index}_name`] && 'border-red-500'"
-                    />
-                    <p v-if="validationErrors[`column_${index}_name`]" class="text-xs text-red-500">
-                      {{ validationErrors[`column_${index}_name`] }}
-                    </p>
-                  </div>
-
-                  <div class="space-y-1.5">
-                    <Label class="text-xs">
-                      Data Type <span class="text-red-500">*</span>
-                    </Label>
-                    <Select v-model="column.type">
-                      <SelectTrigger :class="validationErrors[`column_${index}_type`] && 'border-red-500'">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem v-for="type in columnTypes" :key="type" :value="type">
-                          {{ type }}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p v-if="validationErrors[`column_${index}_type`]" class="text-xs text-red-500">
-                      {{ validationErrors[`column_${index}_type`] }}
-                    </p>
-                  </div>
+              <div class="flex items-start gap-3">
+                <div class="flex-1">
+                  <ColumnFormField
+                    v-if="formData.columns[index]"
+                    v-model="formData.columns[index]"
+                    mode="inline"
+                  />
+                  <p v-if="validationErrors[`column_${index}_name`]" class="text-xs text-red-500 mt-2">
+                    {{ validationErrors[`column_${index}_name`] }}
+                  </p>
+                  <p v-if="validationErrors[`column_${index}_type`]" class="text-xs text-red-500 mt-2">
+                    {{ validationErrors[`column_${index}_type`] }}
+                  </p>
                 </div>
 
                 <Button
@@ -289,45 +242,7 @@ const addDefaultIdColumn = () => {
                 </Button>
               </div>
 
-              <div class="space-y-1.5">
-                <Label class="text-xs">Default Value</Label>
-                <Input
-                  v-model="column.default_value"
-                  placeholder="e.g., '', 0, gen_random_uuid()"
-                />
-                <p class="text-xs text-muted-foreground">
-                  Optional. Use SQL expressions like gen_random_uuid() or CURRENT_TIMESTAMP
-                </p>
-              </div>
-
-              <div class="flex flex-wrap gap-4">
-                <div class="flex items-center space-x-2">
-                  <Checkbox v-model:checked="column.nullable" :id="`nullable-${index}`" />
-                  <Label :for="`nullable-${index}`" class="text-xs font-normal cursor-pointer">
-                    Nullable
-                  </Label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <Checkbox v-model:checked="column.primary_key" :id="`primary-${index}`" />
-                  <Label :for="`primary-${index}`" class="text-xs font-normal cursor-pointer">
-                    Primary Key
-                  </Label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <Checkbox v-model:checked="column.unique" :id="`unique-${index}`" />
-                  <Label :for="`unique-${index}`" class="text-xs font-normal cursor-pointer">
-                    Unique
-                  </Label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <Checkbox v-model:checked="column.is_identity" :id="`identity-${index}`" />
-                  <Label :for="`identity-${index}`" class="text-xs font-normal cursor-pointer">
-                    Identity
-                  </Label>
-                </div>
-              </div>
-
-              <div v-if="column.primary_key || column.unique || column.is_identity" class="flex gap-2">
+              <div v-if="column.primary_key || column.unique || column.is_identity" class="flex gap-2 mt-3">
                 <Badge v-if="column.primary_key" variant="default" class="text-xs">Primary Key</Badge>
                 <Badge v-if="column.unique" variant="secondary" class="text-xs">Unique</Badge>
                 <Badge v-if="column.is_identity" variant="outline" class="text-xs">Identity</Badge>
