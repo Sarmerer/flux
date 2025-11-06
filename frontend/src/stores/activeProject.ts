@@ -4,9 +4,6 @@ import { projectService } from '@/api/services/project'
 import type { Project } from '@/types/api'
 import { defineStore } from 'pinia'
 
-import { useTableStore } from './tables'
-import { useWorkflowStore } from './workflows'
-
 export const useActiveProjectStore = defineStore('project', () => {
   const activeProject = ref<Project | null>(null)
   const isLoading = ref(false)
@@ -16,15 +13,8 @@ export const useActiveProjectStore = defineStore('project', () => {
     isLoading.value = true
     error.value = null
 
-    const tableStore = useTableStore()
-    const workflowStore = useWorkflowStore()
-
     try {
-      const [project] = await Promise.all([
-        projectService.getById(projectId),
-        tableStore.loadByProjectId(projectId),
-        workflowStore.loadByProjectId(projectId),
-      ])
+      const project = await projectService.getById(projectId)
       activeProject.value = project
       return project
     } catch (_error) {
@@ -39,12 +29,6 @@ export const useActiveProjectStore = defineStore('project', () => {
 
   function clear() {
     activeProject.value = null
-
-    const tableStore = useTableStore()
-    const workflowStore = useWorkflowStore()
-
-    tableStore.clear()
-    workflowStore.clear()
   }
 
   return {

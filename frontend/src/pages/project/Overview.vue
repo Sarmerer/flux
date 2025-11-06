@@ -18,8 +18,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
-import { useTableStore } from '@/stores/tables'
-import { useWorkflowStore } from '@/stores/workflows'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,6 +26,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { activityService } from '@/api/services/activity'
 import { useFormatting } from '@/composables/formatting'
 import { useActivityFormatting } from '@/composables/formatting/useActivityFormatting'
+import { useTables } from '@/composables/api/useTables'
+import { useWorkflows } from '@/composables/api/useWorkflows'
+import { useRouteContext } from '@/composables/routing'
 import type { ActivityLog } from '@/types/api'
 
 const router = useRouter()
@@ -36,10 +37,10 @@ const { getActivityIcon: getActivityIconFromType } = useActivityFormatting()
 
 const activeProjectStore = useActiveProjectStore()
 const activeProject = computed(() => activeProjectStore.activeProject)
-const activeProjectId = computed(() => activeProject.value?.id)
 
-const tablesStore = useTableStore()
-const workflowsStore = useWorkflowStore()
+const { projectId } = useRouteContext()
+const { tables } = useTables(projectId.value)
+const { workflows } = useWorkflows(projectId.value)
 
 const recentActivity = ref<ActivityLog[]>([])
 const isLoadingActivity = ref(false)
@@ -47,21 +48,21 @@ const isLoadingActivity = ref(false)
 const statsCards = computed(() => [
   {
     title: 'Tables',
-    value: tablesStore.length,
+    value: tables.value.length,
     description: 'Database tables',
     icon: Table,
     color: 'text-blue-600',
   },
   {
     title: 'Workflows',
-    value: workflowsStore.length,
+    value: workflows.value.length,
     description: 'Active workflows',
     icon: Workflow,
     color: 'text-purple-600',
   },
   {
     title: 'Members',
-    value: '3',
+    value: activeProject.value?.member_count || 0,
     description: 'Team members',
     icon: Users,
     color: 'text-green-600',
@@ -73,28 +74,28 @@ const quickActions = [
     icon: Table,
     title: 'Create Table',
     description: 'Add a new database table',
-    action: () => router.push(`/projects/${activeProjectId.value}/tables`),
+    action: () => router.push(`/projects/${projectId.value}/tables`),
   },
   {
     icon: Workflow,
     title: 'Create Workflow',
     description: 'Automate your database',
-    action: () => router.push(`/projects/${activeProjectId.value}/workflows`),
+    action: () => router.push(`/projects/${projectId.value}/workflows`),
   },
   {
     icon: Users,
     title: 'Invite Members',
     description: 'Collaborate with your team',
-    action: () => router.push(`/projects/${activeProjectId.value}/members`),
+    action: () => router.push(`/projects/${projectId.value}/members`),
   },
 ]
 
 const loadRecentActivity = async () => {
-  if (!activeProjectId.value) return
+  if (!projectId.value) return
 
   isLoadingActivity.value = true
   try {
-    const response = await activityService.get(activeProjectId.value, 1, 5)
+    const response = await activityService.get(projectId.value, 1, 5)
     recentActivity.value = response.logs || []
   } catch (error: any) {
     console.error('Failed to load activity:', error)
@@ -240,7 +241,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                 </CardHeader>
                 <CardContent class="space-y-2 pb-4">
                   <button
-                    @click="router.push(`/projects/${activeProjectId}/tables`)"
+                    @click="router.push(`/projects/${projectId}/tables`)"
                     class="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-all group"
                   >
                     <div class="flex items-center gap-2.5">
@@ -250,7 +251,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                       <div class="text-left">
                         <div class="text-sm font-semibold">Tables</div>
                         <div class="text-xs text-muted-foreground">
-                          {{ tablesStore.length }} {{ tablesStore.length === 1 ? 'table' : 'tables' }}
+                          {{ tables.length }} {{ tables.length === 1 ? 'table' : 'tables' }}
                         </div>
                       </div>
                     </div>
@@ -258,7 +259,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                   </button>
 
                   <button
-                    @click="router.push(`/projects/${activeProjectId}/workflows`)"
+                    @click="router.push(`/projects/${projectId}/workflows`)"
                     class="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-all group"
                   >
                     <div class="flex items-center gap-2.5">
@@ -268,7 +269,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                       <div class="text-left">
                         <div class="text-sm font-semibold">Workflows</div>
                         <div class="text-xs text-muted-foreground">
-                          {{ workflowsStore.length }} {{ workflowsStore.length === 1 ? 'workflow' : 'workflows' }}
+                          {{ workflows.length }} {{ workflows.length === 1 ? 'workflow' : 'workflows' }}
                         </div>
                       </div>
                     </div>
@@ -290,7 +291,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                       variant="ghost"
                       size="sm"
                       class="h-7 text-xs"
-                      @click="router.push(`/projects/${activeProjectId}/activity`)"
+                      @click="router.push(`/projects/${projectId}/activity`)"
                     >
                       View All
                     </Button>

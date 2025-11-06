@@ -2,6 +2,7 @@
 import ErrorState from '@/components/common/ErrorState.vue'
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
@@ -11,42 +12,31 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { useProjects } from '@/composables/api/useProjects'
+import { ROUTE_PATHS } from '@/constants/routes'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const { projects, loading, error, refresh } = useProjects()
 
-const recentActivity = [
-  {
-    id: '1',
-    type: 'project_created',
-    message: 'Created project "E-commerce Platform"',
-    timestamp: '2 hours ago',
-    icon: FolderOpen,
-  },
-  {
-    id: '2',
-    type: 'table_created',
-    message: 'Added table "users" to E-commerce Platform',
-    timestamp: '4 hours ago',
-    icon: Table,
-  },
-  {
-    id: '3',
-    type: 'workflow_triggered',
-    message: 'Workflow "New User Welcome" executed',
-    timestamp: '6 hours ago',
-    icon: Workflow,
-  },
-]
+const totalProjects = computed(() => projects.value?.length || 0)
+
+const totalTables = computed(() => {
+  if (!projects.value) return 0
+  return projects.value.reduce((sum: number, project: any) => sum + (project.table_count || 0), 0)
+})
+
+const activeWorkflows = computed(() => {
+  if (!projects.value) return 0
+  return projects.value.reduce((sum: number, project: any) => sum + (project.workflow_count || 0), 0)
+})
 
 const onCreateProjectClick = () => {
   router.push('/projects/new')
 }
 
 const onProjectClick = (projectId: string) => {
-  router.push(`/projects/${projectId}`)
+  router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
 }
 </script>
 
@@ -72,7 +62,7 @@ const onProjectClick = (projectId: string) => {
           <FolderOpen class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ 0 }}</div>
+          <div class="text-2xl font-bold">{{ totalProjects }}</div>
           <p class="text-xs text-muted-foreground">Your active projects</p>
         </CardContent>
       </Card>
@@ -83,7 +73,7 @@ const onProjectClick = (projectId: string) => {
           <Table class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ 0 }}</div>
+          <div class="text-2xl font-bold">{{ totalTables }}</div>
           <p class="text-xs text-muted-foreground">Across all projects</p>
         </CardContent>
       </Card>
@@ -94,7 +84,7 @@ const onProjectClick = (projectId: string) => {
           <Workflow class="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ 0 }}</div>
+          <div class="text-2xl font-bold">{{ activeWorkflows }}</div>
           <p class="text-xs text-muted-foreground">Automation running</p>
         </CardContent>
       </Card>
@@ -151,28 +141,9 @@ const onProjectClick = (projectId: string) => {
           <CardDescription>Latest updates across your projects</CardDescription>
         </CardHeader>
         <CardContent>
-          <div class="space-y-4">
-            <div
-              v-for="activity in recentActivity"
-              :key="activity.id"
-              class="flex items-start space-x-3"
-            >
-              <div class="flex-shrink-0">
-                <component :is="activity.icon" class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm text-gray-900 dark:text-gray-100">{{ activity.message }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-                  <Clock class="h-3 w-3" />
-                  <span>{{ activity.timestamp }}</span>
-                </p>
-              </div>
-            </div>
-          </div>
-          <div class="mt-4">
-            <Button variant="outline" size="sm" class="w-full" @click="router.push('/activity')">
-              View All Activity
-            </Button>
+          <div class="text-center py-8 text-muted-foreground">
+            <Clock class="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p class="text-sm">Activity feed coming soon</p>
           </div>
         </CardContent>
       </Card>

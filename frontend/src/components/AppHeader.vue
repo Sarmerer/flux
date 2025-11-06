@@ -12,7 +12,7 @@ import {
   Workflow,
 } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
@@ -28,56 +28,21 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useProjects } from '@/composables/api'
 import { useToast } from '@/composables/ui'
+import { useBreadcrumbs } from '@/composables/useBreadcrumbs'
+import { ROUTE_PATHS } from '@/constants/routes'
 
 const router = useRouter()
-const route = useRoute()
 const activeProjectStore = useActiveProjectStore()
 const authStore = useAuthStore()
 const { projects } = useProjects()
 const toast = useToast()
+const { breadcrumbs } = useBreadcrumbs()
 
 const activeProject = computed(() => activeProjectStore.activeProject)
-
-interface BreadcrumbItem {
-  label: string
-  path?: string
-  isProjectSelector?: boolean
-}
-
-const breadcrumbs = computed<BreadcrumbItem[]>(() => {
-  const crumbs: BreadcrumbItem[] = []
-
-  if (route.path === '/') {
-    crumbs.push({ label: 'Home' })
-  } else if (route.path === '/projects') {
-    crumbs.push({ label: 'Projects' })
-  } else if (route.path === '/settings') {
-    crumbs.push({ label: 'Settings' })
-  } else if (activeProject.value) {
-    crumbs.push({
-      label: activeProject.value.name,
-      path: `/projects/${activeProject.value.id}`,
-      isProjectSelector: true
-    })
-
-    if (route.path.includes('/tables')) {
-      crumbs.push({ label: 'Tables', path: `/projects/${activeProject.value.id}/tables` })
-    } else if (route.path.includes('/workflows')) {
-      crumbs.push({ label: 'Workflows' })
-    } else if (route.path.includes('/members')) {
-      crumbs.push({ label: 'Members' })
-    } else if (route.path.includes('/activity')) {
-      crumbs.push({ label: 'Activity' })
-    }
-  }
-
-  return crumbs
-})
-
 const showQuickActions = computed(() => !!activeProject.value)
 
 const onProjectSelect = (projectId: string) => {
-  router.push(`/projects/${projectId}`)
+  router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
 }
 
 const onQuickAction = (action: string) => {
@@ -88,10 +53,10 @@ const onQuickAction = (action: string) => {
 
   switch (action) {
     case 'table':
-      router.push(`/projects/${activeProject.value.id}/tables?action=create`)
+      router.push(`${ROUTE_PATHS.PROJECT_TABLES(activeProject.value.id)}?action=create`)
       break
     case 'workflow':
-      router.push(`/projects/${activeProject.value.id}/workflows?action=create`)
+      router.push(`${ROUTE_PATHS.PROJECT_WORKFLOWS(activeProject.value.id)}?action=create`)
       break
   }
 }
