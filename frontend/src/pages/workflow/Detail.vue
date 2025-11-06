@@ -1,37 +1,15 @@
 <script setup lang="ts">
-import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
-import {
-  ArrowLeft,
-  CheckCircle,
-  Database,
-  Eye,
-  Globe,
-  Plus,
-  Save,
-  Search,
-  Settings2,
-  Trash2,
-  Workflow as WorkflowIcon,
-  Zap,
-} from 'lucide-vue-next'
+import { ArrowLeft, CheckCircle, Database, Eye, Globe, Plus, Save, Trash2 } from 'lucide-vue-next'
 import type { Component } from 'vue'
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import type { Workflow, WorkflowAction, WorkflowTrigger } from '@/types/api'
+import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -54,15 +32,12 @@ const router = useRouter()
 const toast = useToast()
 
 const { projectId, workflowId } = useRouteContext()
-const { workflows, loading, createWorkflow, updateWorkflow, getWorkflowById } =
-  useWorkflows(projectId.value)
+const { getWorkflowById, updateWorkflow } = useWorkflows(projectId.value)
 const { tables, loading: loadingTables } = useTables(projectId.value)
 const { validateWorkflow } = useWorkflowValidation()
 
-const searchQuery = ref('')
-const isCreateDialogOpen = ref(false)
-const isBuilderMode = ref(false)
 const isSaving = ref(false)
+const isLoading = ref(true)
 const showPreview = ref(true)
 
 interface WorkflowFormData {
@@ -85,89 +60,12 @@ const currentWorkflow = ref<WorkflowFormData>({
   is_active: false,
 })
 
-const newWorkflowForm = ref({
-  name: '',
-  description: '',
-  trigger: {
-    type: 'on_row_created' as const,
-    table_id: '',
-    conditions: {},
-  },
-})
-
-const filteredWorkflows = computed(() => {
-  if (!searchQuery.value) return workflows.value
-  return workflows.value.filter(
-    (workflow: Workflow) =>
-      workflow.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (workflow.description &&
-        workflow.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
-  )
-})
-
-const selectedWorkflow = computed(() => {
-  if (!workflowId.value) return null
-  return workflows.value.find((w: Workflow) => w.id === workflowId.value)
-})
-
-const isEditMode = computed(() => isBuilderMode.value && !!workflowId.value)
-
-watch(workflowId, async (newId) => {
-  if (newId && selectedWorkflow.value) {
-    isBuilderMode.value = true
-    await loadWorkflowForEdit(newId)
-  } else {
-    isBuilderMode.value = false
-  }
-})
-
-const handleCreateWorkflow = async () => {
-  const validation = validateWorkflow(
-    newWorkflowForm.value.name,
-    newWorkflowForm.value.trigger,
-    []
-  )
-
-  if (!validation.valid) {
-    toast.error('Validation Error', validation.message || 'Invalid workflow data')
-    return
-  }
+const loadWorkflow = async () => {
+  if (!workflowId.value) return
 
   try {
-    const workflow = await createWorkflow({
-      name: newWorkflowForm.value.name,
-      description: newWorkflowForm.value.description,
-      trigger: newWorkflowForm.value.trigger,
-      actions: [],
-      is_active: false,
-    })
-
-    isCreateDialogOpen.value = false
-    newWorkflowForm.value = {
-      name: '',
-      description: '',
-      trigger: {
-        type: 'on_row_created',
-        table_id: '',
-        conditions: {},
-      },
-    }
-
-    toast.success('Workflow Created', 'Your workflow has been created successfully')
-    router.push(`/projects/${projectId.value}/workflows/${workflow.id}`)
-  } catch (error) {
-    console.error('Failed to create workflow:', error)
-    toast.error('Creation Failed', 'Failed to create workflow. Please try again.')
-  }
-}
-
-const handleSelectWorkflow = (id: string) => {
-  router.push(`/projects/${projectId.value}/workflows/${id}`)
-}
-
-const loadWorkflowForEdit = async (id: string) => {
-  try {
-    const workflow = await getWorkflowById(id)
+    isLoading.value = true
+    const workflow = await getWorkflowById(workflowId.value)
     currentWorkflow.value = {
       name: workflow.name,
       description: workflow.description || '',
@@ -179,8 +77,16 @@ const loadWorkflowForEdit = async (id: string) => {
     console.error('Failed to load workflow:', error)
     toast.error('Load Failed', 'Failed to load workflow for editing')
     router.push(`/projects/${projectId.value}/workflows`)
+  } finally {
+    isLoading.value = false
   }
 }
+
+watch(workflowId, () => {
+  if (workflowId.value) {
+    loadWorkflow()
+  }
+}, { immediate: true })
 
 const addAction = () => {
   const newAction: WorkflowAction = {
@@ -219,7 +125,7 @@ const saveWorkflow = async () => {
 
   isSaving.value = true
   try {
-    if (isEditMode.value && workflowId.value) {
+    if (workflowId.value) {
       await updateWorkflow(workflowId.value, {
         name: currentWorkflow.value.name,
         description: currentWorkflow.value.description,
@@ -228,16 +134,6 @@ const saveWorkflow = async () => {
         is_active: currentWorkflow.value.is_active,
       })
       toast.success('Workflow Updated', 'Your workflow has been updated successfully')
-    } else {
-      const workflow = await createWorkflow({
-        name: currentWorkflow.value.name,
-        description: currentWorkflow.value.description,
-        trigger: currentWorkflow.value.trigger,
-        actions: currentWorkflow.value.actions,
-        is_active: currentWorkflow.value.is_active,
-      })
-      toast.success('Workflow Saved', 'Your workflow has been saved successfully')
-      router.push(`/projects/${projectId.value}/workflows/${workflow.id}`)
     }
   } catch (error) {
     console.error('Failed to save workflow:', error)
@@ -263,163 +159,10 @@ const getTriggerIcon = (triggerType: string): Component => {
 </script>
 
 <template>
-  <div v-if="!isBuilderMode" class="flex h-[calc(100vh-3.5rem)]">
-    <div class="w-80 border-r flex flex-col bg-muted/10">
-      <div class="p-4 border-b space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Workflows</h2>
-          <Button size="sm" @click="isCreateDialogOpen = true">
-            <Plus class="w-4 h-4" />
-          </Button>
-        </div>
-        <div class="relative">
-          <Search
-            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"
-          />
-          <Input v-model="searchQuery" placeholder="Search workflows..." class="pl-9 h-9" />
-        </div>
-      </div>
-
-      <LoadingWrapper :is-loading="loading" loading-text="Loading workflows...">
-        <div class="flex-1 overflow-y-auto">
-          <div class="p-2 space-y-1">
-            <button
-              v-for="workflow in filteredWorkflows"
-              :key="workflow.id"
-              @click="handleSelectWorkflow(workflow.id)"
-              :class="[
-                'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                workflowId === workflow.id
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted text-muted-foreground hover:text-foreground',
-              ]"
-            >
-              <Zap class="w-4 h-4 flex-shrink-0" />
-              <span class="flex-1 text-left truncate">{{ workflow.name }}</span>
-              <CheckCircle
-                v-if="workflow.is_active"
-                class="w-3.5 h-3.5 text-green-600 flex-shrink-0"
-              />
-            </button>
-          </div>
-
-          <div
-            v-if="filteredWorkflows.length === 0"
-            class="p-4 text-center text-sm text-muted-foreground"
-          >
-            <p>No workflows found</p>
-          </div>
-        </div>
-      </LoadingWrapper>
+  <div v-if="isLoading" class="flex items-center justify-center h-[calc(100vh-3.5rem)]">
+    <div class="text-center">
+      <p class="text-muted-foreground">Loading workflow...</p>
     </div>
-
-    <div class="flex-1 flex flex-col">
-      <div v-if="!workflowId" class="flex-1 flex items-center justify-center">
-        <div class="text-center space-y-4">
-          <div class="flex justify-center">
-            <div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <WorkflowIcon class="w-8 h-8 text-muted-foreground" />
-            </div>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold mb-1">Select a workflow</h3>
-            <p class="text-sm text-muted-foreground">
-              Choose a workflow from the list to view and edit it
-            </p>
-          </div>
-          <Button @click="isCreateDialogOpen = true">
-            <Plus class="w-4 h-4 mr-2" />
-            Create New Workflow
-          </Button>
-        </div>
-      </div>
-
-      <div v-else class="flex-1 flex flex-col">
-        <div class="border-b px-6 py-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div>
-                <h1 class="text-2xl font-bold">{{ selectedWorkflow?.name }}</h1>
-                <p class="text-sm text-muted-foreground mt-1">
-                  {{ selectedWorkflow?.description || 'No description' }}
-                </p>
-              </div>
-              <Badge v-if="selectedWorkflow?.is_active" variant="default">Active</Badge>
-              <Badge v-else variant="secondary">Inactive</Badge>
-            </div>
-            <div class="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Settings2 class="w-4 h-4 mr-2" />
-                Settings
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 overflow-auto p-6">
-          <div class="text-sm text-muted-foreground">
-            Click a workflow to view details. Detailed workflow view coming soon.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <Dialog v-model:open="isCreateDialogOpen">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Workflow</DialogTitle>
-          <DialogDescription>
-            Create a new workflow to automate your database operations.
-          </DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <Label for="workflow-name">Workflow Name</Label>
-            <Input
-              id="workflow-name"
-              v-model="newWorkflowForm.name"
-              placeholder="Enter workflow name"
-              required
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="workflow-description">Description</Label>
-            <Textarea
-              id="workflow-description"
-              v-model="newWorkflowForm.description"
-              placeholder="Enter workflow description"
-              rows="3"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="trigger-type">Trigger Type</Label>
-            <Select v-model="newWorkflowForm.trigger.type">
-              <SelectTrigger>
-                <SelectValue placeholder="Select trigger type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="trigger in WORKFLOW_TRIGGER_TYPES"
-                  :key="trigger.value"
-                  :value="trigger.value"
-                >
-                  <div class="flex items-center space-x-2">
-                    <component :is="trigger.icon" class="w-4 h-4" />
-                    <span>{{ trigger.label }}</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isCreateDialogOpen = false"> Cancel </Button>
-          <Button @click="handleCreateWorkflow" :disabled="!newWorkflowForm.name.trim()">
-            Create Workflow
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </div>
 
   <div v-else class="p-6 space-y-6">
@@ -430,8 +173,17 @@ const getTriggerIcon = (triggerType: string): Component => {
           Back to Workflows
         </Button>
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Workflow Builder</h1>
-          <p class="text-gray-600">Design and configure your automation workflow</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-3xl font-bold">{{ currentWorkflow.name }}</h1>
+            <Badge v-if="currentWorkflow.is_active" variant="default">
+              <CheckCircle class="w-3 h-3 mr-1" />
+              Active
+            </Badge>
+            <Badge v-else variant="secondary">Inactive</Badge>
+          </div>
+          <p class="text-muted-foreground mt-1">
+            {{ currentWorkflow.description || 'No description provided' }}
+          </p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -441,7 +193,7 @@ const getTriggerIcon = (triggerType: string): Component => {
         </Button>
         <Button @click="saveWorkflow" :disabled="isSaving">
           <Save class="w-4 h-4 mr-2" />
-          {{ isSaving ? 'Saving...' : 'Save Workflow' }}
+          {{ isSaving ? 'Saving...' : 'Save Changes' }}
         </Button>
       </div>
     </div>
@@ -471,7 +223,7 @@ const getTriggerIcon = (triggerType: string): Component => {
             />
           </div>
           <div class="flex items-center space-x-2">
-            <Checkbox v-model="currentWorkflow.is_active" id="is-active" />
+            <Checkbox v-model:checked="currentWorkflow.is_active" id="is-active" />
             <Label for="is-active">Activate workflow</Label>
           </div>
         </CardContent>
@@ -539,7 +291,8 @@ const getTriggerIcon = (triggerType: string): Component => {
             <Label for="schedule">Schedule (Cron)</Label>
             <Input
               id="schedule"
-              v-model="currentWorkflow.trigger.schedule"
+              :model-value="'schedule' in currentWorkflow.trigger ? currentWorkflow.trigger.schedule : ''"
+              @update:model-value="(value) => { if ('schedule' in currentWorkflow.trigger && typeof value === 'string') { currentWorkflow.trigger.schedule = value } }"
               placeholder="0 2 * * * (daily at 2 AM)"
             />
           </div>
@@ -548,7 +301,8 @@ const getTriggerIcon = (triggerType: string): Component => {
             <Label for="webhook-url">Webhook URL</Label>
             <Input
               id="webhook-url"
-              v-model="currentWorkflow.trigger.webhook_url"
+              :model-value="'webhook_url' in currentWorkflow.trigger ? currentWorkflow.trigger.webhook_url : ''"
+              @update:model-value="(value) => { if ('webhook_url' in currentWorkflow.trigger && typeof value === 'string') { currentWorkflow.trigger.webhook_url = value } }"
               placeholder="https://api.example.com/webhook"
             />
           </div>
@@ -634,7 +388,15 @@ const getTriggerIcon = (triggerType: string): Component => {
                   <Label class="text-xs">Payload (JSON)</Label>
                   <Textarea
                     :model-value="typeof action.config.payload === 'string' ? action.config.payload : JSON.stringify(action.config.payload || {})"
-                    @update:model-value="(val: string | number) => action.config.payload = typeof val === 'string' ? val : String(val)"
+                    @update:model-value="(val: string | number) => {
+                      if (typeof val === 'string') {
+                        try {
+                          action.config.payload = JSON.parse(val)
+                        } catch {
+                          action.config.payload = val as any
+                        }
+                      }
+                    }"
                     placeholder='{"message": "Hello from FlowDB!"}'
                     rows="3"
                   />
@@ -676,7 +438,15 @@ const getTriggerIcon = (triggerType: string): Component => {
                   <Label class="text-xs">Updates (JSON)</Label>
                   <Textarea
                     :model-value="typeof action.config.updates === 'string' ? action.config.updates : JSON.stringify(action.config.updates || {})"
-                    @update:model-value="(val: string | number) => 'updates' in action.config && (action.config.updates = typeof val === 'string' ? val : String(val))"
+                    @update:model-value="(val: string | number) => {
+                      if ('updates' in action.config && typeof val === 'string') {
+                        try {
+                          action.config.updates = JSON.parse(val)
+                        } catch {
+                          action.config.updates = val as any
+                        }
+                      }
+                    }"
                     placeholder='{"status": "processed", "updated_at": "{{now}}"}'
                     rows="2"
                   />

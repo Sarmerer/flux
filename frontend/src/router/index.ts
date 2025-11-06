@@ -27,7 +27,8 @@ const Members = () => import('@/pages/project/Members.vue')
 
 const Tables = () => import('@/pages/table/Builder.vue')
 
-const Workflows = () => import('@/pages/workflow/Builder.vue')
+const WorkflowList = () => import('@/pages/workflow/List.vue')
+const WorkflowDetail = () => import('@/pages/workflow/Detail.vue')
 
 const routes = [
   {
@@ -96,13 +97,13 @@ const routes = [
   {
     path: '/projects/:projectId/workflows',
     name: 'Workflows',
-    component: Workflows,
+    component: WorkflowList,
     meta: { requiresAuth: true },
   },
   {
     path: '/projects/:projectId/workflows/:workflowId',
     name: 'WorkflowDetail',
-    component: Workflows,
+    component: WorkflowDetail,
     meta: { requiresAuth: true },
   },
   {

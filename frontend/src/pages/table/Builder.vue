@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import ColumnEditorDialog from '@/components/tables/ColumnEditorDialog.vue'
+import CreateTableDialog from '@/components/tables/CreateTableDialog.vue'
 import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
 import EditRowDialog from '@/components/tables/EditRowDialog.vue'
 import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
+import type { CreateTableData } from '@/components/tables/CreateTableDialog.vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,23 +27,7 @@ import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { useTables } from '@/composables/api'
@@ -75,7 +61,6 @@ watch(
 
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
-const isCreating = ref(false)
 const activeTab = ref('data')
 
 const isInsertDialogOpen = ref(false)
@@ -101,39 +86,9 @@ const currentPage = ref(1)
 const pageLimit = ref(50)
 const totalRows = ref(0)
 
-const newTable = ref<{
-  name: string
-  description: string
-  columns: Array<{
-    name: string
-    type: string
-    nullable: boolean
-    primary_key: boolean
-    default_value: string
-    is_identity: boolean
-    unique: boolean
-  }>
-}>({
-  name: '',
-  description: '',
-  columns: [],
-})
-
 const existingColumnNames = computed(() => {
   return tableColumns.value.map((col) => col.name.toLowerCase())
 })
-
-const simpleColumnTypes = [
-  'TEXT',
-  'INTEGER',
-  'BIGINT',
-  'DECIMAL',
-  'BOOLEAN',
-  'DATE',
-  'TIMESTAMP',
-  'UUID',
-  'JSON',
-]
 
 const filteredTables = computed(() => {
   if (!tables.value || !Array.isArray(tables.value)) return []
@@ -161,70 +116,38 @@ const tableRows = computed(() => {
   return tableDetail.value.rows ?? []
 })
 
-const handleCreateTable = async () => {
-  if (!newTable.value.name.trim()) {
-    toast.error('Validation Error', 'Table name is required')
-    return
-  }
-
-  if (newTable.value.columns.length === 0) {
-    toast.error('Validation Error', 'At least one column is required')
-    return
-  }
-
-  const hasInvalidColumns = newTable.value.columns.some((col) => !col.name.trim() || !col.type)
-  if (hasInvalidColumns) {
-    toast.error('Validation Error', 'All columns must have a name and type')
-    return
-  }
-
-  isCreating.value = true
+const handleCreateTable = async (data: CreateTableData) => {
   try {
     const schema = {
-      columns: newTable.value.columns.map((col) => ({
+      columns: data.columns.map((col) => ({
         name: col.name,
         type: col.type,
         nullable: col.nullable,
         default_value: col.default_value || undefined,
       })),
-      primary_key: newTable.value.columns.filter((col) => col.primary_key).map((col) => col.name),
+      primary_key: data.columns.filter((col) => col.primary_key).map((col) => col.name),
       indexes: [],
       foreign_keys: [],
     }
 
     const createdTable = await createTable({
-      name: newTable.value.name,
-      description: newTable.value.description || undefined,
+      name: data.name,
+      description: data.description || undefined,
       schema,
     })
 
     toast.success('Success', `Table "${createdTable.name}" has been created`)
     isCreateDialogOpen.value = false
-    newTable.value = { name: '', description: '', columns: [] }
 
     router.push(`/projects/${projectId.value}/tables/${createdTable.id}`)
   } catch (error: any) {
     console.error('Failed to create table:', error)
     toast.error('Error', error.message || 'Failed to create table')
-  } finally {
-    isCreating.value = false
   }
 }
 
 const handleSelectTable = (id: string) => {
   router.push(`/projects/${projectId.value}/tables/${id}`)
-}
-
-const addColumn = () => {
-  newTable.value.columns.push({
-    name: '',
-    type: 'TEXT',
-    nullable: true,
-    primary_key: false,
-    default_value: '',
-    is_identity: false,
-    unique: false,
-  })
 }
 
 const handleSaveColumn = async (columnData: any) => {
@@ -250,10 +173,6 @@ const handleSaveColumn = async (columnData: any) => {
     console.error('Failed to add column:', error)
     toast.error('Error', error.message || 'Failed to add column')
   }
-}
-
-const removeColumn = (index: number) => {
-  newTable.value.columns.splice(index, 1)
 }
 
 const handleInsertRow = async (data: Record<string, any>) => {
@@ -720,91 +639,11 @@ watch(tableId, () => {
       </div>
     </div>
 
-    <Dialog v-model:open="isCreateDialogOpen">
-      <DialogContent class="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Create New Table</DialogTitle>
-          <DialogDescription>
-            Create a new table with custom columns and schema.
-          </DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <Label for="table-name">Table Name</Label>
-              <Input
-                id="table-name"
-                v-model="newTable.name"
-                placeholder="e.g., users, products"
-                required
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="table-description">Description</Label>
-              <Input
-                id="table-description"
-                v-model="newTable.description"
-                placeholder="Brief description"
-              />
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <Label>Columns</Label>
-                <p class="text-xs text-muted-foreground mt-1">At least one column is required</p>
-              </div>
-              <Button type="button" variant="outline" size="sm" @click="addColumn">
-                <Plus class="w-4 h-4 mr-1" />
-                Add Column
-              </Button>
-            </div>
-
-            <div class="space-y-3 max-h-60 overflow-y-auto">
-              <div
-                v-for="(column, index) in newTable.columns"
-                :key="index"
-                class="flex items-center space-x-2 p-3 border rounded-lg"
-              >
-                <div class="flex-1 grid grid-cols-4 gap-2">
-                  <Input v-model="column.name" placeholder="Column name" />
-                  <Select v-model="column.type">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem v-for="type in simpleColumnTypes" :key="type" :value="type">
-                        {{ type }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input v-model="column.default_value" placeholder="Default value" />
-                  <div class="flex items-center space-x-2">
-                    <input v-model="column.nullable" type="checkbox" class="rounded" />
-                    <span class="text-sm">Nullable</span>
-                  </div>
-                </div>
-                <Button type="button" variant="ghost" size="sm" @click="removeColumn(index)">
-                  <Plus class="w-4 h-4 rotate-45" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isCreateDialogOpen = false" :disabled="isCreating">
-            Cancel
-          </Button>
-          <Button
-            @click="handleCreateTable"
-            :disabled="!newTable.name.trim() || newTable.columns.length === 0 || isCreating"
-          >
-            {{ isCreating ? 'Creating...' : 'Create Table' }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <CreateTableDialog
+      :open="isCreateDialogOpen"
+      @update:open="isCreateDialogOpen = $event"
+      @create="handleCreateTable"
+    />
 
     <InsertRowDialog
       :open="isInsertDialogOpen"
