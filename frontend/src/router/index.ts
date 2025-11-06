@@ -25,7 +25,7 @@ const ProjectList = () => import('@/pages/project/List.vue')
 const ProjectOverview = () => import('@/pages/project/Overview.vue')
 const Members = () => import('@/pages/project/Members.vue')
 
-const Tables = () => import('@/pages/project/Tables.vue')
+const Tables = () => import('@/pages/table/Builder.vue')
 
 const Workflows = () => import('@/pages/workflow/List.vue')
 const WorkflowBuilder = () => import('@/pages/workflow/Builder.vue')

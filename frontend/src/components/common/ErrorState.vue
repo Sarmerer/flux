@@ -2,7 +2,7 @@
 import { AlertCircle, RefreshCw } from 'lucide-vue-next'
 import { useSlots } from 'vue'
 
-import { Button } from './button'
+import { Button } from '@/components/ui/button'
 
 export interface ErrorStateProps {
   error: Error | string | null

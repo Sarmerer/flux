@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import ErrorState from '@/components/ui/ErrorState.vue'
-import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
+import ErrorState from '@/components/common/ErrorState.vue'
+import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import { Calendar, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LoadingWrapper from '@/components/ui/LoadingWrapper.vue'
+import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import {
   CheckCircle,
   Plus,
