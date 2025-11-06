@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,11 +32,11 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
-const route = useRoute()
+import { useRouteContext } from '@/composables/routing'
+
 const router = useRouter()
 
-const projectId = computed(() => route.params.projectId as string)
-const workflowId = computed(() => route.params.workflowId as string | undefined)
+const { projectId, workflowId } = useRouteContext()
 const searchQuery = ref('')
 const isCreateDialogOpen = ref(false)
 const isLoading = ref(false)

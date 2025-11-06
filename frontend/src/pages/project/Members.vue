@@ -3,7 +3,6 @@ import AddMemberDialog from '@/components/members/AddMemberDialog.vue'
 import EditMemberDialog from '@/components/members/EditMemberDialog.vue'
 import { Edit, Loader2, MoreVertical, Trash2, UserPlus, Users } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 import { useProjectMemberStore } from '@/stores/projectMember'
@@ -29,11 +28,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-const route = useRoute()
+import { useRouteContext } from '@/composables/routing'
+
 const projectMemberStore = useProjectMemberStore()
 const authStore = useAuthStore()
 
-const projectId = computed(() => route.params.projectId as string)
+const { projectId } = useRouteContext()
 const members = computed(() => projectMemberStore.getProjectMembers(projectId.value))
 const isLoading = ref(false)
 const error = ref<string | null>(null)

@@ -9,17 +9,19 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 
 <template>
   <SidebarProvider>
-    <AppSidebar />
-
-    <main class="flex-1 flex flex-col min-h-screen">
+    <div class="flex flex-col min-h-screen w-full">
       <AppHeader />
 
-      <div class="flex-1">
-        <RouterView v-slot="{ Component }">
-          <component :is="Component" />
-        </RouterView>
+      <div class="flex flex-1 pt-14">
+        <AppSidebar />
+
+        <main class="flex-1">
+          <RouterView v-slot="{ Component }">
+            <component :is="Component" />
+          </RouterView>
+        </main>
       </div>
-    </main>
+    </div>
 
     <Toaster />
   </SidebarProvider>

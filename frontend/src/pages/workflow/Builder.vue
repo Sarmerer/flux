@@ -13,7 +13,7 @@ import {
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import { tableService } from '@/api/services/table/index'
 import { workflowService } from '@/api/services/workflow'
@@ -34,11 +34,11 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
-const route = useRoute()
+import { useRouteContext } from '@/composables/routing'
+
 const router = useRouter()
 
-const projectId = computed(() => route.params.projectId as string)
-const workflowId = computed(() => route.params.workflowId as string | undefined)
+const { projectId, workflowId } = useRouteContext()
 const isEditMode = computed(() => !!workflowId.value)
 
 interface WorkflowState {
@@ -328,7 +328,9 @@ const getTriggerIcon = (triggerType: string): Component => {
               :disabled="isLoadingTables"
             >
               <SelectTrigger id="table-id">
-                <SelectValue :placeholder="isLoadingTables ? 'Loading tables...' : 'Select a table'" />
+                <SelectValue
+                  :placeholder="isLoadingTables ? 'Loading tables...' : 'Select a table'"
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="table in tables" :key="table.id" :value="table.id">

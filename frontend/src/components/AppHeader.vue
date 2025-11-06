@@ -1,9 +1,21 @@
 <script setup lang="ts">
-import { Check, ChevronDown, ChevronRight, FolderOpen, Plus, Search } from 'lucide-vue-next'
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  LogOut,
+  Plus,
+  Search,
+  Settings as SettingsIcon,
+  User,
+  Workflow,
+} from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
+import { useAuthStore } from '@/stores/auth'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -14,13 +26,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-
 import { useProjects } from '@/composables/api'
 import { useToast } from '@/composables/ui'
 
 const router = useRouter()
 const route = useRoute()
 const activeProjectStore = useActiveProjectStore()
+const authStore = useAuthStore()
 const { projects } = useProjects()
 const toast = useToast()
 
@@ -83,12 +95,28 @@ const onQuickAction = (action: string) => {
       break
   }
 }
+
+const handleLogout = async () => {
+  await authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
-  <header class="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
+  <header class="fixed top-0 left-0 right-0 z-50 flex h-14 items-center gap-4 border-b bg-background px-6">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Workflow class="w-3.5 h-3.5 text-primary-foreground" :stroke-width="2.5" />
+      </div>
+      <span class="font-semibold text-foreground tracking-tight">
+        Flow
+      </span>
+    </div>
+
     <nav class="flex items-center gap-2 text-sm flex-1">
       <template v-for="(crumb, index) in breadcrumbs" :key="index">
+        <ChevronRight v-if="index === 0 && breadcrumbs.length > 0" class="w-4 h-4 text-muted-foreground" />
+
         <DropdownMenu v-if="crumb.isProjectSelector">
           <DropdownMenuTrigger asChild>
             <button class="flex items-center gap-1 text-foreground font-medium hover:bg-muted px-2 py-1 rounded-md transition-colors">
@@ -140,7 +168,7 @@ const onQuickAction = (action: string) => {
           {{ crumb.label }}
         </button>
         <span v-else class="text-foreground font-medium">{{ crumb.label }}</span>
-        <ChevronRight v-if="index < breadcrumbs.length - 1" class="w-4 h-4 text-muted-foreground" />
+        <ChevronRight v-if="index < breadcrumbs.length - 1 && index > 0" class="w-4 h-4 text-muted-foreground" />
       </template>
     </nav>
 
@@ -161,7 +189,7 @@ const onQuickAction = (action: string) => {
 
       <DropdownMenu v-if="showQuickActions">
         <DropdownMenuTrigger asChild>
-          <Button variant="default" size="sm" class="gap-2 shadow-sm">
+          <Button variant="ghost" size="sm" class="gap-2">
             <Plus class="w-4 h-4" />
             <span>Create</span>
           </Button>
@@ -176,6 +204,27 @@ const onQuickAction = (action: string) => {
           <DropdownMenuItem @click="onQuickAction('workflow')">
             <Plus class="w-4 h-4 mr-2" />
             New Workflow
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" class="w-8 h-8 rounded-full">
+            <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <User class="w-4 h-4 text-primary" />
+            </div>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-56">
+          <DropdownMenuItem @click="router.push('/settings')">
+            <SettingsIcon class="w-4 h-4 mr-2" />
+            Account Settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem @click="handleLogout">
+            <LogOut class="w-4 h-4 mr-2" />
+            Logout
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

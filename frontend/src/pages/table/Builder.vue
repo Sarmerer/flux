@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import ColumnEditorDialog from '@/components/tables/ColumnEditorDialog.vue'
 import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
 import EditRowDialog from '@/components/tables/EditRowDialog.vue'
 import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
-import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,7 +18,7 @@ import {
   Trash2,
 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import { tableDataService } from '@/api/services/table/data'
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
@@ -46,15 +46,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { useTables } from '@/composables/api'
 import { useTableDetail } from '@/composables/api/useTableDetail'
+import { useRouteContext } from '@/composables/routing'
 import { useToast } from '@/composables/ui'
 
-const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const sidebarStore = useSidebarItemsStore()
 
-const projectId = computed(() => route.params.projectId as string)
-const tableId = computed(() => route.params.tableId as string | undefined)
+const { projectId, tableId } = useRouteContext()
 
 const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
 

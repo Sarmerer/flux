@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import SidebarFooter from './Footer.vue'
-import SidebarHeader from './Header.vue'
 import HomeNavigation from './HomeNavigation.vue'
 import ProjectNavigation from './ProjectNavigation.vue'
 import { computed } from 'vue'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
 
-import { Sidebar, SidebarContent } from '@/components/ui/sidebar'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarTrigger } from '@/components/ui/sidebar'
 
 const activeProjectStore = useActiveProjectStore()
 
@@ -15,9 +13,7 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
 </script>
 
 <template>
-  <Sidebar collapsible="icon">
-    <SidebarHeader />
-
+  <Sidebar collapsible="icon" class="pt-14 border-r">
     <SidebarContent>
       <template v-if="!activeProjectId">
         <HomeNavigation />
@@ -28,6 +24,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
       </template>
     </SidebarContent>
 
-    <SidebarFooter />
+    <SidebarFooter class="p-3 border-t">
+      <SidebarTrigger />
+    </SidebarFooter>
   </Sidebar>
 </template>
