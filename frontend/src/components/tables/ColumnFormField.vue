@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Info, Sparkles } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
 
 import { Button } from '@/components/ui/button'
@@ -15,13 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export interface ColumnFormData {
   name: string
   type: string
   nullable: boolean
-  is_primary_key: boolean
+  primary_key: boolean
   default_value: string
   is_identity: boolean
   unique: boolean
@@ -131,9 +129,9 @@ const canHaveDefault = computed(() => {
 })
 
 const primaryKey = computed({
-  get: () => localValue.value.is_primary_key,
+  get: () => localValue.value.primary_key,
   set: (value) => {
-    const updates: Partial<ColumnFormData> = { is_primary_key: value }
+    const updates: Partial<ColumnFormData> = { primary_key: value }
     if (value) {
       updates.nullable = false
     }
@@ -142,7 +140,7 @@ const primaryKey = computed({
 })
 
 const isNullableDisabled = computed(() => {
-  return localValue.value.is_identity || localValue.value.is_primary_key
+  return localValue.value.is_identity || localValue.value.primary_key
 })
 
 watch(
@@ -185,7 +183,11 @@ const setDefaultValue = (value: string) => {
           @update:model-value="(value) => updateField('type', String(value ?? 'TEXT'))"
         >
           <SelectTrigger class="h-7 text-xs">
-            <SelectValue placeholder="Select type" />
+            <SelectValue placeholder="Select type">
+              <template v-if="localValue.type" #default>
+                {{ dataTypes.numeric.concat(dataTypes.text, dataTypes.datetime, dataTypes.special).find(t => t.value === localValue.type)?.label || localValue.type }}
+              </template>
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectGroup v-for="(types, category) in dataTypes" :key="category">
@@ -231,8 +233,8 @@ const setDefaultValue = (value: string) => {
     <div class="flex flex-wrap gap-3">
       <div class="flex items-center space-x-1.5">
         <Checkbox
-          :checked="localValue.nullable"
-          @update:checked="updateField('nullable', $event)"
+          :checked="!!localValue.nullable"
+          @update:checked="(value: boolean) => updateField('nullable', !!value)"
           id="nullable"
           :disabled="isNullableDisabled"
           class="h-3.5 w-3.5"
@@ -246,7 +248,12 @@ const setDefaultValue = (value: string) => {
       </div>
 
       <div class="flex items-center space-x-1.5">
-        <Checkbox :checked="primaryKey" @update:checked="primaryKey = $event" id="primary-key" class="h-3.5 w-3.5" />
+        <Checkbox
+          :checked="!!primaryKey"
+          @update:checked="(value: boolean) => primaryKey = !!value"
+          id="primary-key"
+          class="h-3.5 w-3.5"
+        />
         <Label
           for="primary-key"
           class="text-[11px] font-normal cursor-pointer"
@@ -257,8 +264,8 @@ const setDefaultValue = (value: string) => {
 
       <div class="flex items-center space-x-1.5">
         <Checkbox
-          :checked="localValue.unique"
-          @update:checked="updateField('unique', $event)"
+          :checked="!!localValue.unique"
+          @update:checked="(value: boolean) => updateField('unique', !!value)"
           id="unique"
           class="h-3.5 w-3.5"
         />
@@ -272,8 +279,8 @@ const setDefaultValue = (value: string) => {
 
       <div v-if="isNumericType" class="flex items-center space-x-1.5">
         <Checkbox
-          :checked="localValue.is_identity"
-          @update:checked="updateField('is_identity', $event)"
+          :checked="!!localValue.is_identity"
+          @update:checked="(value: boolean) => updateField('is_identity', !!value)"
           id="identity"
           class="h-3.5 w-3.5"
         />

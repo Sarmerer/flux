@@ -9,7 +9,7 @@ export interface Column {
   name: string
   type: string
   nullable: boolean
-  is_primary_key: boolean
+  primary_key: boolean
   default_value: string
   is_identity: boolean
   unique: boolean
@@ -35,7 +35,7 @@ const addColumn = () => {
     default_value: '',
     is_identity: false,
     unique: false,
-    is_primary_key: false,
+    primary_key: false,
   }
   emit('update:columns', [...props.columns, newColumn])
 }
@@ -99,7 +99,7 @@ const existingColumnNames = (excludeIndex?: number) => {
               <span class="text-xs font-medium truncate">{{ column.name || 'Unnamed' }}</span>
               <span class="text-[11px] text-muted-foreground">{{ column.type }}</span>
               <span
-                v-if="column.is_primary_key"
+                v-if="column.primary_key"
                 class="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary"
                 >Primary</span
               >

@@ -3,6 +3,16 @@ import { computed, ref, watch } from 'vue'
 
 import { Button } from '@/components/ui/button'
 import { SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import InlineColumnsEditor from './sections/InlineColumnsEditor.vue'
 import TableMetadataSection from './sections/TableMetadataSection.vue'
 
@@ -10,7 +20,7 @@ export interface Column {
   name: string
   type: string
   nullable: boolean
-  is_primary_key: boolean
+  primary_key: boolean
   default_value: string
   is_identity: boolean
   unique: boolean
@@ -42,6 +52,7 @@ interface Props {
 interface Emits {
   (e: 'save', data: TableFormData): void
   (e: 'close'): void
+  (e: 'beforeClose', callback: (canClose: boolean) => void): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -57,6 +68,11 @@ const formData = ref<TableFormData>({
   foreignKeys: [],
 })
 
+const initialDataSnapshot = ref<string>('')
+const isDirty = ref(false)
+const showConfirmDialog = ref(false)
+const pendingClose = ref(false)
+
 const validationErrors = ref<Record<string, string>>({})
 
 watch(
@@ -64,9 +80,19 @@ watch(
   (data) => {
     if (data) {
       formData.value = { ...data }
+      initialDataSnapshot.value = JSON.stringify(data)
     }
   },
   { immediate: true }
+)
+
+watch(
+  formData,
+  (newData) => {
+    const currentSnapshot = JSON.stringify(newData)
+    isDirty.value = currentSnapshot !== initialDataSnapshot.value
+  },
+  { deep: true }
 )
 
 const hasValidationErrors = computed(() => Object.keys(validationErrors.value).length > 0)
@@ -110,11 +136,28 @@ const validate = (): boolean => {
 
 const handleSave = () => {
   if (!validate()) return
+  isDirty.value = false
   emit('save', formData.value)
 }
 
 const handleCancel = () => {
+  if (isDirty.value) {
+    showConfirmDialog.value = true
+    pendingClose.value = true
+  } else {
+    emit('close')
+  }
+}
+
+const confirmClose = () => {
+  showConfirmDialog.value = false
+  isDirty.value = false
   emit('close')
+}
+
+const cancelClose = () => {
+  showConfirmDialog.value = false
+  pendingClose.value = false
 }
 
 const addDefaultIdColumn = () => {
@@ -126,7 +169,7 @@ const addDefaultIdColumn = () => {
       name: 'id',
       type: 'UUID',
       nullable: false,
-      is_primary_key: true,
+      primary_key: true,
       default_value: 'gen_random_uuid()',
       is_identity: false,
       unique: true,
@@ -140,6 +183,25 @@ const updateColumns = (columns: Column[]) => {
   formData.value.columns = columns
   validationErrors.value = {}
 }
+
+defineExpose({
+  canClose: () => !isDirty.value,
+  confirmClose: () => {
+    return new Promise<boolean>((resolve) => {
+      if (!isDirty.value) {
+        resolve(true)
+        return
+      }
+      showConfirmDialog.value = true
+      const checkDialog = setInterval(() => {
+        if (!showConfirmDialog.value) {
+          clearInterval(checkDialog)
+          resolve(!isDirty.value)
+        }
+      }, 100)
+    })
+  }
+})
 </script>
 
 <template>
@@ -181,5 +243,22 @@ const updateColumns = (columns: Column[]) => {
         {{ mode === 'create' ? 'Create Table' : 'Save Changes' }}
       </Button>
     </SheetFooter>
+
+    <AlertDialog :open="showConfirmDialog" @update:open="showConfirmDialog = $event">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved changes. Are you sure you want to close without saving? All changes will be lost.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="cancelClose">Continue Editing</AlertDialogCancel>
+          <AlertDialogAction @click="confirmClose" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Discard Changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>

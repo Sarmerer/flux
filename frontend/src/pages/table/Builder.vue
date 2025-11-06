@@ -114,7 +114,7 @@ const openTableEditor = () => {
             default_value: col.default_value || undefined,
           })),
           primary_key: data.columns
-            .filter((col) => col.is_primary_key)
+            .filter((col) => col.primary_key)
             .map((col) => col.name),
           indexes: [],
           foreign_keys: data.foreignKeys.map((fk) => ({
