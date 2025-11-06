@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
-import DeleteRowDialog from '@/components/tables/DeleteRowDialog.vue'
-import EditRowDialog from '@/components/tables/EditRowDialog.vue'
-import InsertRowDialog from '@/components/tables/InsertRowDialog.vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -45,7 +42,7 @@ import { useToast } from '@/composables/ui'
 const router = useRouter()
 const toast = useToast()
 const sidebarStore = useSidebarItemsStore()
-const { openTableEditor: openTableEditorDrawer } = useDrawers()
+const { openTableEditor: openTableEditorDrawer, openInsertRow, openEditRow, openDeleteRow } = useDrawers()
 
 const { projectId, tableId } = useRouteContext()
 
@@ -70,12 +67,7 @@ watch(
 const searchQuery = ref('')
 const activeTab = ref('data')
 
-const isInsertDialogOpen = ref(false)
-const isEditDialogOpen = ref(false)
-const isDeleteDialogOpen = ref(false)
 const isDeleteTableDialogOpen = ref(false)
-const selectedRow = ref<Record<string, any> | null>(null)
-const selectedRowId = ref<string | null>(null)
 const tableToDelete = ref<string | null>(null)
 
 const currentPage = ref(1)
@@ -122,7 +114,7 @@ const openTableEditor = () => {
             default_value: col.default_value || undefined,
           })),
           primary_key: data.columns
-            .filter((col) => col.primary_key ?? col.is_primary_key)
+            .filter((col) => col.is_primary_key)
             .map((col) => col.name),
           indexes: [],
           foreign_keys: data.foreignKeys.map((fk) => ({
@@ -158,41 +150,57 @@ const openAddColumnDrawer = () => {
   toast.info('Info', 'Please use the table editor to add columns')
 }
 
-const handleInsertRow = async (data: Record<string, any>) => {
-  await tableDataService.insert(projectId.value, tableId.value!, data)
-  await refreshTableDetail()
+const openInsertRowDrawer = () => {
+  openInsertRow({
+    props: {
+      columns: tableColumns.value,
+      onInsert: async (data: Record<string, any>) => {
+        await tableDataService.insert(projectId.value, tableId.value!, data)
+        await refreshTableDetail()
+      },
+    },
+  })
 }
 
-const handleEditRow = (row: Record<string, any>) => {
+const openEditRowDrawer = (row: Record<string, any>) => {
   const idColumn = tableColumns.value.find((col) => col.is_primary_key)
-  if (idColumn) {
-    selectedRowId.value = row[idColumn.name]
-    selectedRow.value = row
-    isEditDialogOpen.value = true
-  } else {
+  if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
+    return
   }
+
+  const rowId = row[idColumn.name]
+  openEditRow({
+    props: {
+      columns: tableColumns.value,
+      rowData: row,
+      rowId,
+      onUpdate: async (id: string, data: Record<string, any>) => {
+        await tableDataService.update(projectId.value, tableId.value!, id, data)
+        await refreshTableDetail()
+      },
+    },
+  })
 }
 
-const handleUpdateRow = async (rowId: string, data: Record<string, any>) => {
-  await tableDataService.update(projectId.value, tableId.value!, rowId, data)
-  await refreshTableDetail()
-}
-
-const handleDeleteRow = (row: Record<string, any>) => {
+const openDeleteRowDrawer = (row: Record<string, any>) => {
   const idColumn = tableColumns.value.find((col) => col.is_primary_key)
-  if (idColumn) {
-    selectedRowId.value = row[idColumn.name]
-    selectedRow.value = row
-    isDeleteDialogOpen.value = true
-  } else {
+  if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
+    return
   }
-}
 
-const handleDeleteConfirm = async (rowId: string) => {
-  await tableDataService.delete(projectId.value, tableId.value!, rowId)
-  await refreshTableDetail()
+  const rowId = row[idColumn.name]
+  openDeleteRow({
+    props: {
+      rowId,
+      rowData: row,
+      onDelete: async (id: string) => {
+        await tableDataService.delete(projectId.value, tableId.value!, id)
+        await refreshTableDetail()
+      },
+    },
+  })
 }
 
 const totalPages = computed(() => Math.ceil(totalRows.value / pageLimit.value))
@@ -397,7 +405,7 @@ watch(tableId, () => {
                   <div class="flex items-center justify-between">
                     <div class="text-sm text-muted-foreground">{{ tableRows.length }} rows</div>
                     <div class="flex items-center gap-2">
-                      <Button variant="outline" size="sm" @click="isInsertDialogOpen = true">
+                      <Button variant="outline" size="sm" @click="openInsertRowDrawer">
                         <Plus class="w-4 h-4 mr-2" />
                         Insert Row
                       </Button>
@@ -448,7 +456,7 @@ watch(tableId, () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  @click="handleEditRow(row)"
+                                  @click="openEditRowDrawer(row)"
                                   class="h-8 w-8 p-0"
                                 >
                                   <Pencil class="w-4 h-4" />
@@ -456,7 +464,7 @@ watch(tableId, () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  @click="handleDeleteRow(row)"
+                                  @click="openDeleteRowDrawer(row)"
                                   class="h-8 w-8 p-0 text-destructive hover:text-destructive"
                                 >
                                   <Trash2 class="w-4 h-4" />
@@ -609,30 +617,6 @@ watch(tableId, () => {
         </Tabs>
       </div>
     </div>
-
-    <InsertRowDialog
-      :open="isInsertDialogOpen"
-      @update:open="isInsertDialogOpen = $event"
-      :columns="tableColumns"
-      :on-insert="handleInsertRow"
-    />
-
-    <EditRowDialog
-      :open="isEditDialogOpen"
-      @update:open="isEditDialogOpen = $event"
-      :columns="tableColumns"
-      :row-data="selectedRow"
-      :row-id="selectedRowId"
-      :on-update="handleUpdateRow"
-    />
-
-    <DeleteRowDialog
-      :open="isDeleteDialogOpen"
-      @update:open="isDeleteDialogOpen = $event"
-      :row-data="selectedRow"
-      :row-id="selectedRowId"
-      :on-delete="handleDeleteConfirm"
-    />
 
     <Dialog v-model:open="isDeleteTableDialogOpen">
       <DialogContent>

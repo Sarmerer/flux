@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
-import CreateWorkflowDialog from '@/components/workflows/CreateWorkflowDialog.vue'
-import type { CreateWorkflowData } from '@/components/workflows/CreateWorkflowDialog.vue'
+import type { CreateWorkflowData } from '@/components/workflows/drawers/WorkflowEditorContent.vue'
 import { CheckCircle, Plus, Search, Workflow as WorkflowIcon, Zap } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -13,18 +12,19 @@ import { Input } from '@/components/ui/input'
 
 import { useTables } from '@/composables/api/useTables'
 import { useWorkflows } from '@/composables/api/useWorkflows'
+import { useDrawers } from '@/composables/drawerRegistry'
 import { useRouteContext } from '@/composables/routing'
 import { useToast } from '@/composables/ui'
 
 const router = useRouter()
 const toast = useToast()
+const { openWorkflowEditor } = useDrawers()
 
 const { projectId } = useRouteContext()
 const { workflows, loading, createWorkflow } = useWorkflows(projectId.value)
 const { tables, loading: loadingTables } = useTables(projectId.value)
 
 const searchQuery = ref('')
-const isCreateDialogOpen = ref(false)
 
 const filteredWorkflows = computed(() => {
   if (!searchQuery.value) return workflows.value
@@ -36,16 +36,23 @@ const filteredWorkflows = computed(() => {
   )
 })
 
-const handleWorkflowCreate = async (data: CreateWorkflowData) => {
-  try {
-    const workflow = await createWorkflow(data)
-    isCreateDialogOpen.value = false
-    toast.success('Workflow Created', 'Your workflow has been created successfully')
-    router.push(`/projects/${projectId.value}/workflows/${workflow.id}`)
-  } catch (error) {
-    console.error('Failed to create workflow:', error)
-    toast.error('Creation Failed', 'Failed to create workflow. Please try again.')
-  }
+const openCreateWorkflowDrawer = () => {
+  openWorkflowEditor({
+    props: {
+      tables: tables.value,
+      loadingTables: loadingTables.value,
+    },
+    onSave: async (data: CreateWorkflowData) => {
+      try {
+        const workflow = await createWorkflow(data)
+        toast.success('Workflow Created', 'Your workflow has been created successfully')
+        router.push(`/projects/${projectId.value}/workflows/${workflow.id}`)
+      } catch (error) {
+        console.error('Failed to create workflow:', error)
+        toast.error('Creation Failed', 'Failed to create workflow. Please try again.')
+      }
+    },
+  })
 }
 
 const handleWorkflowSelect = (id: string) => {
@@ -59,7 +66,7 @@ const handleWorkflowSelect = (id: string) => {
       <div class="p-4 border-b space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold">Workflows</h2>
-          <Button size="sm" @click="isCreateDialogOpen = true">
+          <Button size="sm" @click="openCreateWorkflowDrawer">
             <Plus class="w-4 h-4" />
           </Button>
         </div>
@@ -112,19 +119,11 @@ const handleWorkflowSelect = (id: string) => {
             Choose a workflow from the list to view and edit it
           </p>
         </div>
-        <Button @click="isCreateDialogOpen = true">
+        <Button @click="openCreateWorkflowDrawer">
           <Plus class="w-4 h-4 mr-2" />
           Create New Workflow
         </Button>
       </div>
     </div>
-
-    <CreateWorkflowDialog
-      :open="isCreateDialogOpen"
-      :tables="tables"
-      :loading-tables="loadingTables"
-      @update:open="isCreateDialogOpen = $event"
-      @create="handleWorkflowCreate"
-    />
   </div>
 </template>

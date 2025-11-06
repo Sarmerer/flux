@@ -4,7 +4,11 @@ import type { ComponentProps } from 'vue-component-type-helpers'
 
 import { useDrawerService } from './useDrawerService'
 
+import DeleteRowContent from '@/components/tables/drawers/DeleteRowContent.vue'
+import EditRowContent from '@/components/tables/drawers/EditRowContent.vue'
+import InsertRowContent from '@/components/tables/drawers/InsertRowContent.vue'
 import TableEditorContent from '@/components/tables/drawers/TableEditorContent.vue'
+import WorkflowEditorContent from '@/components/workflows/drawers/WorkflowEditorContent.vue'
 
 type DrawerConfig<T extends Component> = {
   component: T
@@ -20,6 +24,18 @@ export const useDrawers = () => {
   return {
     openTableEditor: (config: Omit<DrawerConfig<typeof TableEditorContent>, 'component'>) =>
       openDrawer({ component: markRaw(TableEditorContent), ...config }),
+
+    openInsertRow: (config: Omit<DrawerConfig<typeof InsertRowContent>, 'component'>) =>
+      openDrawer({ component: markRaw(InsertRowContent), width: '600px', ...config }),
+
+    openEditRow: (config: Omit<DrawerConfig<typeof EditRowContent>, 'component'>) =>
+      openDrawer({ component: markRaw(EditRowContent), width: '600px', ...config }),
+
+    openDeleteRow: (config: Omit<DrawerConfig<typeof DeleteRowContent>, 'component'>) =>
+      openDrawer({ component: markRaw(DeleteRowContent), width: '500px', ...config }),
+
+    openWorkflowEditor: (config: Omit<DrawerConfig<typeof WorkflowEditorContent>, 'component'>) =>
+      openDrawer({ component: markRaw(WorkflowEditorContent), width: '700px', ...config }),
 
     ...rest,
   }

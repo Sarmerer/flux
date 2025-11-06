@@ -21,8 +21,7 @@ export interface ColumnFormData {
   name: string
   type: string
   nullable: boolean
-  primary_key?: boolean
-  is_primary_key?: boolean
+  is_primary_key: boolean
   default_value: string
   is_identity: boolean
   unique: boolean
@@ -132,13 +131,18 @@ const canHaveDefault = computed(() => {
 })
 
 const primaryKey = computed({
-  get: () => localValue.value.primary_key ?? localValue.value.is_primary_key ?? false,
+  get: () => localValue.value.is_primary_key,
   set: (value) => {
-    const updated = { ...localValue.value }
-    if ('primary_key' in updated) updated.primary_key = value
-    if ('is_primary_key' in updated) updated.is_primary_key = value
-    emit('update:modelValue', updated)
+    const updates: Partial<ColumnFormData> = { is_primary_key: value }
+    if (value) {
+      updates.nullable = false
+    }
+    emit('update:modelValue', { ...props.modelValue, ...updates })
   },
+})
+
+const isNullableDisabled = computed(() => {
+  return localValue.value.is_identity || localValue.value.is_primary_key
 })
 
 watch(
@@ -230,12 +234,12 @@ const setDefaultValue = (value: string) => {
           :checked="localValue.nullable"
           @update:checked="updateField('nullable', $event)"
           id="nullable"
-          :disabled="localValue.is_identity"
+          :disabled="isNullableDisabled"
           class="h-3.5 w-3.5"
         />
         <Label
           for="nullable"
-          class="text-[11px] font-normal cursor-pointer"
+          :class="['text-[11px] font-normal', isNullableDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']"
         >
           Nullable
         </Label>

@@ -10,8 +10,7 @@ export interface Column {
   name: string
   type: string
   nullable: boolean
-  primary_key?: boolean
-  is_primary_key?: boolean
+  is_primary_key: boolean
   default_value: string
   is_identity: boolean
   unique: boolean
@@ -127,7 +126,7 @@ const addDefaultIdColumn = () => {
       name: 'id',
       type: 'UUID',
       nullable: false,
-      primary_key: true,
+      is_primary_key: true,
       default_value: 'gen_random_uuid()',
       is_identity: false,
       unique: true,
