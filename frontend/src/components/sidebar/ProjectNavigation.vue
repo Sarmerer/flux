@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Activity, LayoutGrid, Settings as SettingsIcon, Table, Users, Workflow } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { useActiveProjectStore } from '@/stores/activeProject'
 
@@ -13,11 +12,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-import { useRouteState } from './useRouteState'
-
-const router = useRouter()
 const activeProjectStore = useActiveProjectStore()
-const { isActive } = useRouteState()
 
 const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
 </script>
@@ -28,8 +23,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            @click="router.push(`/projects/${activeProjectId}`)"
-            :isActive="isActive(`/projects/${activeProjectId}/overview`)"
+            :to="{ name: 'ProjectOverview', params: { projectId: activeProjectId } }"
+            :active-routes="['ProjectDetail', 'ProjectOverview']"
           >
             <LayoutGrid class="w-4 h-4" />
             <span>Overview</span>
@@ -37,8 +32,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            @click="router.push(`/projects/${activeProjectId}/tables`)"
-            :isActive="isActive(`/projects/${activeProjectId}/tables`)"
+            :to="{ name: 'Tables', params: { projectId: activeProjectId } }"
+            :active-routes="['Tables', 'TableDetail']"
           >
             <Table class="w-4 h-4" />
             <span>Tables</span>
@@ -46,8 +41,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            @click="router.push(`/projects/${activeProjectId}/workflows`)"
-            :isActive="isActive(`/projects/${activeProjectId}/workflows`)"
+            :to="{ name: 'Workflows', params: { projectId: activeProjectId } }"
+            :active-routes="['Workflows', 'WorkflowDetail']"
           >
             <Workflow class="w-4 h-4" />
             <span>Workflows</span>
@@ -62,8 +57,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            @click="router.push(`/projects/${activeProjectId}/members`)"
-            :isActive="isActive(`/projects/${activeProjectId}/members`)"
+            :to="{ name: 'ProjectMembers', params: { projectId: activeProjectId } }"
+            :active-routes="['ProjectMembers']"
           >
             <Users class="w-4 h-4" />
             <span>Members</span>
@@ -71,8 +66,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            @click="router.push(`/projects/${activeProjectId}/activity`)"
-            :isActive="isActive(`/projects/${activeProjectId}/activity`)"
+            :to="{ name: 'Activity', params: { projectId: activeProjectId } }"
+            :active-routes="['Activity']"
           >
             <Activity class="w-4 h-4" />
             <span>Activity</span>
