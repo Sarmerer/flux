@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { ROUTE_NAMES, ROUTE_PATHS } from '@/constants/routes'
 import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectMemberStore } from '@/stores/projectMember'
@@ -32,26 +33,26 @@ const WorkflowDetail = () => import('@/pages/workflow/Detail.vue')
 
 const routes = [
   {
-    path: '/',
-    name: 'Dashboard',
+    path: ROUTE_PATHS.HOME,
+    name: ROUTE_NAMES.HOME,
     component: Dashboard,
     meta: { requiresAuth: true },
   },
   {
-    path: '/login',
-    name: 'Login',
+    path: ROUTE_PATHS.LOGIN,
+    name: ROUTE_NAMES.LOGIN,
     component: Login,
     meta: { requiresGuest: true },
   },
   {
-    path: '/register',
-    name: 'Register',
+    path: ROUTE_PATHS.REGISTER,
+    name: ROUTE_NAMES.REGISTER,
     component: Register,
     meta: { requiresGuest: true },
   },
   {
-    path: '/settings',
-    name: 'Settings',
+    path: ROUTE_PATHS.SETTINGS,
+    name: ROUTE_NAMES.SETTINGS,
     component: Settings,
     meta: {
       requiresAuth: true,
@@ -60,61 +61,56 @@ const routes = [
   },
 
   {
-    path: '/projects',
-    name: 'Projects',
+    path: ROUTE_PATHS.PROJECTS,
+    name: ROUTE_NAMES.PROJECTS,
     component: ProjectList,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/new',
-    name: 'ProjectsNew',
+    path: ROUTE_PATHS.PROJECTS_NEW,
+    name: ROUTE_NAMES.PROJECTS_NEW,
     component: NewProject,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId',
-    name: 'ProjectDetail',
-    redirect: { name: 'ProjectOverview' },
-  },
-  {
-    path: '/projects/:projectId/overview',
-    name: 'ProjectOverview',
+    path: ROUTE_PATHS.PROJECT,
+    name: ROUTE_NAMES.PROJECT,
     component: ProjectOverview,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/tables',
-    name: 'Tables',
+    path: ROUTE_PATHS.PROJECT_TABLES,
+    name: ROUTE_NAMES.PROJECT_TABLES,
     component: Tables,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/tables/:tableId',
-    name: 'TableDetail',
+    path: ROUTE_PATHS.PROJECT_TABLE_DETAIL,
+    name: ROUTE_NAMES.PROJECT_TABLE_DETAIL,
     component: Tables,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/workflows',
-    name: 'Workflows',
+    path: ROUTE_PATHS.PROJECT_WORKFLOWS,
+    name: ROUTE_NAMES.PROJECT_WORKFLOWS,
     component: WorkflowList,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/workflows/:workflowId',
-    name: 'WorkflowDetail',
+    path: ROUTE_PATHS.PROJECT_WORKFLOW_DETAIL,
+    name: ROUTE_NAMES.PROJECT_WORKFLOW_DETAIL,
     component: WorkflowDetail,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/activity',
-    name: 'Activity',
+    path: ROUTE_PATHS.PROJECT_ACTIVITY,
+    name: ROUTE_NAMES.PROJECT_ACTIVITY,
     component: Activity,
     meta: { requiresAuth: true },
   },
   {
-    path: '/projects/:projectId/members',
-    name: 'ProjectMembers',
+    path: ROUTE_PATHS.PROJECT_MEMBERS,
+    name: ROUTE_NAMES.PROJECT_MEMBERS,
     component: Members,
     meta: { requiresAuth: true },
   },
@@ -133,7 +129,7 @@ router.beforeEach(async (to, _from, next) => {
   if (to.meta.requiresAuth) {
     if (!authStore.isAuthenticated) {
       next({
-        path: '/login',
+        path: ROUTE_PATHS.LOGIN,
         query: { redirect: to.fullPath },
       })
       return
@@ -146,7 +142,7 @@ router.beforeEach(async (to, _from, next) => {
         await projectMemberStore.loadMyProjectRole(projectIdFromRoute)
       } catch (error) {
         console.error('Failed to load project context:', error)
-        next({ name: 'Dashboard' })
+        next({ name: ROUTE_NAMES.HOME })
         return
       }
     } else if (!projectIdFromRoute) {
@@ -156,19 +152,19 @@ router.beforeEach(async (to, _from, next) => {
 
     if (to.meta.permissions && projectIdFromRoute) {
       if (!projectMemberStore.hasPermission(to.meta.permissions)) {
-        next({ name: 'Dashboard' })
+        next({ name: ROUTE_NAMES.HOME })
         return
       }
     }
 
     if (to.meta.roles && projectIdFromRoute) {
       if (!projectMemberStore.hasRole(to.meta.roles)) {
-        next({ name: 'Dashboard' })
+        next({ name: ROUTE_NAMES.HOME })
         return
       }
     }
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next('/')
+    next(ROUTE_PATHS.HOME)
     return
   }
 

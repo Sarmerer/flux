@@ -17,6 +17,7 @@ import {
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { ROUTE_PATHS, buildPath } from '@/constants/routes'
 import { useActiveProjectStore } from '@/stores/activeProject'
 
 import { Badge } from '@/components/ui/badge'
@@ -74,19 +75,19 @@ const quickActions = [
     icon: Table,
     title: 'Create Table',
     description: 'Add a new database table',
-    action: () => router.push(`/projects/${projectId.value}/tables`),
+    action: () => router.push(buildPath.projectTables(projectId.value)),
   },
   {
     icon: Workflow,
     title: 'Create Workflow',
     description: 'Automate your database',
-    action: () => router.push(`/projects/${projectId.value}/workflows`),
+    action: () => router.push(buildPath.projectWorkflows(projectId.value)),
   },
   {
     icon: Users,
     title: 'Invite Members',
     description: 'Collaborate with your team',
-    action: () => router.push(`/projects/${projectId.value}/members`),
+    action: () => router.push(buildPath.projectMembers(projectId.value)),
   },
 ]
 
@@ -159,7 +160,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
         title="Project not found"
         description="The project you're looking for doesn't exist."
       >
-        <Button size="sm" @click="router.push('/projects')">Back to Projects</Button>
+        <Button size="sm" @click="router.push(ROUTE_PATHS.PROJECTS)">Back to Projects</Button>
       </ErrorState>
 
       <template v-else-if="activeProject">
@@ -241,7 +242,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                 </CardHeader>
                 <CardContent class="space-y-2 pb-4">
                   <button
-                    @click="router.push(`/projects/${projectId}/tables`)"
+                    @click="router.push(buildPath.projectTables(projectId))"
                     class="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-all group"
                   >
                     <div class="flex items-center gap-2.5">
@@ -259,7 +260,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                   </button>
 
                   <button
-                    @click="router.push(`/projects/${projectId}/workflows`)"
+                    @click="router.push(buildPath.projectWorkflows(projectId))"
                     class="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-all group"
                   >
                     <div class="flex items-center gap-2.5">
@@ -291,7 +292,7 @@ const getActivityDescription = (activity: ActivityLog): string => {
                       variant="ghost"
                       size="sm"
                       class="h-7 text-xs"
-                      @click="router.push(`/projects/${projectId}/activity`)"
+                      @click="router.push(buildPath.projectActivity(projectId))"
                     >
                       View All
                     </Button>

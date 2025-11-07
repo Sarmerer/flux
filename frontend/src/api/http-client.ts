@@ -1,5 +1,6 @@
 import { safeJson } from '@/lib/utils'
 import { AUTH_TOKEN_KEY } from '@/constants/auth'
+import { ROUTE_PATHS } from '@/constants/routes'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -32,8 +33,8 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
       const wasAuthenticated = !!localStorage.getItem(AUTH_TOKEN_KEY)
       localStorage.removeItem(AUTH_TOKEN_KEY)
 
-      if (wasAuthenticated && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.href = '/login'
+      if (wasAuthenticated && window.location.pathname !== ROUTE_PATHS.LOGIN && window.location.pathname !== ROUTE_PATHS.REGISTER) {
+        window.location.href = ROUTE_PATHS.LOGIN
       }
       throw new Error('Session expired. Please login again.')
     }

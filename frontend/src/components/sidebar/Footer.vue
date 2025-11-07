@@ -2,6 +2,7 @@
 import { ChevronRight, LogOut, Settings as SettingsIcon, User } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 
+import { ROUTE_PATHS } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth'
 
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ const authStore = useAuthStore()
 
 const handleLogout = async () => {
   await authStore.logout()
-  router.push('/login')
+  router.push(ROUTE_PATHS.LOGIN)
 }
 </script>
 
@@ -36,7 +37,7 @@ const handleLogout = async () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" class="w-56">
-        <DropdownMenuItem @click="router.push('/settings')">
+        <DropdownMenuItem @click="router.push(ROUTE_PATHS.SETTINGS)">
           <SettingsIcon class="w-4 h-4 mr-2" />
           Account Settings
         </DropdownMenuItem>

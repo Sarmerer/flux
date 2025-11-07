@@ -5,7 +5,7 @@ import { Clock, FolderOpen, Plus, Table, Workflow } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { ROUTE_PATHS } from '@/constants/routes'
+import { ROUTE_PATHS, buildPath } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth'
 
 import { Badge } from '@/components/ui/badge'
@@ -35,11 +35,11 @@ const activeWorkflows = computed(() => {
 })
 
 const handleProjectCreate = () => {
-  router.push('/projects/new')
+  router.push(ROUTE_PATHS.PROJECTS_NEW)
 }
 
 const handleProjectClick = (projectId: string) => {
-  router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
+  router.push(buildPath.project(projectId))
 }
 </script>
 
@@ -129,7 +129,7 @@ const handleProjectClick = (projectId: string) => {
               </div>
 
               <div v-if="projects && projects.length > 5" class="pt-2">
-                <Button variant="ghost" size="sm" class="w-full" @click="router.push('/projects')">
+                <Button variant="ghost" size="sm" class="w-full" @click="router.push(ROUTE_PATHS.PROJECTS)">
                   View All Projects ({{ projects.length }})
                 </Button>
               </div>

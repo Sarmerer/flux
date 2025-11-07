@@ -3,6 +3,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { ROUTE_PATHS } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -30,7 +31,7 @@ const handleSubmit = async (e: Event) => {
     await authStore.login(email.value, password.value)
 
     const redirect = route.query.redirect as string
-    router.push(redirect || '/')
+    router.push(redirect || ROUTE_PATHS.HOME)
   } catch (error) {
   } finally {
     isLoading.value = false
@@ -107,7 +108,7 @@ const togglePasswordVisibility = () => {
           <div class="mt-6 text-center">
             <p class="text-sm text-gray-600">
               Don't have an account?
-              <router-link to="/register" class="font-medium text-blue-600 hover:text-blue-500">
+              <router-link :to="ROUTE_PATHS.REGISTER" class="font-medium text-blue-600 hover:text-blue-500">
                 Sign up
               </router-link>
             </p>

@@ -2,6 +2,7 @@
 import { Activity, LayoutGrid, Settings as SettingsIcon, Table, Users, Workflow } from 'lucide-vue-next'
 import { computed } from 'vue'
 
+import { ROUTE_NAMES } from '@/constants/routes'
 import { useActiveProjectStore } from '@/stores/activeProject'
 
 import {
@@ -23,8 +24,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            :to="{ name: 'ProjectOverview', params: { projectId: activeProjectId } }"
-            :active-routes="['ProjectDetail', 'ProjectOverview']"
+            :to="{ name: ROUTE_NAMES.PROJECT, params: { projectId: activeProjectId } }"
+            :active-routes="[ROUTE_NAMES.PROJECT]"
           >
             <LayoutGrid class="w-4 h-4" />
             <span>Overview</span>
@@ -32,8 +33,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            :to="{ name: 'Tables', params: { projectId: activeProjectId } }"
-            :active-routes="['Tables', 'TableDetail']"
+            :to="{ name: ROUTE_NAMES.PROJECT_TABLES, params: { projectId: activeProjectId } }"
+            :active-routes="[ROUTE_NAMES.PROJECT_TABLES, ROUTE_NAMES.PROJECT_TABLE_DETAIL]"
           >
             <Table class="w-4 h-4" />
             <span>Tables</span>
@@ -41,8 +42,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            :to="{ name: 'Workflows', params: { projectId: activeProjectId } }"
-            :active-routes="['Workflows', 'WorkflowDetail']"
+            :to="{ name: ROUTE_NAMES.PROJECT_WORKFLOWS, params: { projectId: activeProjectId } }"
+            :active-routes="[ROUTE_NAMES.PROJECT_WORKFLOWS, ROUTE_NAMES.PROJECT_WORKFLOW_DETAIL]"
           >
             <Workflow class="w-4 h-4" />
             <span>Workflows</span>
@@ -57,8 +58,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            :to="{ name: 'ProjectMembers', params: { projectId: activeProjectId } }"
-            :active-routes="['ProjectMembers']"
+            :to="{ name: ROUTE_NAMES.PROJECT_MEMBERS, params: { projectId: activeProjectId } }"
+            :active-routes="[ROUTE_NAMES.PROJECT_MEMBERS]"
           >
             <Users class="w-4 h-4" />
             <span>Members</span>
@@ -66,8 +67,8 @@ const activeProjectId = computed(() => activeProjectStore.activeProject?.id)
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton
-            :to="{ name: 'Activity', params: { projectId: activeProjectId } }"
-            :active-routes="['Activity']"
+            :to="{ name: ROUTE_NAMES.PROJECT_ACTIVITY, params: { projectId: activeProjectId } }"
+            :active-routes="[ROUTE_NAMES.PROJECT_ACTIVITY]"
           >
             <Activity class="w-4 h-4" />
             <span>Activity</span>

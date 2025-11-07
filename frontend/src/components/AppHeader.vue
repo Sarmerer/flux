@@ -14,7 +14,7 @@ import {
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { ROUTE_PATHS } from '@/constants/routes'
+import { ROUTE_PATHS, buildPath } from '@/constants/routes'
 import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
 
@@ -43,7 +43,7 @@ const activeProject = computed(() => activeProjectStore.activeProject)
 const showQuickActions = computed(() => !!activeProject.value)
 
 const handleProjectSelect = (projectId: string) => {
-  router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
+  router.push(buildPath.project(projectId))
 }
 
 const handleQuickAction = (action: string) => {
@@ -54,17 +54,17 @@ const handleQuickAction = (action: string) => {
 
   switch (action) {
     case 'table':
-      router.push(`${ROUTE_PATHS.PROJECT_TABLES(activeProject.value.id)}?action=create`)
+      router.push(`${buildPath.projectTables(activeProject.value.id)}?action=create`)
       break
     case 'workflow':
-      router.push(`${ROUTE_PATHS.PROJECT_WORKFLOWS(activeProject.value.id)}?action=create`)
+      router.push(`${buildPath.projectWorkflows(activeProject.value.id)}?action=create`)
       break
   }
 }
 
 const handleLogout = async () => {
   await authStore.logout()
-  router.push('/login')
+  router.push(ROUTE_PATHS.LOGIN)
 }
 </script>
 
@@ -124,12 +124,12 @@ const handleLogout = async () => {
               </DropdownMenuItem>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem @click="router.push('/projects')" class="cursor-pointer">
+            <DropdownMenuItem @click="router.push(ROUTE_PATHS.PROJECTS)" class="cursor-pointer">
               <FolderOpen class="w-4 h-4 mr-2" />
               View All Projects
             </DropdownMenuItem>
             <DropdownMenuItem
-              @click="router.push('/projects/new')"
+              @click="router.push(ROUTE_PATHS.PROJECTS_NEW)"
               class="cursor-pointer font-medium"
             >
               <Plus class="w-4 h-4 mr-2" />
@@ -198,7 +198,7 @@ const handleLogout = async () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-56">
-          <DropdownMenuItem @click="router.push('/settings')">
+          <DropdownMenuItem @click="router.push(ROUTE_PATHS.SETTINGS)">
             <SettingsIcon class="w-4 h-4 mr-2" />
             Account Settings
           </DropdownMenuItem>

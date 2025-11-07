@@ -5,7 +5,7 @@ import { Calendar, FolderOpen, Plus, Search, Settings, Trash2 } from 'lucide-vue
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { ROUTE_PATHS } from '@/constants/routes'
+import { ROUTE_PATHS, buildPath } from '@/constants/routes'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,7 +33,7 @@ const filteredProjects = computed(() => {
 })
 
 const handleProjectClick = (projectId: string) => {
-  router.push(ROUTE_PATHS.PROJECT_DETAIL(projectId))
+  router.push(buildPath.project(projectId))
 }
 
 const handleProjectDelete = async (projectId: string, event: Event) => {
@@ -56,7 +56,7 @@ const handleProjectDelete = async (projectId: string, event: Event) => {
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Projects</h1>
         <p class="text-gray-600 dark:text-gray-400">Manage your database projects</p>
       </div>
-      <Button class="flex items-center space-x-2" @click="router.push('/projects/new')">
+      <Button class="flex items-center space-x-2" @click="router.push(ROUTE_PATHS.PROJECTS_NEW)">
         <Plus class="w-4 h-4" />
         <span>New Project</span>
       </Button>
