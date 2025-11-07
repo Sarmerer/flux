@@ -5,7 +5,7 @@ import { CheckCircle, Plus, Search, Workflow as WorkflowIcon, Zap } from 'lucide
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import type { Workflow } from '@/types/api'
+import type { Workflow } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

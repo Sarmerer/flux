@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { ProjectMember, ProjectMemberWithUser, Permission, Role } from '@/types/auth'
+import type { ProjectMember, ProjectMemberWithUser, Permission, Role } from '@/types'
 import { projectMemberService } from '@/api/services/projectMember'
 
 export const useProjectMemberStore = defineStore('projectMember', () => {

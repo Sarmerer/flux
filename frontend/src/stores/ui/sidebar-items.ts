@@ -2,7 +2,7 @@ import { FolderOpen, Home, LogOut, Settings } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 
 import { ROUTE_PATHS } from '@/constants/routes'
-import type { SidebarItem } from '@/types/sidebar'
+import type { SidebarItem } from '@/types'
 import { defineStore } from 'pinia'
 
 export const useSidebarItemsStore = defineStore('sidebar-items', () => {

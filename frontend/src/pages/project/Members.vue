@@ -6,7 +6,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { useAuthStore } from '@/stores/auth'
 import { useProjectMemberStore } from '@/stores/projectMember'
-import type { ProjectMemberWithUser } from '@/types/auth'
+import type { ProjectMemberWithUser } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'

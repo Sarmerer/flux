@@ -4,7 +4,7 @@ export interface LoadingSpinnerProps {
   text?: string
 }
 
-const props = withDefaults(defineProps<LoadingSpinnerProps>(), {
+withDefaults(defineProps<LoadingSpinnerProps>(), {
   size: 'md',
 })
 

@@ -2,7 +2,7 @@ import { computed } from 'vue'
 
 import { workflowService } from '@/api/services/workflow'
 import { useCacheStore } from '@/stores/cache'
-import type { Workflow, WorkflowCreateRequest, WorkflowUpdateRequest } from '@/types/api'
+import type { Workflow, WorkflowCreateRequest, WorkflowUpdateRequest } from '@/types'
 
 import { useResourceCache } from '../data/useResourceCache'
 

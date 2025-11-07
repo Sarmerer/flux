@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { useProjectMemberStore } from '@/stores/projectMember'
-import type { Permission, Role } from '@/types/auth'
+import type { Permission, Role } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'

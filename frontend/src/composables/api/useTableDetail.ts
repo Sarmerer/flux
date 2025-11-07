@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue'
 
 import { tableDataService } from '@/api/services/table/data'
 import { tableService } from '@/api/services/table/index'
-import type { Table, TableColumn } from '@/types/api'
+import type { Table, TableColumn } from '@/types'
 
 export interface TableDetailData {
   table: Table
@@ -63,14 +63,6 @@ export function useTableDetail(projectId: string, tableId: string) {
       console.error('Failed to parse table schema:', err)
       return []
     }
-  }
-
-  const inferType = (value: any): string => {
-    if (value === null || value === undefined) return 'varchar'
-    if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'numeric'
-    if (typeof value === 'boolean') return 'boolean'
-    if (value instanceof Date || /^\d{4}-\d{2}-\d{2}/.test(value)) return 'timestamp'
-    return 'varchar'
   }
 
   watch(

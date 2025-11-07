@@ -2,7 +2,7 @@
 import { Globe, Plus, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
-import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
+import type { WorkflowAction, WorkflowTrigger } from '@/types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

@@ -11,7 +11,7 @@ import {
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
-import type { ActivityLog } from '@/types/api'
+import type { ActivityLog } from '@/types'
 
 export function useActivityFormatting() {
   const getActivityIcon = (activity: ActivityLog): Component => {

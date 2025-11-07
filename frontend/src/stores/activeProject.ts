@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 import { projectService } from '@/api/services/project'
-import type { Project } from '@/types/api'
+import type { Project } from '@/types'
 import { defineStore } from 'pinia'
 
 export const useActiveProjectStore = defineStore('project', () => {

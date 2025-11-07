@@ -1,4 +1,4 @@
-import type { Table } from '@/types/api'
+import type { Table } from '@/types'
 
 import { http } from '../../http-client'
 

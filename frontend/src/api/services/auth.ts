@@ -1,4 +1,4 @@
-import type { User } from '@/types/auth'
+import type { User } from '@/types'
 import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 import { http } from '../http-client'

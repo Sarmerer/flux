@@ -30,7 +30,7 @@ import { useActivityFormatting } from '@/composables/formatting/useActivityForma
 import { useTables } from '@/composables/api/useTables'
 import { useWorkflows } from '@/composables/api/useWorkflows'
 import { useRouteContext } from '@/composables/routing'
-import type { ActivityLog } from '@/types/api'
+import type { ActivityLog } from '@/types'
 
 const router = useRouter()
 const { formatDate } = useFormatting()

@@ -4,7 +4,7 @@ import { ROUTE_NAMES, ROUTE_PATHS } from '@/constants/routes'
 import { useActiveProjectStore } from '@/stores/activeProject'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectMemberStore } from '@/stores/projectMember'
-import type { Permission, Role } from '@/types/auth'
+import type { Permission, Role } from '@/types'
 
 declare module 'vue-router' {
   interface RouteMeta {

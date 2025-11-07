@@ -1,4 +1,4 @@
-import type { ActivityLog } from '@/types/api'
+import type { ActivityLog } from '@/types'
 
 import { http } from '../http-client'
 

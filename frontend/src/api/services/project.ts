@@ -1,4 +1,4 @@
-import type { Project } from '@/types/api'
+import type { Project } from '@/types'
 
 import { http } from '../http-client'
 

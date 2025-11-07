@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { useProjectMemberStore } from '@/stores/projectMember'
-import type { Permission, ProjectMemberWithUser, Role } from '@/types/auth'
+import type { Permission, ProjectMemberWithUser, Role } from '@/types'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'

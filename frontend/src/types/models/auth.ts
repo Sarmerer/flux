@@ -1,3 +1,5 @@
+import type { User } from './user'
+
 export type Role = 'admin' | 'manager' | 'developer' | 'viewer'
 
 export type Permission =
@@ -13,14 +15,6 @@ export type Permission =
   | 'tables.delete'
   | 'settings.manage'
   | 'users.manage'
-
-export interface User {
-  id: string
-  email: string
-  name: string
-  created_at: string
-  updated_at: string
-}
 
 export interface ProjectMember {
   id: string
@@ -40,20 +34,4 @@ export interface ProjectMemberWithUser {
   permissions: Permission[]
   created_at: string
   updated_at: string
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface RegisterData {
-  email: string
-  password: string
-  name: string
-}
-
-export interface AuthResponse {
-  user: User
-  token: string
 }

@@ -2,7 +2,7 @@
 import { Globe, Plus, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
-import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
+import type { WorkflowAction, WorkflowTrigger } from '@/types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -184,21 +184,6 @@ const handleSave = () => {
 
 const handleClose = () => {
   emit('close')
-}
-
-const resetForm = () => {
-  formData.value = {
-    name: '',
-    description: '',
-    trigger: {
-      type: 'on_row_created',
-      table_id: '',
-      conditions: {},
-    },
-    actions: [],
-    is_active: false,
-  }
-  validationErrors.value = {}
 }
 
 const getActionIcon = (actionType: string) => {

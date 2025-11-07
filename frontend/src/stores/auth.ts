@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 
 import { authService } from '@/api/services/auth'
-import type { User } from '@/types/auth'
+import type { User } from '@/types'
 import { defineStore } from 'pinia'
 import { AUTH_TOKEN_KEY } from '@/constants/auth'
 

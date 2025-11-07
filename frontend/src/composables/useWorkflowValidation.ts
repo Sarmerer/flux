@@ -1,4 +1,4 @@
-import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
+import type { WorkflowAction, WorkflowTrigger } from '@/types'
 
 export interface ValidationResult {
   valid: boolean

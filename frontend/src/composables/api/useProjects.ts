@@ -2,7 +2,7 @@ import { computed } from 'vue'
 
 import { projectService } from '@/api/services/project'
 import { useCacheStore } from '@/stores/cache'
-import type { Project } from '@/types/api'
+import type { Project } from '@/types'
 
 import { useResourceCache } from '../data/useResourceCache'
 

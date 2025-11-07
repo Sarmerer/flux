@@ -1,5 +1,5 @@
 import { useProjectMemberStore } from '@/stores/projectMember'
-import type { Permission, Role } from '@/types/auth'
+import type { Permission, Role } from '@/types'
 
 export function usePermissions() {
   const projectMemberStore = useProjectMemberStore()

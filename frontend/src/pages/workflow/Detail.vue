@@ -5,7 +5,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { WORKFLOW_ACTION_TYPES, WORKFLOW_TRIGGER_TYPES } from '@/constants/workflows'
-import type { WorkflowAction, WorkflowTrigger } from '@/types/api'
+import type { WorkflowAction, WorkflowTrigger } from '@/types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-import type { TableColumn } from '@/types/table'
+import type { TableColumn } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -151,38 +151,6 @@ const getInputType = (columnType: string): string => {
 const isTextArea = (columnType: string): boolean => {
   const upperType = columnType.toUpperCase()
   return upperType === 'TEXT' || upperType === 'JSON' || upperType === 'JSONB'
-}
-
-const formatValueForInput = (value: any, columnType: string): any => {
-  if (value === null || value === undefined) return ''
-
-  const upperType = columnType.toUpperCase()
-
-  if (upperType === 'JSON' || upperType === 'JSONB') {
-    if (typeof value === 'object') {
-      return JSON.stringify(value, null, 2)
-    }
-    return value
-  }
-
-  if (upperType.includes('TIMESTAMP')) {
-    if (typeof value === 'string') {
-      try {
-        const date = new Date(value)
-        return date.toISOString().slice(0, 16)
-      } catch {
-        return value
-      }
-    }
-  }
-
-  if (upperType === 'DATE') {
-    if (typeof value === 'string') {
-      return value.split('T')[0]
-    }
-  }
-
-  return value
 }
 </script>
 

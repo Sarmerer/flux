@@ -1,4 +1,4 @@
-import type { Workflow, WorkflowCreateRequest, WorkflowUpdateRequest } from '@/types/api'
+import type { Workflow, WorkflowCreateRequest, WorkflowUpdateRequest } from '@/types'
 
 import { http } from '../http-client'
 
