@@ -1,25 +1,13 @@
 <script setup lang="ts">
 import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
+import TableDataView from '@/components/tables/TableDataView.vue'
 import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
-import {
-  ChevronLeft,
-  ChevronRight,
-  Database,
-  Key,
-  Pencil,
-  Plus,
-  Search,
-  Settings2,
-  Sparkles,
-  Table as TableIcon,
-  Trash2,
-} from 'lucide-vue-next'
+import { Database, Pencil, Plus, Search, Table as TableIcon, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,9 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { useTables, useTableData } from '@/composables/api'
+import { useTableData, useTables } from '@/composables/api'
 import { useTableDetail } from '@/composables/api/useTableDetail'
 import { useDrawers } from '@/composables/drawerRegistry'
 import { useRouteContext } from '@/composables/routing'
@@ -41,7 +28,12 @@ import { useToast } from '@/composables/ui'
 const router = useRouter()
 const toast = useToast()
 const sidebarStore = useSidebarItemsStore()
-const { openTableEditor: openTableEditorDrawer, openInsertRow, openEditRow, openDeleteRow } = useDrawers()
+const {
+  openTableEditor: openTableEditorDrawer,
+  openInsertRow,
+  openEditRow,
+  openDeleteRow,
+} = useDrawers()
 
 const { projectId, tableId } = useRouteContext()
 
@@ -49,8 +41,14 @@ const { tables, loading: isLoading, createTable, deleteTable } = useTables(proje
 
 const {
   data: tableDetail,
+  columns: tableColumns,
+  rows: tableRows,
+  totalRows,
   loading: tableDetailLoading,
+  currentPage,
+  pageLimit,
   refresh: refreshTableDetail,
+  goToPage,
 } = useTableDetail(projectId.value, tableId.value ?? '')
 
 const { insertRow, updateRow, deleteRow } = useTableData(projectId.value, tableId.value ?? '')
@@ -66,14 +64,8 @@ watch(
 )
 
 const searchQuery = ref('')
-const activeTab = ref('data')
-
 const isDeleteTableDialogOpen = ref(false)
 const tableToDelete = ref<string | null>(null)
-
-const currentPage = ref(1)
-const pageLimit = ref(50)
-const totalRows = ref(0)
 
 const filteredTables = computed(() => {
   if (!tables.value || !Array.isArray(tables.value)) return []
@@ -91,16 +83,6 @@ const selectedTable = computed(() => {
   return tables.value.find((t: any) => t.id === tableId.value)
 })
 
-const tableColumns = computed(() => {
-  if (!tableDetail.value) return []
-  return tableDetail.value.columns
-})
-
-const tableRows = computed(() => {
-  if (!tableDetail.value) return []
-  return tableDetail.value.rows ?? []
-})
-
 const openTableEditor = () => {
   openTableEditorDrawer({
     props: { mode: 'create' },
@@ -114,9 +96,7 @@ const openTableEditor = () => {
             nullable: col.nullable,
             default_value: col.default_value || undefined,
           })),
-          primary_key: data.columns
-            .filter((col) => col.primary_key)
-            .map((col) => col.name),
+          primary_key: data.columns.filter((col) => col.primary_key).map((col) => col.name),
           indexes: [],
           foreign_keys: data.foreignKeys.map((fk) => ({
             column: fk.column,
@@ -143,12 +123,39 @@ const openTableEditor = () => {
   })
 }
 
-const handleSelectTable = (id: string) => {
-  router.push(`/projects/${projectId.value}/tables/${id}`)
+const openEditTableSchema = () => {
+  if (!selectedTable.value || !tableDetail.value) return
+
+  const initialData: TableFormData = {
+    name: selectedTable.value.name,
+    description: selectedTable.value.description || '',
+    columns: tableColumns.value.map((col) => ({
+      name: col.name,
+      type: col.type,
+      nullable: col.is_nullable,
+      primary_key: col.is_primary_key || false,
+      default_value: col.default_value || '',
+      is_identity: col.is_identity || false,
+      unique: col.unique || false,
+    })),
+    foreignKeys: [],
+  }
+
+  openTableEditorDrawer({
+    props: {
+      mode: 'edit',
+      tableId: selectedTable.value.id,
+      initialData,
+    },
+    width: 'w-[600px] sm:max-w-[600px]',
+    onSave: async () => {
+      toast.info('Info', 'Schema editing is not yet implemented')
+    },
+  })
 }
 
-const openAddColumnDrawer = () => {
-  toast.info('Info', 'Please use the table editor to add columns')
+const handleSelectTable = (id: string) => {
+  router.push(`/projects/${projectId.value}/tables/${id}`)
 }
 
 const openInsertRowDrawer = () => {
@@ -204,55 +211,6 @@ const openDeleteRowDrawer = (row: Record<string, any>) => {
   })
 }
 
-const totalPages = computed(() => Math.ceil(totalRows.value / pageLimit.value))
-
-const canGoToPreviousPage = computed(() => currentPage.value > 1)
-const canGoToNextPage = computed(() => currentPage.value < totalPages.value)
-
-const goToPreviousPage = () => {
-  if (canGoToPreviousPage.value) {
-    currentPage.value--
-    refreshTableDetail()
-  }
-}
-
-const goToNextPage = () => {
-  if (canGoToNextPage.value) {
-    currentPage.value++
-    refreshTableDetail()
-  }
-}
-
-const formatCellValue = (value: any, columnType: string): string => {
-  if (value === null || value === undefined) return '-'
-
-  const upperType = columnType.toUpperCase()
-
-  if (upperType === 'JSON' || upperType === 'JSONB') {
-    if (typeof value === 'object') {
-      const str = JSON.stringify(value)
-      return str.length > 50 ? str.substring(0, 50) + '...' : str
-    }
-  }
-
-  if (upperType === 'BOOLEAN' || upperType === 'BOOL') {
-    return value ? 'true' : 'false'
-  }
-
-  if (upperType.includes('TIMESTAMP') || upperType === 'DATE') {
-    try {
-      const date = new Date(value)
-      return date.toLocaleString()
-    } catch {
-      return String(value)
-    }
-  }
-
-  const str = String(value)
-  return str.length > 100 ? str.substring(0, 100) + '...' : str
-}
-
-
 const handleDeleteTable = (id: string) => {
   tableToDelete.value = id
   isDeleteTableDialogOpen.value = true
@@ -275,13 +233,6 @@ const confirmDeleteTable = async () => {
     toast.error('Error', error.message || 'Failed to delete table')
   }
 }
-
-watch(tableId, () => {
-  if (tableId.value) {
-    currentPage.value = 1
-    refreshTableDetail()
-  }
-})
 </script>
 
 <template>
@@ -354,7 +305,7 @@ watch(tableId, () => {
           <div>
             <h3 class="text-lg font-semibold mb-1">Select a table</h3>
             <p class="text-sm text-muted-foreground">
-              Choose a table from the list to view its data and schema
+              Choose a table from the list to view and manage its data
             </p>
           </div>
           <Button @click="openTableEditor">
@@ -364,258 +315,60 @@ watch(tableId, () => {
         </div>
       </div>
 
-      <div v-else class="flex-1 flex flex-col">
-        <div class="border-b px-6 py-4">
+      <div v-else class="flex-1 flex flex-col overflow-hidden">
+        <div class="border-b px-6 py-3 bg-background">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-2xl font-bold">{{ selectedTable?.name }}</h1>
-              <p class="text-sm text-muted-foreground mt-1">
-                {{ selectedTable?.description || 'No description' }}
+              <h1 class="text-xl font-semibold">{{ selectedTable?.name }}</h1>
+              <p v-if="selectedTable?.description" class="text-xs text-muted-foreground mt-0.5">
+                {{ selectedTable.description }}
               </p>
             </div>
             <div class="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Settings2 class="w-4 h-4 mr-2" />
-                Settings
+              <Button variant="outline" size="sm" @click="openEditTableSchema" class="h-8">
+                <Pencil class="w-3.5 h-3.5 mr-2" />
+                Edit Schema
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 @click="handleDeleteTable(selectedTable!.id)"
-                class="text-destructive hover:text-destructive hover:bg-destructive/10"
+                class="text-destructive hover:text-destructive hover:bg-destructive/10 h-8"
               >
-                <Trash2 class="w-4 h-4 mr-2" />
+                <Trash2 class="w-3.5 h-3.5 mr-2" />
                 Delete
               </Button>
             </div>
           </div>
         </div>
 
-        <Tabs v-model="activeTab" class="flex-1 flex flex-col">
-          <div class="border-b px-6">
-            <TabsList class="h-11 bg-transparent p-0">
-              <TabsTrigger value="data" class="h-11">Data</TabsTrigger>
-              <TabsTrigger value="schema" class="h-11">Schema</TabsTrigger>
-            </TabsList>
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <div class="px-6 py-3 border-b bg-background flex items-center justify-between">
+            <div class="text-sm text-muted-foreground">
+              {{ totalRows }} {{ totalRows === 1 ? 'row' : 'rows' }}
+            </div>
+            <Button variant="default" size="sm" @click="openInsertRowDrawer" class="h-8">
+              <Plus class="w-4 h-4 mr-2" />
+              Insert Row
+            </Button>
           </div>
 
-          <div class="flex-1 overflow-auto">
-            <TabsContent value="data" class="m-0 p-6 h-full">
-              <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
-                <div class="space-y-4">
-                  <div class="flex items-center justify-between">
-                    <div class="text-sm text-muted-foreground">{{ tableRows.length }} rows</div>
-                    <div class="flex items-center gap-2">
-                      <Button variant="outline" size="sm" @click="openInsertRowDrawer">
-                        <Plus class="w-4 h-4 mr-2" />
-                        Insert Row
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div class="border rounded-lg overflow-hidden">
-                    <div class="overflow-x-auto">
-                      <table class="w-full">
-                        <thead class="bg-muted/50">
-                          <tr>
-                            <th
-                              v-for="column in tableColumns"
-                              :key="column.name"
-                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                            >
-                              {{ column.name }}
-                            </th>
-                            <th
-                              class="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider w-24"
-                            >
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border bg-background">
-                          <tr
-                            v-for="(row, idx) in tableRows"
-                            :key="idx"
-                            class="hover:bg-muted/30 transition-colors group"
-                          >
-                            <td
-                              v-for="column in tableColumns"
-                              :key="column.name"
-                              class="px-4 py-3 text-sm text-foreground"
-                            >
-                              <div
-                                class="max-w-xs truncate"
-                                :title="String(row[column.name] ?? '-')"
-                              >
-                                {{ formatCellValue(row[column.name], column.type) }}
-                              </div>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                              <div
-                                class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  @click="openEditRowDrawer(row)"
-                                  class="h-8 w-8 p-0"
-                                >
-                                  <Pencil class="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  @click="openDeleteRowDrawer(row)"
-                                  class="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 class="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                          <tr v-if="tableRows.length === 0">
-                            <td
-                              :colspan="tableColumns.length + 1"
-                              class="px-4 py-8 text-center text-sm text-muted-foreground"
-                            >
-                              No data yet
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div v-if="tableRows.length > 0" class="flex items-center justify-between pt-4">
-                    <div class="text-sm text-muted-foreground">
-                      Page {{ currentPage }} of {{ totalPages || 1 }}
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        @click="goToPreviousPage"
-                        :disabled="!canGoToPreviousPage"
-                      >
-                        <ChevronLeft class="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        @click="goToNextPage"
-                        :disabled="!canGoToNextPage"
-                      >
-                        <ChevronRight class="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </LoadingWrapper>
-            </TabsContent>
-
-            <TabsContent value="schema" class="m-0 p-6 h-full">
-              <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading schema...">
-                <div class="space-y-4">
-                  <div class="flex items-center justify-between">
-                    <div class="text-sm text-muted-foreground">
-                      {{ tableColumns.length }} columns
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <Button variant="outline" size="sm" @click="openAddColumnDrawer">
-                        <Plus class="w-4 h-4 mr-2" />
-                        Add Column
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div class="border rounded-lg overflow-hidden">
-                    <div class="overflow-x-auto">
-                      <table class="w-full">
-                        <thead class="bg-muted/50">
-                          <tr>
-                            <th
-                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                            >
-                              Name
-                            </th>
-                            <th
-                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                            >
-                              Type
-                            </th>
-                            <th
-                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                            >
-                              Constraints
-                            </th>
-                            <th
-                              class="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                            >
-                              Default
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border bg-background">
-                          <tr
-                            v-for="column in tableColumns"
-                            :key="column.name"
-                            class="hover:bg-muted/30 transition-colors"
-                          >
-                            <td class="px-4 py-3 text-sm font-medium text-foreground">
-                              <div class="flex items-center gap-2">
-                                {{ column.name }}
-                                <Key
-                                  v-if="column.is_primary_key"
-                                  class="w-3.5 h-3.5 text-amber-500"
-                                  title="Primary Key"
-                                />
-                              </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-muted-foreground">
-                              {{ column.type }}
-                            </td>
-                            <td class="px-4 py-3 text-sm">
-                              <div class="flex flex-wrap gap-1">
-                                <Badge
-                                  v-if="column.is_identity"
-                                  variant="secondary"
-                                  class="text-xs"
-                                >
-                                  <Sparkles class="w-3 h-3 mr-1" />
-                                  Auto
-                                </Badge>
-                                <Badge v-if="!column.is_nullable" variant="outline" class="text-xs">
-                                  NOT NULL
-                                </Badge>
-                                <Badge v-if="column.unique" variant="outline" class="text-xs">
-                                  UNIQUE
-                                </Badge>
-                                <span
-                                  v-if="column.is_nullable && !column.unique && !column.is_identity"
-                                  class="text-muted-foreground"
-                                  >-</span
-                                >
-                              </div>
-                            </td>
-                            <td class="px-4 py-3 text-sm text-muted-foreground">
-                              <code
-                                v-if="column.default_value"
-                                class="text-xs bg-muted px-1.5 py-0.5 rounded"
-                              >
-                                {{ column.default_value }}
-                              </code>
-                              <span v-else>-</span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </LoadingWrapper>
-            </TabsContent>
+          <div class="flex-1 overflow-auto px-6 py-4">
+            <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
+              <TableDataView
+                :columns="tableColumns"
+                :rows="tableRows"
+                :total-rows="totalRows"
+                :current-page="currentPage"
+                :page-size="pageLimit"
+                :on-page-change="goToPage"
+                @page-change="goToPage"
+                @edit-row="openEditRowDrawer"
+                @delete-row="openDeleteRowDrawer"
+              />
+            </LoadingWrapper>
           </div>
-        </Tabs>
+        </div>
       </div>
     </div>
 

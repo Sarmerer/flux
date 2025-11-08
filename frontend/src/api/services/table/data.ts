@@ -2,7 +2,7 @@ import { http } from '../../http-client'
 
 export const tableDataService = {
   get(projectId: string, tableId: string, page = 1, limit = 50) {
-    return http.get<{ rows: any[]; total: number; page: number; limit: number }>(
+    return http.get<{ data: any[]; total: number; page: number; limit: number }>(
       `/projects/${projectId}/tables/${tableId}/data?page=${page}&limit=${limit}`
     )
   },
