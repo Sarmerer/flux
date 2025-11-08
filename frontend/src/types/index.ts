@@ -9,6 +9,10 @@ export type {
   TableData,
   BaseDatabaseMutation,
   DatabaseMutation,
+  ColumnInfo,
+  ForeignKeyInfo,
+  IndexInfo,
+  TableSchemaInfo,
 } from './models/table'
 export type {
   Workflow,

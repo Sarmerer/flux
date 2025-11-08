@@ -30,11 +30,12 @@ type Container struct {
 	DatabaseRepo      repositories.DatabaseRepository
 	ProjectMemberRepo repositories.ProjectMemberRepository
 
-	ConnService         *database.ConnectionService
-	PgManagementService *database.PostgreSQLManagementService
+	ConnService             *database.ConnectionService
+	PgManagementService     *database.PostgreSQLManagementService
 	SchemaManagementService *database.SchemaManagementService
-	ProjectConnResolver *database.ProjectConnectionResolver
-	MigrationRunner     *database.ProjectMigrationRunner
+	SchemaInspectionService *database.SchemaInspectionService
+	ProjectConnResolver     *database.ProjectConnectionResolver
+	MigrationRunner         *database.ProjectMigrationRunner
 
 	UserService      *services.UserService
 	ProjectService   *services.ProjectService
@@ -132,6 +133,7 @@ func (c *Container) initInfrastructure(ctx context.Context) error {
 	c.ConnService = database.NewConnectionService(c.DB)
 	c.PgManagementService = database.NewPostgreSQLManagementService(c.ConnService)
 	c.SchemaManagementService = database.NewSchemaManagementService(c.ConnService)
+	c.SchemaInspectionService = database.NewSchemaInspectionService()
 
 	return nil
 }
@@ -172,6 +174,7 @@ func (c *Container) initServices() {
 		repoFactory,
 		c.ProjectConnResolver,
 		c.SchemaManagementService,
+		c.SchemaInspectionService,
 	)
 
 	c.TableDataService = services.NewTableDataService(

@@ -3,11 +3,46 @@ export interface Table {
   name: string
   description?: string
   project_id: string
-  schema: string
+  schema?: TableSchemaInfo
   columns?: number
   rows?: number
   created_at: string
   updated_at: string
+}
+
+export interface ColumnInfo {
+  name: string
+  data_type: string
+  is_nullable: boolean
+  default_value?: string | null
+  max_length?: number | null
+  numeric_precision?: number | null
+  numeric_scale?: number | null
+  ordinal_position: number
+}
+
+export interface ForeignKeyInfo {
+  constraint_name: string
+  column_names: string[]
+  referenced_table: string
+  referenced_columns: string[]
+  update_rule: string
+  delete_rule: string
+}
+
+export interface IndexInfo {
+  name: string
+  column_names: string[]
+  is_unique: boolean
+  is_primary: boolean
+  index_type: string
+}
+
+export interface TableSchemaInfo {
+  columns: ColumnInfo[]
+  primary_keys: string[]
+  foreign_keys: ForeignKeyInfo[]
+  indexes: IndexInfo[]
 }
 
 export interface TableColumn {

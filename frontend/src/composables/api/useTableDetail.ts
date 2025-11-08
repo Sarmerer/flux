@@ -2,7 +2,13 @@ import { computed, ref, watch } from 'vue'
 
 import { tableDataService } from '@/api/services/table/data'
 import { tableService } from '@/api/services/table/index'
-import type { Table, TableColumn } from '@/types'
+import type {
+  Table,
+  TableColumn,
+  TableSchemaInfo,
+  ForeignKeyInfo,
+  ColumnInfo,
+} from '@/types'
 
 export interface TableDetailData {
   table: Table
@@ -29,7 +35,7 @@ export function useTableDetail(projectId: string, tableId: string) {
 
       const tableDataResponse = await tableDataService.get(projectId, tableId, 1, 50)
 
-      const columns = extractColumnsFromSchema(table.schema)
+      const columns = extractColumnsFromSchemaInfo(table.schema)
 
       data.value = {
         table,
@@ -45,24 +51,35 @@ export function useTableDetail(projectId: string, tableId: string) {
     }
   }
 
-  const extractColumnsFromSchema = (schemaJson: string): TableColumn[] => {
-    try {
-      const schema = JSON.parse(schemaJson)
-      if (!schema.columns || !Array.isArray(schema.columns)) {
-        return []
-      }
-
-      return schema.columns.map((col: any) => ({
-        name: col.name,
-        type: col.type || 'varchar',
-        is_nullable: col.nullable !== false,
-        is_primary_key: schema.primary_key?.includes(col.name) || false,
-        default_value: col.default_value,
-      }))
-    } catch (err) {
-      console.error('Failed to parse table schema:', err)
+  const extractColumnsFromSchemaInfo = (
+    schemaInfo?: TableSchemaInfo
+  ): TableColumn[] => {
+    if (!schemaInfo?.columns || !Array.isArray(schemaInfo.columns)) {
       return []
     }
+
+    const foreignKeyMap = new Map<string, ForeignKeyInfo>()
+    schemaInfo.foreign_keys?.forEach((fk: ForeignKeyInfo) => {
+      fk.column_names.forEach((colName: string) => {
+        foreignKeyMap.set(colName, fk)
+      })
+    })
+
+    return schemaInfo.columns.map((col: ColumnInfo) => {
+      const foreignKey = foreignKeyMap.get(col.name)
+      const isPrimaryKey = schemaInfo.primary_keys?.includes(col.name) || false
+
+      return {
+        name: col.name,
+        type: col.data_type,
+        is_nullable: col.is_nullable,
+        is_primary_key: isPrimaryKey,
+        default_value: col.default_value || undefined,
+        is_foreign_key: !!foreignKey,
+        foreign_table: foreignKey?.referenced_table,
+        foreign_column: foreignKey?.referenced_columns[0],
+      }
+    })
   }
 
   watch(

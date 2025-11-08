@@ -11,7 +11,6 @@ type Table struct {
 	ProjectID   uuid.UUID `json:"project_id" db:"project_id"`
 	Name        string    `json:"name" db:"name"`
 	Description string    `json:"description" db:"description"`
-	Schema      string    `json:"schema" db:"schema"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -28,13 +27,13 @@ type TableUpdateRequest struct {
 }
 
 type TableResponse struct {
-	ID          uuid.UUID `json:"id"`
-	ProjectID   uuid.UUID `json:"project_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Schema      string    `json:"schema"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uuid.UUID          `json:"id"`
+	ProjectID   uuid.UUID          `json:"project_id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Schema      *TableSchemaInfo   `json:"schema,omitempty"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
 }
 
 func (t *Table) ToResponse() TableResponse {
@@ -43,7 +42,6 @@ func (t *Table) ToResponse() TableResponse {
 		ProjectID:   t.ProjectID,
 		Name:        t.Name,
 		Description: t.Description,
-		Schema:      t.Schema,
 		CreatedAt:   t.CreatedAt,
 		UpdatedAt:   t.UpdatedAt,
 	}

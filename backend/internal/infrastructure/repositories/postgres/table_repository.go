@@ -22,21 +22,21 @@ func NewTableRepository(db *pgxpool.Pool) repositories.TableRepository {
 
 func (r *TableRepository) Create(ctx context.Context, table *entities.Table) error {
 	query := `
-		INSERT INTO tables (id, name, schema, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO tables (id, name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
 	`
-	_, err := r.db.Exec(ctx, query, table.ID, table.Name, table.Schema, table.CreatedAt, table.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, table.ID, table.Name, table.CreatedAt, table.UpdatedAt)
 	return err
 }
 
 func (r *TableRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Table, error) {
 	query := `
-		SELECT id, name, schema, created_at, updated_at
+		SELECT id, name, created_at, updated_at
 		FROM tables WHERE id = $1
 	`
 	var table entities.Table
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&table.ID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt,
+		&table.ID, &table.Name, &table.CreatedAt, &table.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -49,7 +49,7 @@ func (r *TableRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.
 
 func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]*entities.Table, error) {
 	query := `
-		SELECT id, name, schema, created_at, updated_at
+		SELECT id, name, created_at, updated_at
 		FROM tables
 		ORDER BY created_at DESC
 	`
@@ -62,7 +62,7 @@ func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUI
 	var tables []*entities.Table
 	for rows.Next() {
 		var table entities.Table
-		err := rows.Scan(&table.ID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt)
+		err := rows.Scan(&table.ID, &table.Name, &table.CreatedAt, &table.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -75,11 +75,11 @@ func (r *TableRepository) GetByProjectID(ctx context.Context, projectID uuid.UUI
 
 func (r *TableRepository) Update(ctx context.Context, table *entities.Table) error {
 	query := `
-		UPDATE tables 
-		SET name = $2, schema = $3, updated_at = $4
+		UPDATE tables
+		SET name = $2, updated_at = $3
 		WHERE id = $1
 	`
-	_, err := r.db.Exec(ctx, query, table.ID, table.Name, table.Schema, table.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, table.ID, table.Name, table.UpdatedAt)
 	return err
 }
 
@@ -91,7 +91,7 @@ func (r *TableRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *TableRepository) List(ctx context.Context, limit, offset int) ([]*entities.Table, error) {
 	query := `
-		SELECT id, name, schema, created_at, updated_at
+		SELECT id, name, created_at, updated_at
 		FROM tables
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -105,7 +105,7 @@ func (r *TableRepository) List(ctx context.Context, limit, offset int) ([]*entit
 	var tables []*entities.Table
 	for rows.Next() {
 		var table entities.Table
-		err := rows.Scan(&table.ID, &table.Name, &table.Schema, &table.CreatedAt, &table.UpdatedAt)
+		err := rows.Scan(&table.ID, &table.Name, &table.CreatedAt, &table.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

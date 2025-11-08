@@ -16,20 +16,23 @@ import (
 )
 
 type TableService struct {
-	repoFactory   *ProjectRepositoryFactory
-	resolver      *database.ProjectConnectionResolver
-	schemaService *database.SchemaManagementService
+	repoFactory       *ProjectRepositoryFactory
+	resolver          *database.ProjectConnectionResolver
+	schemaService     *database.SchemaManagementService
+	schemaInspector   *database.SchemaInspectionService
 }
 
 func NewTableService(
 	repoFactory *ProjectRepositoryFactory,
 	resolver *database.ProjectConnectionResolver,
 	schemaService *database.SchemaManagementService,
+	schemaInspector *database.SchemaInspectionService,
 ) *TableService {
 	return &TableService{
-		repoFactory:   repoFactory,
-		resolver:      resolver,
-		schemaService: schemaService,
+		repoFactory:     repoFactory,
+		resolver:        resolver,
+		schemaService:   schemaService,
+		schemaInspector: schemaInspector,
 	}
 }
 
@@ -49,27 +52,6 @@ func (s *TableService) getDatabaseEntity(ctx context.Context, projectID uuid.UUI
 	return db, nil
 }
 
-func (s *TableService) parseTableSchema(table *entities.Table) (*database.TableSchema, error) {
-	var schema database.TableSchema
-	if err := json.Unmarshal([]byte(table.Schema), &schema); err != nil {
-		return nil, errors.NewInternalError(err).WithDetails("Failed to parse table schema")
-	}
-	return &schema, nil
-}
-
-func (s *TableService) updateTableWithSchema(ctx context.Context, table *entities.Table, schema *database.TableSchema, repo repositories.TableRepository) error {
-	schemaBytes, err := json.Marshal(schema)
-	if err != nil {
-		return errors.NewInternalError(err).WithDetails("Failed to marshal table schema")
-	}
-	table.Schema = string(schemaBytes)
-	table.UpdatedAt = time.Now()
-
-	if err := repo.Update(ctx, table); err != nil {
-		return errors.NewDatabaseError("Failed to update table metadata", err)
-	}
-	return nil
-}
 
 type tableMutationContext struct {
 	repo  repositories.TableRepository
@@ -136,7 +118,6 @@ func (s *TableService) CreateTable(ctx context.Context, req *entities.TableCreat
 		ProjectID:   projectID,
 		Name:        req.Name,
 		Description: req.Description,
-		Schema:      string(schemaBytes),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -177,7 +158,18 @@ func (s *TableService) GetTableByID(ctx context.Context, id uuid.UUID, projectID
 		return nil, errors.NewNotFoundError("Table not found")
 	}
 
+	db, err := s.resolver.GetProjectDB(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
+	}
+
+	schema, err := s.schemaInspector.GetTableSchema(ctx, db, table.Name)
+	if err != nil {
+		return nil, errors.NewInternalError(err).WithDetails("Failed to inspect table schema")
+	}
+
 	response := table.ToResponse()
+	response.Schema = schema
 	return &response, nil
 }
 
@@ -192,9 +184,21 @@ func (s *TableService) GetTablesByProjectID(ctx context.Context, projectID uuid.
 		return nil, errors.NewDatabaseError("Failed to get tables", err)
 	}
 
+	db, err := s.resolver.GetProjectDB(ctx, projectID)
+	if err != nil {
+		return nil, errors.NewNotFoundError("Project database not found").WithDetails(err.Error())
+	}
+
 	responses := make([]*entities.TableResponse, 0)
 	for _, table := range tables {
 		response := table.ToResponse()
+
+		schema, err := s.schemaInspector.GetTableSchema(ctx, db, table.Name)
+		if err != nil {
+			return nil, errors.NewInternalError(err).WithDetails("Failed to inspect table schema for " + table.Name)
+		}
+		response.Schema = schema
+
 		responses = append(responses, &response)
 	}
 
@@ -266,13 +270,7 @@ func (s *TableService) AddColumn(ctx context.Context, id uuid.UUID, projectID uu
 		return errors.NewDatabaseError("Failed to add column", err)
 	}
 
-	tableSchema, err := s.parseTableSchema(mutCtx.table)
-	if err != nil {
-		return err
-	}
-
-	tableSchema.Columns = append(tableSchema.Columns, column)
-	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
+	return nil
 }
 
 func (s *TableService) RemoveColumn(ctx context.Context, id uuid.UUID, projectID uuid.UUID, columnName string) error {
@@ -285,19 +283,7 @@ func (s *TableService) RemoveColumn(ctx context.Context, id uuid.UUID, projectID
 		return errors.NewDatabaseError("Failed to remove column", err)
 	}
 
-	tableSchema, err := s.parseTableSchema(mutCtx.table)
-	if err != nil {
-		return err
-	}
-
-	for i, col := range tableSchema.Columns {
-		if col.Name == columnName {
-			tableSchema.Columns = append(tableSchema.Columns[:i], tableSchema.Columns[i+1:]...)
-			break
-		}
-	}
-
-	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
+	return nil
 }
 
 func (s *TableService) ModifyColumn(ctx context.Context, id uuid.UUID, projectID uuid.UUID, oldColumnName string, newColumn database.ColumnDefinition) error {
@@ -310,19 +296,7 @@ func (s *TableService) ModifyColumn(ctx context.Context, id uuid.UUID, projectID
 		return errors.NewDatabaseError("Failed to modify column", err)
 	}
 
-	tableSchema, err := s.parseTableSchema(mutCtx.table)
-	if err != nil {
-		return err
-	}
-
-	for i, col := range tableSchema.Columns {
-		if col.Name == oldColumnName {
-			tableSchema.Columns[i] = newColumn
-			break
-		}
-	}
-
-	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
+	return nil
 }
 
 func (s *TableService) AddForeignKey(ctx context.Context, id uuid.UUID, projectID uuid.UUID, fk database.ForeignKeyDefinition) error {
@@ -335,13 +309,7 @@ func (s *TableService) AddForeignKey(ctx context.Context, id uuid.UUID, projectI
 		return errors.NewDatabaseError("Failed to add foreign key", err)
 	}
 
-	tableSchema, err := s.parseTableSchema(mutCtx.table)
-	if err != nil {
-		return err
-	}
-
-	tableSchema.ForeignKeys = append(tableSchema.ForeignKeys, fk)
-	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
+	return nil
 }
 
 func (s *TableService) RemoveForeignKey(ctx context.Context, id uuid.UUID, projectID uuid.UUID, foreignKeyName string) error {
@@ -354,19 +322,7 @@ func (s *TableService) RemoveForeignKey(ctx context.Context, id uuid.UUID, proje
 		return errors.NewDatabaseError("Failed to remove foreign key", err)
 	}
 
-	tableSchema, err := s.parseTableSchema(mutCtx.table)
-	if err != nil {
-		return err
-	}
-
-	for i, fkDef := range tableSchema.ForeignKeys {
-		if fkDef.Name == foreignKeyName {
-			tableSchema.ForeignKeys = append(tableSchema.ForeignKeys[:i], tableSchema.ForeignKeys[i+1:]...)
-			break
-		}
-	}
-
-	return s.updateTableWithSchema(ctx, mutCtx.table, tableSchema, mutCtx.repo)
+	return nil
 }
 
 func (s *TableService) UpdateTableSchema(ctx context.Context, id uuid.UUID, projectID uuid.UUID, schema database.TableSchema) error {
@@ -379,5 +335,5 @@ func (s *TableService) UpdateTableSchema(ctx context.Context, id uuid.UUID, proj
 		return errors.NewDatabaseError("Failed to update table schema", err)
 	}
 
-	return s.updateTableWithSchema(ctx, mutCtx.table, &schema, mutCtx.repo)
+	return nil
 }
