@@ -1,5 +1,5 @@
-import type { User } from '@/types'
 import { AUTH_TOKEN_KEY } from '@/constants/auth'
+import type { User } from '@/types'
 
 import { http } from '../http-client'
 

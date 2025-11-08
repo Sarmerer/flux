@@ -24,13 +24,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-import { activityService } from '@/api/services/activity'
 import { useFormatting } from '@/composables/formatting'
 import { useActivityFormatting } from '@/composables/formatting/useActivityFormatting'
-import { useTables } from '@/composables/api/useTables'
+import { useTables, useProjectLogs } from '@/composables/api'
 import { useWorkflows } from '@/composables/api/useWorkflows'
 import { useRouteContext } from '@/composables/routing'
-import type { ActivityLog } from '@/types'
 
 const router = useRouter()
 const { formatDate } = useFormatting()
@@ -42,9 +40,10 @@ const activeProject = computed(() => activeProjectStore.activeProject)
 const { projectId } = useRouteContext()
 const { tables } = useTables(projectId.value)
 const { workflows } = useWorkflows(projectId.value)
-
-const recentActivity = ref<ActivityLog[]>([])
-const isLoadingActivity = ref(false)
+const { logs: recentActivity, loading: isLoadingActivity } = useProjectLogs(projectId.value, {
+  limit: 5,
+  order_by: 'timestamp_desc',
+})
 
 const statsCards = computed(() => [
   {
@@ -91,23 +90,6 @@ const quickActions = [
   },
 ]
 
-const loadRecentActivity = async () => {
-  if (!projectId.value) return
-
-  isLoadingActivity.value = true
-  try {
-    const response = await activityService.get(projectId.value, 1, 5)
-    recentActivity.value = response.logs || []
-  } catch (error: any) {
-    console.error('Failed to load activity:', error)
-  } finally {
-    isLoadingActivity.value = false
-  }
-}
-
-onMounted(() => {
-  loadRecentActivity()
-})
 
 const formatActivityTime = (timestamp: string) => {
   const date = new Date(timestamp)

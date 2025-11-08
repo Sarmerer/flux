@@ -17,7 +17,6 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { tableDataService } from '@/api/services/table/data'
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 
 import { Badge } from '@/components/ui/badge'
@@ -33,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-import { useTables } from '@/composables/api'
+import { useTables, useTableData } from '@/composables/api'
 import { useTableDetail } from '@/composables/api/useTableDetail'
 import { useDrawers } from '@/composables/drawerRegistry'
 import { useRouteContext } from '@/composables/routing'
@@ -53,6 +52,8 @@ const {
   loading: tableDetailLoading,
   refresh: refreshTableDetail,
 } = useTableDetail(projectId.value, tableId.value ?? '')
+
+const { insertRow, updateRow, deleteRow } = useTableData(projectId.value, tableId.value ?? '')
 
 watch(
   tables,
@@ -155,7 +156,7 @@ const openInsertRowDrawer = () => {
     props: {
       columns: tableColumns.value,
       onInsert: async (data: Record<string, any>) => {
-        await tableDataService.insert(projectId.value, tableId.value!, data)
+        await insertRow(data)
         await refreshTableDetail()
       },
     },
@@ -176,7 +177,7 @@ const openEditRowDrawer = (row: Record<string, any>) => {
       rowData: row,
       rowId,
       onUpdate: async (id: string, data: Record<string, any>) => {
-        await tableDataService.update(projectId.value, tableId.value!, id, data)
+        await updateRow(id, data)
         await refreshTableDetail()
       },
     },
@@ -196,7 +197,7 @@ const openDeleteRowDrawer = (row: Record<string, any>) => {
       rowId,
       rowData: row,
       onDelete: async (id: string) => {
-        await tableDataService.delete(projectId.value, tableId.value!, id)
+        await deleteRow(id)
         await refreshTableDetail()
       },
     },

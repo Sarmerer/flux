@@ -1,5 +1,6 @@
+import type { Permission, ProjectMember, ProjectMemberWithUser, Role } from '@/types'
+
 import { http } from '../http-client'
-import type { ProjectMember, ProjectMemberWithUser, Permission, Role } from '@/types'
 
 interface AddMemberRequest {
   email: string

@@ -1,3 +1,7 @@
 export { useProjects } from './useProjects'
 export { useTables } from './useTables'
+export { useTableDetail } from './useTableDetail'
+export { useTableData } from './useTableData'
 export { useWorkflows } from './useWorkflows'
+export { useProjectMembers } from './useProjectMembers'
+export { useLogs, useProjectLogs } from './useLogs'

@@ -29,17 +29,21 @@ async function request<T = unknown>(url: string, options: RequestOptions = {}): 
   })
 
   if (!response.ok) {
+    const body = await safeJson<{ message?: string }>(response)
+
     if (response.status === 401 || response.status === 403) {
       const wasAuthenticated = !!localStorage.getItem(AUTH_TOKEN_KEY)
-      localStorage.removeItem(AUTH_TOKEN_KEY)
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
 
-      if (wasAuthenticated && window.location.pathname !== ROUTE_PATHS.LOGIN && window.location.pathname !== ROUTE_PATHS.REGISTER) {
-        window.location.href = ROUTE_PATHS.LOGIN
+      if (!isAuthEndpoint) {
+        localStorage.removeItem(AUTH_TOKEN_KEY)
+
+        if (wasAuthenticated && window.location.pathname !== ROUTE_PATHS.LOGIN && window.location.pathname !== ROUTE_PATHS.REGISTER) {
+          window.location.href = ROUTE_PATHS.LOGIN
+        }
       }
-      throw new Error('Session expired. Please login again.')
     }
 
-    const body = await safeJson<{ message?: string }>(response)
     throw new Error(body?.message || `HTTP ${response.status}: ${response.statusText}`)
   }
 
