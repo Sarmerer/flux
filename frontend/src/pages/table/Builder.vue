@@ -6,7 +6,6 @@ import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
 import TableDataView from '@/components/tables/TableDataView.vue'
 import TableSidebar from '@/components/tables/builder/TableSidebar.vue'
 import TableHeader from '@/components/tables/builder/TableHeader.vue'
-import TableToolbar from '@/components/tables/builder/TableToolbar.vue'
 import EmptyTableState from '@/components/tables/builder/EmptyTableState.vue'
 
 import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
@@ -376,41 +375,36 @@ const handleToggleColumn = (columnId: string, visible: boolean) => {
           :table-name="selectedTable.name"
           :table-description="selectedTable.description"
           :loading="tableDetailLoading"
+          :total-rows="totalRows"
+          :selected-count="selectedRows.length"
+          :page-size="pageLimit"
+          :all-columns="allColumns"
           @edit-schema="openEditTableSchema"
           @refresh="refreshTableDetail"
           @delete="handleDeleteTable(selectedTable.id)"
+          @insert-row="openInsertRowDrawer"
+          @delete-selected="handleDeleteSelected"
+          @page-size-change="handlePageSizeChange"
+          @toggle-column="handleToggleColumn"
         />
 
         <div class="flex-1 flex flex-col overflow-hidden">
-          <TableToolbar
-            :total-rows="totalRows"
-            :selected-count="selectedRows.length"
-            :page-size="pageLimit"
-            :all-columns="allColumns"
-            @insert-row="openInsertRowDrawer"
-            @delete-selected="handleDeleteSelected"
-            @page-size-change="handlePageSizeChange"
-            @toggle-column="handleToggleColumn"
-          />
-
-          <div class="flex-1 overflow-auto px-6 py-4">
-            <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
-              <TableDataView
-                ref="tableDataViewRef"
-                :columns="tableColumns"
-                :rows="tableRows"
-                :total-rows="totalRows"
-                :current-page="currentPage"
-                :page-size="pageLimit"
-                :enable-row-selection="true"
-                :on-page-change="goToPage"
-                @page-change="goToPage"
-                @edit-row="openEditRowDrawer"
-                @delete-row="openDeleteRowDrawer"
-                @row-selection-change="handleRowSelectionChange"
-              />
-            </LoadingWrapper>
-          </div>
+          <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
+            <TableDataView
+              ref="tableDataViewRef"
+              :columns="tableColumns"
+              :rows="tableRows"
+              :total-rows="totalRows"
+              :current-page="currentPage"
+              :page-size="pageLimit"
+              :enable-row-selection="true"
+              :on-page-change="goToPage"
+              @page-change="goToPage"
+              @edit-row="openEditRowDrawer"
+              @delete-row="openDeleteRowDrawer"
+              @row-selection-change="handleRowSelectionChange"
+            />
+          </LoadingWrapper>
         </div>
       </div>
     </div>

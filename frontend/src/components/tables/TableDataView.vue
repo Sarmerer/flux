@@ -156,19 +156,21 @@ defineExpose({
 </script>
 
 <template>
-  <DataTable
-    ref="dataTableRef"
-    :columns="tableColumns"
-    :data="rows"
-    :total-rows="totalRows"
-    :current-page="currentPage"
-    :page-size="pageSize"
-    :enable-row-selection="enableRowSelection"
-    :enable-column-visibility="true"
-    :enable-filtering="false"
-    :hide-toolbar="true"
-    :on-page-change="onPageChange"
-    @page-change="handlePageChange"
-    @row-selection-change="handleRowSelectionChange"
-  />
+  <div class="h-full">
+    <DataTable
+      ref="dataTableRef"
+      :columns="tableColumns"
+      :data="rows"
+      :total-rows="totalRows"
+      :current-page="currentPage"
+      :page-size="pageSize"
+      :enable-row-selection="enableRowSelection"
+      :enable-column-visibility="true"
+      :enable-filtering="false"
+      :hide-toolbar="true"
+      :on-page-change="onPageChange"
+      @page-change="handlePageChange"
+      @row-selection-change="handleRowSelectionChange"
+    />
+  </div>
 </template>

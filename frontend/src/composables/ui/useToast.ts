@@ -17,12 +17,12 @@ export function useToast() {
 
     let toast: Toast
     if (typeof options === 'string') {
-      toast = { id, description: options, variant: 'default', duration: 3000 }
+      toast = { id, description: options, variant: 'default', duration: 4000 }
     } else {
       toast = {
         id,
         variant: 'default',
-        duration: 3000,
+        duration: 4000,
         ...options,
       }
     }
@@ -38,16 +38,16 @@ export function useToast() {
     return id
   }
 
-  const success = (title: string, description?: string, duration?: number) =>
+  const success = (title: string, description?: string, duration = 4000) =>
     show({ title, description, variant: 'success', duration })
 
-  const error = (title: string, description?: string, duration?: number) =>
+  const error = (title: string, description?: string, duration = 5000) =>
     show({ title, description, variant: 'error', duration })
 
-  const warning = (title: string, description?: string, duration?: number) =>
+  const warning = (title: string, description?: string, duration = 4500) =>
     show({ title, description, variant: 'warning', duration })
 
-  const info = (title: string, description?: string, duration?: number) =>
+  const info = (title: string, description?: string, duration = 4000) =>
     show({ title, description, variant: 'info', duration })
 
   const removeToast = (id: string) => {

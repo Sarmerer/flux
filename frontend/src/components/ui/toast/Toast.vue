@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-vue-next'
+import { CircleCheck, CircleX, Info, TriangleAlert, X } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { Button } from '@/components/ui/button'
 
 export interface ToastProps {
   id?: string
@@ -13,7 +12,7 @@ export interface ToastProps {
 
 const props = withDefaults(defineProps<ToastProps>(), {
   variant: 'default',
-  duration: 5000,
+  duration: 4000,
 })
 
 const emit = defineEmits<{
@@ -23,11 +22,11 @@ const emit = defineEmits<{
 const icon = computed(() => {
   switch (props.variant) {
     case 'success':
-      return CheckCircle2
+      return CircleCheck
     case 'error':
-      return AlertCircle
+      return CircleX
     case 'warning':
-      return AlertTriangle
+      return TriangleAlert
     case 'info':
       return Info
     default:
@@ -35,47 +34,44 @@ const icon = computed(() => {
   }
 })
 
-const variantClasses = computed(() => {
+const iconClasses = computed(() => {
   switch (props.variant) {
     case 'success':
-      return 'bg-success/10 border-success text-success-foreground'
+      return 'text-green-500'
     case 'error':
-      return 'bg-destructive/10 border-destructive text-destructive-foreground'
+      return 'text-red-500'
     case 'warning':
-      return 'bg-warning/10 border-warning text-warning-foreground'
+      return 'text-amber-500'
     case 'info':
-      return 'bg-info/10 border-info text-info-foreground'
+      return 'text-blue-500'
     default:
-      return 'bg-card border-border text-card-foreground'
+      return 'text-foreground'
   }
 })
 </script>
 
 <template>
   <div
-    :class="[
-      'group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-4 pr-8 shadow-lg transition-all',
-      variantClasses,
-    ]"
+    class="group pointer-events-auto relative flex w-full items-center gap-3 overflow-hidden rounded-lg border border-border bg-background px-4 py-3 shadow-lg transition-all hover:shadow-xl"
   >
-    <div class="flex items-start space-x-3 flex-1">
-      <component :is="icon" v-if="icon" class="w-5 h-5 mt-0.5 flex-shrink-0" />
-      <div class="flex-1 space-y-1">
-        <div v-if="title" class="text-sm font-semibold">
-          {{ title }}
-        </div>
-        <div v-if="description" class="text-sm opacity-90">
-          {{ description }}
-        </div>
+    <component :is="icon" v-if="icon" :class="['h-4 w-4 flex-shrink-0', iconClasses]" />
+    <div class="flex-1 min-w-0">
+      <div v-if="title" class="text-sm font-medium text-foreground leading-tight">
+        {{ title }}
+      </div>
+      <div
+        v-if="description"
+        class="text-sm text-muted-foreground leading-tight"
+        :class="{ 'mt-1': title }"
+      >
+        {{ description }}
       </div>
     </div>
-    <Button
-      variant="ghost"
-      size="sm"
-      class="absolute right-2 top-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+    <button
+      class="flex-shrink-0 rounded-md p-1 text-foreground/50 opacity-0 transition-all hover:text-foreground hover:bg-accent group-hover:opacity-100 focus:opacity-100"
       @click="emit('close')"
     >
-      <X class="h-4 w-4" />
-    </Button>
+      <X class="h-3.5 w-3.5" />
+    </button>
   </div>
 </template>

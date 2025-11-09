@@ -1,37 +1,39 @@
 <script setup lang="ts" generic="TData">
-import { computed, ref } from 'vue'
 import {
-  FlexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  useVueTable,
   type ColumnDef,
+  type ColumnFiltersState,
+  FlexRender,
+  type RowSelectionState,
   type SortingState,
   type VisibilityState,
-  type RowSelectionState,
-  type ColumnFiltersState,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useVueTable,
 } from '@tanstack/vue-table'
-import { valueUpdater } from '@/lib/utils'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableEmpty,
-} from '@/components/ui/table'
+import { ChevronDown, ChevronLeft, ChevronRight, Settings2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ChevronDown, ChevronLeft, ChevronRight, Settings2 } from 'lucide-vue-next'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+
+import { valueUpdater } from '@/lib/utils'
 
 interface DataTableProps {
   columns: ColumnDef<TData>[]
@@ -85,7 +87,8 @@ const table = useVueTable({
     return props.columns
   },
   getCoreRowModel: getCoreRowModel(),
-  getPaginationRowModel: !isServerSidePagination.value && props.enablePagination ? getPaginationRowModel() : undefined,
+  getPaginationRowModel:
+    !isServerSidePagination.value && props.enablePagination ? getPaginationRowModel() : undefined,
   getSortedRowModel: props.enableSorting ? getSortedRowModel() : undefined,
   getFilteredRowModel: props.enableFiltering ? getFilteredRowModel() : undefined,
   onSortingChange: (updaterOrValue) => valueUpdater(updaterOrValue, sorting),
@@ -111,9 +114,7 @@ const table = useVueTable({
     },
   },
   manualPagination: isServerSidePagination.value,
-  pageCount: isServerSidePagination.value
-    ? Math.ceil(props.totalRows / props.pageSize)
-    : undefined,
+  pageCount: isServerSidePagination.value ? Math.ceil(props.totalRows / props.pageSize) : undefined,
 })
 
 const goToPreviousPage = () => {
@@ -187,8 +188,11 @@ defineExpose({
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div v-if="!hideToolbar && (enableFiltering || enableColumnVisibility)" class="flex items-center justify-between gap-2 mb-4">
+  <div class="flex flex-col h-full">
+    <div
+      v-if="!hideToolbar && (enableFiltering || enableColumnVisibility)"
+      class="flex items-center justify-between gap-2 mb-4"
+    >
       <Input
         v-if="enableFiltering && filterKey"
         :placeholder="searchPlaceholder"
@@ -220,8 +224,8 @@ defineExpose({
       </DropdownMenu>
     </div>
 
-    <div class="border rounded-lg overflow-hidden">
-      <div class="overflow-x-auto">
+    <div class="flex-1 border-t flex flex-col overflow-hidden">
+      <div class="overflow-x-aut">
         <Table>
           <TableHeader>
             <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
@@ -234,6 +238,10 @@ defineExpose({
               </TableHead>
             </TableRow>
           </TableHeader>
+        </Table>
+      </div>
+      <div class="flex-1 overflow-x-auto overflow-y-auto">
+        <Table>
           <TableBody>
             <template v-if="table.getRowModel().rows?.length">
               <TableRow
@@ -243,10 +251,7 @@ defineExpose({
                 class="group"
               >
                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                  <FlexRender
-                    :render="cell.column.columnDef.cell"
-                    :props="cell.getContext()"
-                  />
+                  <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
                 </TableCell>
               </TableRow>
             </template>
@@ -258,7 +263,10 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="enablePagination && totalRowsCount > 0" class="flex items-center justify-between pt-2">
+    <div
+      v-if="enablePagination && totalRowsCount > 0"
+      class="flex items-center justify-between px-4 py-2 border-t bg-background"
+    >
       <div class="text-sm text-muted-foreground">
         Showing {{ startIndex }} to {{ endIndex }} of {{ totalRowsCount }} rows
       </div>
