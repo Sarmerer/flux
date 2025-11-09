@@ -80,16 +80,7 @@ func (r *Runner) Up(ctx context.Context) error {
 			"description": m.Description,
 		})
 
-		tx, err := r.db.Begin(ctx)
-		if err != nil {
-			r.logger.Error("Failed to begin transaction", err, map[string]interface{}{
-				"version": m.Version,
-			})
-			return fmt.Errorf("Failed to begin transaction for migration %d: %w", m.Version, err)
-		}
-
 		if err := m.Up(ctx, r.db); err != nil {
-			tx.Rollback(ctx)
 			r.logger.Error(fmt.Sprintf("Migration %d failed", m.Version), err, map[string]interface{}{
 				"version": m.Version,
 				"name":    m.Name,
@@ -98,18 +89,10 @@ func (r *Runner) Up(ctx context.Context) error {
 		}
 
 		if err := RecordMigration(ctx, r.db, m.Version, m.Name); err != nil {
-			tx.Rollback(ctx)
 			r.logger.Error("Failed to record migration", err, map[string]interface{}{
 				"version": m.Version,
 			})
 			return fmt.Errorf("Failed to record migration %d: %w", m.Version, err)
-		}
-
-		if err := tx.Commit(ctx); err != nil {
-			r.logger.Error("Failed to commit migration", err, map[string]interface{}{
-				"version": m.Version,
-			})
-			return fmt.Errorf("Failed to commit migration %d: %w", m.Version, err)
 		}
 
 		r.logger.Info(fmt.Sprintf("Migration %d applied successfully", m.Version), map[string]interface{}{
@@ -162,13 +145,7 @@ func (r *Runner) Down(ctx context.Context) error {
 		"name":    migration.Name,
 	})
 
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("Failed to begin transaction: %w", err)
-	}
-
 	if err := migration.Down(ctx, r.db); err != nil {
-		tx.Rollback(ctx)
 		r.logger.Error("Failed to rollback migration", err, map[string]interface{}{
 			"version": migration.Version,
 		})
@@ -176,12 +153,7 @@ func (r *Runner) Down(ctx context.Context) error {
 	}
 
 	if err := RemoveMigration(ctx, r.db, migration.Version); err != nil {
-		tx.Rollback(ctx)
 		return fmt.Errorf("Failed to remove migration record: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("Failed to commit rollback: %w", err)
 	}
 
 	r.logger.Info(fmt.Sprintf("Migration %d rolled back successfully", migration.Version), map[string]interface{}{

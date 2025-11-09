@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+//go:embed *.sql
 var migrationFiles embed.FS
 
 type SQLMigration struct {

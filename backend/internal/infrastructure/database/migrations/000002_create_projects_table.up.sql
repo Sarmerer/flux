@@ -11,4 +11,3 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_owner_id ON projects(owner_id);
-CREATE INDEX IF NOT EXISTS idx_projects_api_key ON projects(api_key);
