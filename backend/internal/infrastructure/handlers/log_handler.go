@@ -13,18 +13,27 @@ import (
 )
 
 type LogHandler struct {
-	storage  logging.LogStorage
-	streamer logging.LogStreamer
+	storage logging.LogStorage
 }
 
-func NewLogHandler(storage logging.LogStorage, streamer logging.LogStreamer) *LogHandler {
+func NewLogHandler(storage logging.LogStorage) *LogHandler {
 	return &LogHandler{
-		storage:  storage,
-		streamer: streamer,
+		storage: storage,
 	}
 }
 
 func (h *LogHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
+	if h.storage == nil {
+		response := map[string]interface{}{
+			"logs":   []*logging.LogEntry{},
+			"total":  0,
+			"limit":  100,
+			"offset": 0,
+		}
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
 	filter := logging.DefaultFilter()
 
 	if projectIDStr := r.URL.Query().Get("project_id"); projectIDStr != "" {
@@ -155,6 +164,18 @@ func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.storage == nil {
+		response := map[string]interface{}{
+			"logs":       []*logging.LogEntry{},
+			"total":      0,
+			"limit":      100,
+			"offset":     0,
+			"project_id": projectID,
+		}
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
 	filter := logging.DefaultFilter()
 	filter.ProjectID = &projectID
 
@@ -184,6 +205,15 @@ func (h *LogHandler) GetProjectLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *LogHandler) DeleteOldLogs(w http.ResponseWriter, r *http.Request) {
+	if h.storage == nil {
+		response := map[string]interface{}{
+			"deleted": 0,
+			"message": "Log storage is not configured",
+		}
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+
 	daysStr := r.URL.Query().Get("days")
 	if daysStr == "" {
 		errors.WriteError(w, errors.NewValidationError("days parameter is required").WithField("days"))

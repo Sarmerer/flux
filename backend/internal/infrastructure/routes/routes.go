@@ -9,7 +9,6 @@ import (
 	"github.com/flow/internal/infrastructure/handlers"
 	"github.com/flow/internal/infrastructure/logging"
 	authMiddleware "github.com/flow/internal/infrastructure/middleware"
-	"github.com/flow/internal/infrastructure/realtime"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -22,7 +21,6 @@ func SetupRoutes(
 	projectMemberHandler *handlers.ProjectMemberHandler,
 	tableHandler *handlers.TableHandler,
 	tableDataHandler *handlers.TableDataHandler,
-	realtimeHub *realtime.Hub,
 	workflowHandler *handlers.WorkflowHandler,
 	logHandler *handlers.LogHandler,
 	projectMemberRepo repositories.ProjectMemberRepository,
@@ -171,10 +169,6 @@ func SetupRoutes(
 
 					r.With(authMiddleware.RequireProjectPermission(projectMemberRepo, entities.PermWorkflowDelete)).
 						Delete("/{id}", workflowHandler.DeleteWorkflow)
-				})
-
-				r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-					realtime.HandleWebSocket(realtimeHub, jwtSecret)(w, r)
 				})
 			})
 		})

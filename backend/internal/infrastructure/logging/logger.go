@@ -34,12 +34,11 @@ type LogContext struct {
 type Logger struct {
 	logger     zerolog.Logger
 	storage    LogStorage
-	streamer   LogStreamer
 	bufferSize int
 	verbosity  LogVerbosity
 }
 
-func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer, verbosity LogVerbosity) *Logger {
+func NewLogger(output io.Writer, storage LogStorage, verbosity LogVerbosity) *Logger {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 
 	logger := zerolog.New(output).
@@ -51,17 +50,16 @@ func NewLogger(output io.Writer, storage LogStorage, streamer LogStreamer, verbo
 	return &Logger{
 		logger:     logger,
 		storage:    storage,
-		streamer:   streamer,
 		bufferSize: 100,
 		verbosity:  verbosity,
 	}
 }
 
-func NewProductionLogger(storage LogStorage, streamer LogStreamer, verbosity LogVerbosity) *Logger {
-	return NewLogger(os.Stdout, storage, streamer, verbosity)
+func NewProductionLogger(storage LogStorage, verbosity LogVerbosity) *Logger {
+	return NewLogger(os.Stdout, storage, verbosity)
 }
 
-func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer, verbosity LogVerbosity) *Logger {
+func NewDevelopmentLogger(storage LogStorage, verbosity LogVerbosity) *Logger {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	consoleWriter := zerolog.ConsoleWriter{
@@ -102,7 +100,7 @@ func NewDevelopmentLogger(storage LogStorage, streamer LogStreamer, verbosity Lo
 			zerolog.MessageFieldName,
 		},
 	}
-	return NewLogger(consoleWriter, storage, streamer, verbosity)
+	return NewLogger(consoleWriter, storage, verbosity)
 }
 
 func (l *Logger) WithContext(ctx LogContext) *ContextLogger {
@@ -134,7 +132,6 @@ func (l *Logger) WithContext(ctx LogContext) *ContextLogger {
 		logger:    event.Logger(),
 		context:   ctx,
 		storage:   l.storage,
-		streamer:  l.streamer,
 		verbosity: l.verbosity,
 	}
 }
@@ -240,17 +237,7 @@ func (l *Logger) storeAndStream(level LogLevel, msg string, ctx *LogContext, fie
 	if l.storage != nil {
 		go func() {
 			if err := l.storage.Store(context.Background(), entry); err != nil {
-
 				fmt.Printf("Failed to store log entry: %v\n", err)
-			}
-		}()
-	}
-
-	if l.streamer != nil {
-		go func() {
-			if err := l.streamer.Stream(entry); err != nil {
-
-				fmt.Printf("Failed to stream log entry: %v\n", err)
 			}
 		}()
 	}
@@ -260,7 +247,6 @@ type ContextLogger struct {
 	logger    zerolog.Logger
 	context   LogContext
 	storage   LogStorage
-	streamer  LogStreamer
 	verbosity LogVerbosity
 }
 
@@ -376,14 +362,6 @@ func (cl *ContextLogger) storeAndStream(level LogLevel, msg string, fields ...ma
 		go func() {
 			if err := cl.storage.Store(context.Background(), entry); err != nil {
 				fmt.Printf("Failed to store log entry: %v\n", err)
-			}
-		}()
-	}
-
-	if cl.streamer != nil {
-		go func() {
-			if err := cl.streamer.Stream(entry); err != nil {
-				fmt.Printf("Failed to stream log entry: %v\n", err)
 			}
 		}()
 	}

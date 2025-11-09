@@ -43,7 +43,6 @@ func main() {
 		container.ProjectMemberHandler,
 		container.TableHandler,
 		container.TableDataHandler,
-		container.RealtimeHub,
 		container.WorkflowHandler,
 		container.LogHandler,
 		container.ProjectMemberRepo,
