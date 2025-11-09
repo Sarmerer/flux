@@ -93,11 +93,13 @@ export function useTableDetail(
     fetchTableDetail()
   }
 
-  watch([() => projectId, () => tableId], () => {
-    currentPage.value = 1
-    data.value = null
-    if (autoFetch && projectId && tableId) {
-      fetchTableDetail()
+  watch([() => projectId, () => tableId], ([newProjectId, newTableId], [oldProjectId, oldTableId]) => {
+    if (newProjectId !== oldProjectId || newTableId !== oldTableId) {
+      currentPage.value = 1
+      data.value = null
+      if (autoFetch && newProjectId && newTableId) {
+        fetchTableDetail()
+      }
     }
   })
 

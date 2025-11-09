@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h } from 'vue'
+import { computed, h, ref } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -7,6 +7,8 @@ import { Key, Pencil, Trash2, ArrowUpDown } from 'lucide-vue-next'
 import DataTable from './DataTable.vue'
 import type { TableColumn } from '@/types'
 import { useTableFormatters } from '@/composables/table/useTableFormatters'
+
+const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null)
 
 interface TableDataViewProps {
   columns: TableColumn[]
@@ -147,10 +149,15 @@ const handlePageChange = (page: number) => {
 const handleRowSelectionChange = (rows: any[]) => {
   emit('row-selection-change', rows)
 }
+
+defineExpose({
+  dataTableRef,
+})
 </script>
 
 <template>
   <DataTable
+    ref="dataTableRef"
     :columns="tableColumns"
     :data="rows"
     :total-rows="totalRows"
@@ -159,6 +166,7 @@ const handleRowSelectionChange = (rows: any[]) => {
     :enable-row-selection="enableRowSelection"
     :enable-column-visibility="true"
     :enable-filtering="false"
+    :hide-toolbar="true"
     :on-page-change="onPageChange"
     @page-change="handlePageChange"
     @row-selection-change="handleRowSelectionChange"

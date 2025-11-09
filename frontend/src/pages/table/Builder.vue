@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
-import TableDataView from '@/components/tables/TableDataView.vue'
-import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
-import { Database, Pencil, Plus, Search, Table as TableIcon, Trash2 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
+import LoadingWrapper from '@/components/common/LoadingWrapper.vue'
+import TableDataView from '@/components/tables/TableDataView.vue'
+import TableSidebar from '@/components/tables/builder/TableSidebar.vue'
+import TableHeader from '@/components/tables/builder/TableHeader.vue'
+import TableToolbar from '@/components/tables/builder/TableToolbar.vue'
+import EmptyTableState from '@/components/tables/builder/EmptyTableState.vue'
+
+import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -17,8 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 
+import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
 import { useTableData, useTables } from '@/composables/api'
 import { useTableDetail } from '@/composables/api/useTableDetail'
 import { useDrawers } from '@/composables/drawerRegistry'
@@ -39,19 +42,97 @@ const { projectId, tableId } = useRouteContext()
 
 const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
 
-const {
-  data: tableDetail,
-  columns: tableColumns,
-  rows: tableRows,
-  totalRows,
-  loading: tableDetailLoading,
-  currentPage,
-  pageLimit,
-  refresh: refreshTableDetail,
-  goToPage,
-} = useTableDetail(projectId.value, tableId.value ?? '')
+const tableDetailData = ref<any>(null)
+const tableColumns = ref<any[]>([])
+const tableRows = ref<any[]>([])
+const totalRows = ref(0)
+const tableDetailLoading = ref(false)
+const currentPage = ref(1)
+const pageLimit = ref(50)
+const selectedRows = ref<any[]>([])
+const isDeleteTableDialogOpen = ref(false)
+const tableToDelete = ref<string | null>(null)
+const tableDataViewRef = ref<InstanceType<typeof TableDataView> | null>(null)
 
-const { insertRow, updateRow, deleteRow } = useTableData(projectId.value, tableId.value ?? '')
+const tableInstance = computed(() => tableDataViewRef.value?.dataTableRef?.table)
+const allColumns = computed(() => tableInstance.value?.getAllColumns() || [])
+
+let currentTableDetail: ReturnType<typeof useTableDetail> | null = null
+
+watch(
+  tableId,
+  (newTableId) => {
+    currentPage.value = 1
+    selectedRows.value = []
+
+    if (newTableId) {
+      currentTableDetail = useTableDetail(projectId.value, newTableId, {
+        page: currentPage.value,
+        limit: pageLimit.value,
+        autoFetch: true,
+      })
+
+      watch(
+        currentTableDetail.data,
+        (newData) => {
+          tableDetailData.value = newData
+          tableColumns.value = currentTableDetail!.columns.value
+          tableRows.value = currentTableDetail!.rows.value
+          totalRows.value = currentTableDetail!.totalRows.value
+        },
+        { immediate: true }
+      )
+
+      watch(
+        currentTableDetail.loading,
+        (loading) => {
+          tableDetailLoading.value = loading
+        },
+        { immediate: true }
+      )
+
+      watch(
+        currentTableDetail.currentPage,
+        (page) => {
+          currentPage.value = page
+        },
+        { immediate: true }
+      )
+
+      watch(
+        currentTableDetail.pageLimit,
+        (limit) => {
+          pageLimit.value = limit
+        },
+        { immediate: true }
+      )
+    } else {
+      tableDetailData.value = null
+      tableColumns.value = []
+      tableRows.value = []
+      totalRows.value = 0
+    }
+  },
+  { immediate: true }
+)
+
+const refreshTableDetail = () => {
+  if (currentTableDetail) {
+    currentTableDetail.refresh()
+  }
+}
+
+const goToPage = (page: number) => {
+  if (currentTableDetail) {
+    currentTableDetail.goToPage(page)
+  }
+}
+
+const setPageLimit = (limit: number) => {
+  if (currentTableDetail) {
+    currentTableDetail.setPageLimit(limit)
+  }
+}
 
 watch(
   tables,
@@ -62,21 +143,6 @@ watch(
   },
   { immediate: true }
 )
-
-const searchQuery = ref('')
-const isDeleteTableDialogOpen = ref(false)
-const tableToDelete = ref<string | null>(null)
-
-const filteredTables = computed(() => {
-  if (!tables.value || !Array.isArray(tables.value)) return []
-  if (!searchQuery.value) return tables.value
-  return tables.value.filter(
-    (table) =>
-      table.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (table.description &&
-        table.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
-  )
-})
 
 const selectedTable = computed(() => {
   if (!tableId.value || !tables.value) return null
@@ -95,6 +161,8 @@ const openTableEditor = () => {
             type: col.type,
             nullable: col.nullable,
             default_value: col.default_value || undefined,
+            is_identity: col.is_identity,
+            unique: col.unique,
           })),
           primary_key: data.columns.filter((col) => col.primary_key).map((col) => col.name),
           indexes: [],
@@ -124,7 +192,7 @@ const openTableEditor = () => {
 }
 
 const openEditTableSchema = () => {
-  if (!selectedTable.value || !tableDetail.value) return
+  if (!selectedTable.value || !tableDetailData.value) return
 
   const initialData: TableFormData = {
     name: selectedTable.value.name,
@@ -159,18 +227,24 @@ const handleSelectTable = (id: string) => {
 }
 
 const openInsertRowDrawer = () => {
+  if (!tableId.value) return
+
+  const tableDataService = useTableData(projectId.value, tableId.value)
+
   openInsertRow({
     props: {
       columns: tableColumns.value,
       onInsert: async (data: Record<string, any>) => {
-        await insertRow(data)
-        await refreshTableDetail()
+        await tableDataService.insertRow(data)
+        refreshTableDetail()
       },
     },
   })
 }
 
 const openEditRowDrawer = (row: Record<string, any>) => {
+  if (!tableId.value) return
+
   const idColumn = tableColumns.value.find((col) => col.is_primary_key)
   if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
@@ -178,20 +252,24 @@ const openEditRowDrawer = (row: Record<string, any>) => {
   }
 
   const rowId = row[idColumn.name]
+  const tableDataService = useTableData(projectId.value, tableId.value)
+
   openEditRow({
     props: {
       columns: tableColumns.value,
       rowData: row,
       rowId,
       onUpdate: async (id: string, data: Record<string, any>) => {
-        await updateRow(id, data)
-        await refreshTableDetail()
+        await tableDataService.updateRow(id, data)
+        refreshTableDetail()
       },
     },
   })
 }
 
 const openDeleteRowDrawer = (row: Record<string, any>) => {
+  if (!tableId.value) return
+
   const idColumn = tableColumns.value.find((col) => col.is_primary_key)
   if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
@@ -199,13 +277,15 @@ const openDeleteRowDrawer = (row: Record<string, any>) => {
   }
 
   const rowId = row[idColumn.name]
+  const tableDataService = useTableData(projectId.value, tableId.value)
+
   openDeleteRow({
     props: {
       rowId,
       rowData: row,
       onDelete: async (id: string) => {
-        await deleteRow(id)
-        await refreshTableDetail()
+        await tableDataService.deleteRow(id)
+        refreshTableDetail()
       },
     },
   })
@@ -233,138 +313,101 @@ const confirmDeleteTable = async () => {
     toast.error('Error', error.message || 'Failed to delete table')
   }
 }
+
+const handleRowSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows
+}
+
+const handleDeleteSelected = async () => {
+  if (selectedRows.value.length === 0 || !tableId.value) return
+
+  const idColumn = tableColumns.value.find((col) => col.is_primary_key)
+  if (!idColumn) {
+    toast.error('Error', 'No primary key found for this table')
+    return
+  }
+
+  const tableDataService = useTableData(projectId.value, tableId.value)
+  const count = selectedRows.value.length
+
+  try {
+    for (const row of selectedRows.value) {
+      const rowId = row[idColumn.name]
+      await tableDataService.deleteRow(rowId)
+    }
+    selectedRows.value = []
+    refreshTableDetail()
+    toast.success('Success', `Deleted ${count} row${count > 1 ? 's' : ''}`)
+  } catch (error: any) {
+    console.error('Failed to delete rows:', error)
+    toast.error('Error', error.message || 'Failed to delete rows')
+  }
+}
+
+const handlePageSizeChange = (size: number) => {
+  setPageLimit(size)
+}
+
+const handleToggleColumn = (columnId: string, visible: boolean) => {
+  const column = tableInstance.value?.getColumn(columnId)
+  if (column) {
+    column.toggleVisibility(visible)
+  }
+}
 </script>
 
 <template>
   <div class="flex h-[calc(100vh-3.5rem)]">
-    <div class="w-80 border-r flex flex-col bg-muted/10">
-      <div class="p-4 border-b space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Tables</h2>
-          <Button size="sm" @click="openTableEditor">
-            <Plus class="w-4 h-4" />
-          </Button>
-        </div>
-        <div class="relative">
-          <Search
-            class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4"
-          />
-          <Input v-model="searchQuery" placeholder="Search tables..." class="pl-9 h-9" />
-        </div>
-      </div>
-
-      <LoadingWrapper :is-loading="isLoading" loading-text="Loading tables...">
-        <div class="flex-1 overflow-y-auto">
-          <div class="p-2 space-y-1">
-            <div
-              v-for="table in filteredTables"
-              :key="table.id"
-              :class="[
-                'group relative w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                tableId === table.id
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:bg-muted text-muted-foreground hover:text-foreground',
-              ]"
-            >
-              <button
-                @click="handleSelectTable(table.id)"
-                class="flex items-center gap-3 flex-1 min-w-0"
-              >
-                <TableIcon class="w-4 h-4 flex-shrink-0" />
-                <span class="flex-1 text-left truncate">{{ table.name }}</span>
-              </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                @click.stop="handleDeleteTable(table.id)"
-                class="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 class="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-
-          <div
-            v-if="!isLoading && filteredTables.length === 0"
-            class="p-4 text-center text-sm text-muted-foreground"
-          >
-            <p>No tables found</p>
-          </div>
-        </div>
-      </LoadingWrapper>
-    </div>
+    <TableSidebar
+      :tables="tables"
+      :loading="isLoading"
+      :selected-table-id="tableId"
+      @create="openTableEditor"
+      @select="handleSelectTable"
+      @delete="handleDeleteTable"
+    />
 
     <div class="flex-1 flex flex-col">
-      <div v-if="!tableId" class="flex-1 flex items-center justify-center">
-        <div class="text-center space-y-4">
-          <div class="flex justify-center">
-            <div class="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <Database class="w-8 h-8 text-muted-foreground" />
-            </div>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold mb-1">Select a table</h3>
-            <p class="text-sm text-muted-foreground">
-              Choose a table from the list to view and manage its data
-            </p>
-          </div>
-          <Button @click="openTableEditor">
-            <Plus class="w-4 h-4 mr-2" />
-            Create New Table
-          </Button>
-        </div>
-      </div>
+      <EmptyTableState v-if="!tableId" @create="openTableEditor" />
 
       <div v-else class="flex-1 flex flex-col overflow-hidden">
-        <div class="border-b px-6 py-3 bg-background">
-          <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold">{{ selectedTable?.name }}</h1>
-              <p v-if="selectedTable?.description" class="text-xs text-muted-foreground mt-0.5">
-                {{ selectedTable.description }}
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <Button variant="outline" size="sm" @click="openEditTableSchema" class="h-8">
-                <Pencil class="w-3.5 h-3.5 mr-2" />
-                Edit Schema
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                @click="handleDeleteTable(selectedTable!.id)"
-                class="text-destructive hover:text-destructive hover:bg-destructive/10 h-8"
-              >
-                <Trash2 class="w-3.5 h-3.5 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
+        <TableHeader
+          v-if="selectedTable"
+          :table-name="selectedTable.name"
+          :table-description="selectedTable.description"
+          :loading="tableDetailLoading"
+          @edit-schema="openEditTableSchema"
+          @refresh="refreshTableDetail"
+          @delete="handleDeleteTable(selectedTable.id)"
+        />
 
         <div class="flex-1 flex flex-col overflow-hidden">
-          <div class="px-6 py-3 border-b bg-background flex items-center justify-between">
-            <div class="text-sm text-muted-foreground">
-              {{ totalRows }} {{ totalRows === 1 ? 'row' : 'rows' }}
-            </div>
-            <Button variant="default" size="sm" @click="openInsertRowDrawer" class="h-8">
-              <Plus class="w-4 h-4 mr-2" />
-              Insert Row
-            </Button>
-          </div>
+          <TableToolbar
+            :total-rows="totalRows"
+            :selected-count="selectedRows.length"
+            :page-size="pageLimit"
+            :all-columns="allColumns"
+            @insert-row="openInsertRowDrawer"
+            @delete-selected="handleDeleteSelected"
+            @page-size-change="handlePageSizeChange"
+            @toggle-column="handleToggleColumn"
+          />
 
           <div class="flex-1 overflow-auto px-6 py-4">
             <LoadingWrapper :is-loading="tableDetailLoading" loading-text="Loading table data...">
               <TableDataView
+                ref="tableDataViewRef"
                 :columns="tableColumns"
                 :rows="tableRows"
                 :total-rows="totalRows"
                 :current-page="currentPage"
                 :page-size="pageLimit"
+                :enable-row-selection="true"
                 :on-page-change="goToPage"
                 @page-change="goToPage"
                 @edit-row="openEditRowDrawer"
                 @delete-row="openDeleteRowDrawer"
+                @row-selection-change="handleRowSelectionChange"
               />
             </LoadingWrapper>
           </div>

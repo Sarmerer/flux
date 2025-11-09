@@ -46,6 +46,7 @@ interface DataTableProps {
   enableRowSelection?: boolean
   searchPlaceholder?: string
   filterKey?: string
+  hideToolbar?: boolean
   onPageChange?: (page: number) => void
   onRowSelectionChange?: (selectedRows: TData[]) => void
 }
@@ -61,6 +62,7 @@ const props = withDefaults(defineProps<DataTableProps>(), {
   enableRowSelection: false,
   searchPlaceholder: 'Filter...',
   filterKey: '',
+  hideToolbar: false,
 })
 
 const emit = defineEmits<{
@@ -178,11 +180,15 @@ const endIndex = computed(() => {
 const totalRowsCount = computed(() => {
   return props.onPageChange ? props.totalRows : props.data.length
 })
+
+defineExpose({
+  table,
+})
 </script>
 
 <template>
   <div class="space-y-4">
-    <div v-if="enableFiltering || enableColumnVisibility" class="flex items-center justify-between gap-2 mb-4">
+    <div v-if="!hideToolbar && (enableFiltering || enableColumnVisibility)" class="flex items-center justify-between gap-2 mb-4">
       <Input
         v-if="enableFiltering && filterKey"
         :placeholder="searchPlaceholder"
