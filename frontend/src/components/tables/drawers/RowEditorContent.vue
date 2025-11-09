@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 import type { TableColumn } from '@/types'
 
@@ -9,10 +9,14 @@ import { Label } from '@/components/ui/label'
 import { SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 import { useToast } from '@/composables/ui'
+import { useColumnTypeUtils } from '@/composables/tables/useColumnTypeUtils'
 
 interface Props {
+  mode: 'insert' | 'edit'
   columns: TableColumn[]
-  onInsert: (data: Record<string, any>) => Promise<void>
+  rowData?: Record<string, any>
+  rowId?: string
+  onSave: (data: Record<string, any>, rowId?: string) => Promise<void>
 }
 
 interface Emits {
@@ -24,25 +28,27 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const toast = useToast()
+const { convertValueByType, getInputType, isTextArea, validateColumnValue } = useColumnTypeUtils()
+
 const isSubmitting = ref(false)
 const formData = ref<Record<string, any>>({})
 
+const title = computed(() => (props.mode === 'insert' ? 'Insert Row' : 'Edit Row'))
+const submitLabel = computed(() => (props.mode === 'insert' ? 'Insert Row' : 'Update Row'))
+const submittingLabel = computed(() => (props.mode === 'insert' ? 'Inserting...' : 'Updating...'))
+
 const resetForm = () => {
-  formData.value = {}
-  props.columns.forEach((col) => {
-    if (col.default_value) {
-      formData.value[col.name] = col.default_value
-    } else {
-      formData.value[col.name] = ''
-    }
-  })
+  if (props.mode === 'edit' && props.rowData) {
+    formData.value = { ...props.rowData }
+  } else {
+    formData.value = {}
+    props.columns.forEach((col) => {
+      formData.value[col.name] = col.default_value || ''
+    })
+  }
 }
 
-watch(
-  () => props.columns,
-  () => resetForm(),
-  { immediate: true }
-)
+watch([() => props.columns, () => props.rowData], resetForm, { immediate: true })
 
 const handleClose = () => {
   emit('close')
@@ -54,8 +60,14 @@ const handleSubmit = async () => {
   for (const col of props.columns) {
     const value = formData.value[col.name]
 
-    if (!col.is_nullable && (value === '' || value === null || value === undefined)) {
-      toast.error('Validation Error', `${col.name} is required`)
+    const error = validateColumnValue(value, {
+      type: col.type,
+      isNullable: col.is_nullable,
+      name: col.name,
+    })
+
+    if (error) {
+      toast.error('Validation Error', error)
       return
     }
 
@@ -68,102 +80,28 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true
   try {
-    await props.onInsert(data)
-    toast.success('Success', 'Row inserted successfully')
+    await props.onSave(data, props.rowId)
+    const successMessage =
+      props.mode === 'insert' ? 'Row inserted successfully' : 'Row updated successfully'
+    toast.success('Success', successMessage)
     emit('save', data)
     handleClose()
   } catch (error: any) {
-    console.error('Failed to insert row:', error)
-    toast.error('Error', error.message || 'Failed to insert row')
+    console.error(`Failed to ${props.mode} row:`, error)
+    toast.error('Error', error.message || `Failed to ${props.mode} row`)
   } finally {
     isSubmitting.value = false
   }
-}
-
-const convertValueByType = (value: any, type: string): any => {
-  if (value === null || value === '') return null
-
-  const upperType = type.toUpperCase()
-
-  if (upperType.includes('INT') || upperType.includes('SERIAL')) {
-    return parseInt(value, 10)
-  }
-
-  if (
-    upperType.includes('DECIMAL') ||
-    upperType.includes('NUMERIC') ||
-    upperType.includes('REAL') ||
-    upperType.includes('DOUBLE')
-  ) {
-    return parseFloat(value)
-  }
-
-  if (upperType === 'BOOLEAN' || upperType === 'BOOL') {
-    if (typeof value === 'boolean') return value
-    if (typeof value === 'string') {
-      const lower = value.toLowerCase()
-      return lower === 'true' || lower === '1' || lower === 'yes'
-    }
-    return Boolean(value)
-  }
-
-  if (upperType === 'JSON' || upperType === 'JSONB') {
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value)
-      } catch {
-        return value
-      }
-    }
-    return value
-  }
-
-  return value
-}
-
-const getInputType = (columnType: string): string => {
-  const upperType = columnType.toUpperCase()
-
-  if (upperType.includes('INT') || upperType.includes('SERIAL')) {
-    return 'number'
-  }
-
-  if (
-    upperType.includes('DECIMAL') ||
-    upperType.includes('NUMERIC') ||
-    upperType.includes('REAL') ||
-    upperType.includes('DOUBLE')
-  ) {
-    return 'number'
-  }
-
-  if (upperType === 'BOOLEAN' || upperType === 'BOOL') {
-    return 'checkbox'
-  }
-
-  if (upperType === 'DATE') {
-    return 'date'
-  }
-
-  if (upperType.includes('TIMESTAMP') || upperType.includes('TIME')) {
-    return 'datetime-local'
-  }
-
-  return 'text'
-}
-
-const isTextArea = (columnType: string): boolean => {
-  const upperType = columnType.toUpperCase()
-  return upperType === 'TEXT' || upperType === 'JSON' || upperType === 'JSONB'
 }
 </script>
 
 <template>
   <div class="flex flex-col h-full">
     <SheetHeader class="space-y-1 pb-4">
-      <SheetTitle class="text-base font-medium">Insert Row</SheetTitle>
+      <SheetTitle class="text-base font-medium">{{ title }}</SheetTitle>
       <SheetDescription class="text-xs">
-        Add a new row to the table. Fill in the values for each column.
+        {{ mode === 'insert' ? 'Add a new row to the table.' : 'Update the values for this row.' }}
+        Fill in the values for each column.
       </SheetDescription>
     </SheetHeader>
 
@@ -209,11 +147,17 @@ const isTextArea = (columnType: string): boolean => {
     </div>
 
     <SheetFooter class="flex-row gap-2 pt-4 border-t">
-      <Button variant="outline" size="sm" @click="handleClose" :disabled="isSubmitting" class="flex-1">
+      <Button
+        variant="outline"
+        size="sm"
+        @click="handleClose"
+        :disabled="isSubmitting"
+        class="flex-1"
+      >
         Cancel
       </Button>
       <Button size="sm" @click="handleSubmit" :disabled="isSubmitting" class="flex-1">
-        {{ isSubmitting ? 'Inserting...' : 'Insert Row' }}
+        {{ isSubmitting ? submittingLabel : submitLabel }}
       </Button>
     </SheetFooter>
   </div>

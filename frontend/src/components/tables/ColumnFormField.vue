@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, useId } from 'vue'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+
+const instanceId = useId()
 
 export interface ColumnFormData {
   name: string
@@ -128,6 +130,13 @@ const canHaveDefault = computed(() => {
   return !localValue.value.is_identity
 })
 
+const nullable = computed({
+  get: () => localValue.value.nullable,
+  set: (value) => {
+    emit('update:modelValue', { ...props.modelValue, nullable: value })
+  },
+})
+
 const primaryKey = computed({
   get: () => localValue.value.primary_key,
   set: (value) => {
@@ -139,19 +148,28 @@ const primaryKey = computed({
   },
 })
 
+const unique = computed({
+  get: () => localValue.value.unique,
+  set: (value) => {
+    emit('update:modelValue', { ...props.modelValue, unique: value })
+  },
+})
+
+const isIdentity = computed({
+  get: () => localValue.value.is_identity,
+  set: (value) => {
+    const updates: Partial<ColumnFormData> = { is_identity: value }
+    if (value) {
+      updates.default_value = ''
+      updates.nullable = false
+    }
+    emit('update:modelValue', { ...props.modelValue, ...updates })
+  },
+})
+
 const isNullableDisabled = computed(() => {
   return localValue.value.is_identity || localValue.value.primary_key
 })
-
-watch(
-  () => localValue.value.is_identity,
-  (isIdentity) => {
-    if (isIdentity) {
-      updateField('default_value', '')
-      updateField('nullable', false)
-    }
-  }
-)
 
 const setDefaultValue = (value: string) => {
   updateField('default_value', value)
@@ -159,7 +177,7 @@ const setDefaultValue = (value: string) => {
 </script>
 
 <template>
-  <div :class="mode === 'inline' ? 'space-y-2.5' : 'space-y-4'">
+  <div :class="mode === 'inline' ? 'space-y-2' : 'space-y-4'">
     <div :class="mode === 'inline' ? 'grid grid-cols-2 gap-2' : 'space-y-4'">
       <div class="space-y-1">
         <Label v-if="showLabels" class="text-[11px] font-medium text-muted-foreground">
@@ -170,7 +188,7 @@ const setDefaultValue = (value: string) => {
           @update:model-value="(value) => updateField('name', String(value ?? ''))"
           placeholder="e.g., email, created_at"
           :disabled="disabled"
-          class="h-7 text-xs"
+          :class="mode === 'inline' ? 'h-7 text-xs' : 'h-8 text-sm'"
         />
       </div>
 
@@ -182,7 +200,7 @@ const setDefaultValue = (value: string) => {
           :model-value="localValue.type"
           @update:model-value="(value) => updateField('type', String(value ?? 'TEXT'))"
         >
-          <SelectTrigger class="h-7 text-xs">
+          <SelectTrigger :class="mode === 'inline' ? 'h-7 text-xs' : 'h-8 text-sm'">
             <SelectValue placeholder="Select type">
               <template v-if="localValue.type" #default>
                 {{ dataTypes.numeric.concat(dataTypes.text, dataTypes.datetime, dataTypes.special).find(t => t.value === localValue.type)?.label || localValue.type }}
@@ -207,15 +225,17 @@ const setDefaultValue = (value: string) => {
     </div>
 
     <div v-if="canHaveDefault" class="space-y-1">
-      <Label class="text-[11px] font-medium text-muted-foreground">Default Value</Label>
+      <Label v-if="showLabels" class="text-[11px] font-medium text-muted-foreground">
+        Default Value
+      </Label>
       <Input
         :model-value="localValue.default_value"
         @update:model-value="(value) => updateField('default_value', String(value ?? ''))"
         placeholder="e.g., '', 0, gen_random_uuid()"
-        class="h-7 text-xs"
+        :class="mode === 'inline' ? 'h-7 text-xs' : 'h-8 text-sm'"
       />
 
-      <div v-if="defaultValueSuggestions.length > 0" class="flex flex-wrap gap-1">
+      <div v-if="defaultValueSuggestions.length > 0" class="flex flex-wrap gap-1 mt-1">
         <Button
           v-for="suggestion in defaultValueSuggestions"
           :key="suggestion.value"
@@ -223,73 +243,44 @@ const setDefaultValue = (value: string) => {
           variant="outline"
           size="sm"
           @click="setDefaultValue(suggestion.value)"
-          class="h-5 text-[11px] px-1.5"
+          class="h-5 text-[10px] px-1.5"
         >
           {{ suggestion.label }}
         </Button>
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-3">
+    <div :class="mode === 'inline' ? 'flex flex-wrap gap-2' : 'flex flex-wrap gap-3'">
       <div class="flex items-center space-x-1.5">
         <Checkbox
-          :checked="!!localValue.nullable"
-          @update:checked="(value: boolean) => updateField('nullable', !!value)"
-          id="nullable"
+          v-model="nullable"
+          :id="`nullable-${instanceId}`"
           :disabled="isNullableDisabled"
           class="h-3.5 w-3.5"
         />
         <Label
-          for="nullable"
-          :class="['text-[11px] font-normal', isNullableDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']"
+          :for="`nullable-${instanceId}`"
+          :class="['text-[10px] font-normal', isNullableDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer']"
         >
           Nullable
         </Label>
       </div>
 
       <div class="flex items-center space-x-1.5">
-        <Checkbox
-          :checked="!!primaryKey"
-          @update:checked="(value: boolean) => primaryKey = !!value"
-          id="primary-key"
-          class="h-3.5 w-3.5"
-        />
-        <Label
-          for="primary-key"
-          class="text-[11px] font-normal cursor-pointer"
-        >
+        <Checkbox v-model="primaryKey" :id="`primary-key-${instanceId}`" class="h-3.5 w-3.5" />
+        <Label :for="`primary-key-${instanceId}`" class="text-[10px] font-normal cursor-pointer">
           Primary Key
         </Label>
       </div>
 
       <div class="flex items-center space-x-1.5">
-        <Checkbox
-          :checked="!!localValue.unique"
-          @update:checked="(value: boolean) => updateField('unique', !!value)"
-          id="unique"
-          class="h-3.5 w-3.5"
-        />
-        <Label
-          for="unique"
-          class="text-[11px] font-normal cursor-pointer"
-        >
-          Unique
-        </Label>
+        <Checkbox v-model="unique" :id="`unique-${instanceId}`" class="h-3.5 w-3.5" />
+        <Label :for="`unique-${instanceId}`" class="text-[10px] font-normal cursor-pointer"> Unique </Label>
       </div>
 
       <div v-if="isNumericType" class="flex items-center space-x-1.5">
-        <Checkbox
-          :checked="!!localValue.is_identity"
-          @update:checked="(value: boolean) => updateField('is_identity', !!value)"
-          id="identity"
-          class="h-3.5 w-3.5"
-        />
-        <Label
-          for="identity"
-          class="text-[11px] font-normal cursor-pointer"
-        >
-          Auto-increment
-        </Label>
+        <Checkbox v-model="isIdentity" :id="`identity-${instanceId}`" class="h-3.5 w-3.5" />
+        <Label :for="`identity-${instanceId}`" class="text-[10px] font-normal cursor-pointer"> Auto-increment </Label>
       </div>
     </div>
   </div>

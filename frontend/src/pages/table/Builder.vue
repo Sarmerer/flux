@@ -9,6 +9,7 @@ import TableHeader from '@/components/tables/builder/TableHeader.vue'
 import EmptyTableState from '@/components/tables/builder/EmptyTableState.vue'
 
 import type { TableFormData } from '@/components/tables/drawers/TableEditorContent.vue'
+import type { TableColumn } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -21,8 +22,9 @@ import {
 } from '@/components/ui/dialog'
 
 import { useSidebarItemsStore } from '@/stores/ui/sidebar-items'
-import { useTableData, useTables } from '@/composables/api'
+import { useTables } from '@/composables/api'
 import { useTableDetail } from '@/composables/api/useTableDetail'
+import { useTableRowOperations } from '@/composables/tables/useTableRowOperations'
 import { useDrawers } from '@/composables/drawerRegistry'
 import { useRouteContext } from '@/composables/routing'
 import { useToast } from '@/composables/ui'
@@ -41,13 +43,6 @@ const { projectId, tableId } = useRouteContext()
 
 const { tables, loading: isLoading, createTable, deleteTable } = useTables(projectId.value)
 
-const tableDetailData = ref<any>(null)
-const tableColumns = ref<any[]>([])
-const tableRows = ref<any[]>([])
-const totalRows = ref(0)
-const tableDetailLoading = ref(false)
-const currentPage = ref(1)
-const pageLimit = ref(50)
 const selectedRows = ref<any[]>([])
 const isDeleteTableDialogOpen = ref(false)
 const tableToDelete = ref<string | null>(null)
@@ -56,81 +51,49 @@ const tableDataViewRef = ref<InstanceType<typeof TableDataView> | null>(null)
 const tableInstance = computed(() => tableDataViewRef.value?.dataTableRef?.table)
 const allColumns = computed(() => tableInstance.value?.getAllColumns() || [])
 
-let currentTableDetail: ReturnType<typeof useTableDetail> | null = null
+const tableDetailState = ref<ReturnType<typeof useTableDetail> | null>(null)
 
 watch(
   tableId,
   (newTableId) => {
-    currentPage.value = 1
     selectedRows.value = []
 
     if (newTableId) {
-      currentTableDetail = useTableDetail(projectId.value, newTableId, {
-        page: currentPage.value,
-        limit: pageLimit.value,
+      tableDetailState.value = useTableDetail(projectId.value, newTableId, {
+        page: 1,
+        limit: 50,
         autoFetch: true,
       })
-
-      watch(
-        currentTableDetail.data,
-        (newData) => {
-          tableDetailData.value = newData
-          tableColumns.value = currentTableDetail!.columns.value
-          tableRows.value = currentTableDetail!.rows.value
-          totalRows.value = currentTableDetail!.totalRows.value
-        },
-        { immediate: true }
-      )
-
-      watch(
-        currentTableDetail.loading,
-        (loading) => {
-          tableDetailLoading.value = loading
-        },
-        { immediate: true }
-      )
-
-      watch(
-        currentTableDetail.currentPage,
-        (page) => {
-          currentPage.value = page
-        },
-        { immediate: true }
-      )
-
-      watch(
-        currentTableDetail.pageLimit,
-        (limit) => {
-          pageLimit.value = limit
-        },
-        { immediate: true }
-      )
     } else {
-      tableDetailData.value = null
-      tableColumns.value = []
-      tableRows.value = []
-      totalRows.value = 0
+      tableDetailState.value = null
     }
   },
   { immediate: true }
 )
 
+const tableDetailData = computed(() => tableDetailState.value?.data ?? null)
+const tableColumns = computed(() => tableDetailState.value?.columns ?? [])
+const tableRows = computed(() => tableDetailState.value?.rows ?? [])
+const totalRows = computed(() => tableDetailState.value?.totalRows ?? 0)
+const tableDetailLoading = computed(() => tableDetailState.value?.loading ?? false)
+const currentPage = computed(() => tableDetailState.value?.currentPage ?? 1)
+const pageLimit = computed(() => tableDetailState.value?.pageLimit ?? 50)
+
+const rowOperations = useTableRowOperations(
+  projectId,
+  computed(() => tableId.value ?? null)
+)
+
 const refreshTableDetail = () => {
-  if (currentTableDetail) {
-    currentTableDetail.refresh()
-  }
+  tableDetailState.value?.refresh()
 }
 
 const goToPage = (page: number) => {
-  if (currentTableDetail) {
-    currentTableDetail.goToPage(page)
-  }
+  tableDetailState.value?.goToPage(page)
 }
 
 const setPageLimit = (limit: number) => {
-  if (currentTableDetail) {
-    currentTableDetail.setPageLimit(limit)
-  }
+  tableDetailState.value?.setPageLimit(limit)
 }
 
 watch(
@@ -196,7 +159,7 @@ const openEditTableSchema = () => {
   const initialData: TableFormData = {
     name: selectedTable.value.name,
     description: selectedTable.value.description || '',
-    columns: tableColumns.value.map((col) => ({
+    columns: tableColumns.value.map((col: TableColumn) => ({
       name: col.name,
       type: col.type,
       nullable: col.is_nullable,
@@ -228,13 +191,12 @@ const handleSelectTable = (id: string) => {
 const openInsertRowDrawer = () => {
   if (!tableId.value) return
 
-  const tableDataService = useTableData(projectId.value, tableId.value)
-
   openInsertRow({
     props: {
+      mode: 'insert',
       columns: tableColumns.value,
-      onInsert: async (data: Record<string, any>) => {
-        await tableDataService.insertRow(data)
+      onSave: async (data: Record<string, any>) => {
+        await rowOperations.insertRow(data)
         refreshTableDetail()
       },
     },
@@ -244,22 +206,23 @@ const openInsertRowDrawer = () => {
 const openEditRowDrawer = (row: Record<string, any>) => {
   if (!tableId.value) return
 
-  const idColumn = tableColumns.value.find((col) => col.is_primary_key)
+  const idColumn = tableColumns.value.find((col: TableColumn) => col.is_primary_key)
   if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
     return
   }
 
   const rowId = row[idColumn.name]
-  const tableDataService = useTableData(projectId.value, tableId.value)
 
   openEditRow({
     props: {
+      mode: 'edit',
       columns: tableColumns.value,
       rowData: row,
       rowId,
-      onUpdate: async (id: string, data: Record<string, any>) => {
-        await tableDataService.updateRow(id, data)
+      onSave: async (data: Record<string, any>, id?: string) => {
+        if (!id) return
+        await rowOperations.updateRow(id, data)
         refreshTableDetail()
       },
     },
@@ -269,21 +232,20 @@ const openEditRowDrawer = (row: Record<string, any>) => {
 const openDeleteRowDrawer = (row: Record<string, any>) => {
   if (!tableId.value) return
 
-  const idColumn = tableColumns.value.find((col) => col.is_primary_key)
+  const idColumn = tableColumns.value.find((col: TableColumn) => col.is_primary_key)
   if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
     return
   }
 
   const rowId = row[idColumn.name]
-  const tableDataService = useTableData(projectId.value, tableId.value)
 
   openDeleteRow({
     props: {
       rowId,
       rowData: row,
       onDelete: async (id: string) => {
-        await tableDataService.deleteRow(id)
+        await rowOperations.deleteRow(id)
         refreshTableDetail()
       },
     },
@@ -320,20 +282,16 @@ const handleRowSelectionChange = (rows: any[]) => {
 const handleDeleteSelected = async () => {
   if (selectedRows.value.length === 0 || !tableId.value) return
 
-  const idColumn = tableColumns.value.find((col) => col.is_primary_key)
+  const idColumn = tableColumns.value.find((col: TableColumn) => col.is_primary_key)
   if (!idColumn) {
     toast.error('Error', 'No primary key found for this table')
     return
   }
 
-  const tableDataService = useTableData(projectId.value, tableId.value)
   const count = selectedRows.value.length
 
   try {
-    for (const row of selectedRows.value) {
-      const rowId = row[idColumn.name]
-      await tableDataService.deleteRow(rowId)
-    }
+    await rowOperations.deleteRows(selectedRows.value, idColumn.name)
     selectedRows.value = []
     refreshTableDetail()
     toast.success('Success', `Deleted ${count} row${count > 1 ? 's' : ''}`)
